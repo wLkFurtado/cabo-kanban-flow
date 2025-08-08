@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useBoardsStore } from "@/state/boardsStore";
 import { EditableText } from "@/components/editable/EditableText";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 interface KanbanListProps {
   list: List;
   cards: Card[];
@@ -15,6 +16,7 @@ interface KanbanListProps {
 export function KanbanList({ list, cards, boardId }: KanbanListProps) {
   const updateListTitle = useBoardsStore((s) => s.updateListTitle);
   const addCard = useBoardsStore((s) => s.addCard);
+  const deleteList = useBoardsStore((s) => s.deleteList);
   const [adding, setAdding] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   return (
@@ -23,6 +25,23 @@ export function KanbanList({ list, cards, boardId }: KanbanListProps) {
         <h2 className="text-sm font-semibold text-foreground">
           <EditableText value={list.title} onSubmit={(v) => updateListTitle(boardId, list.id, v)} className="text-sm font-semibold text-foreground" />
         </h2>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="ghost" size="sm" aria-label="Excluir lista">Excluir</Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir lista?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Excluir esta etapa removerá todos os cartões nela. Deseja continuar?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={() => deleteList(boardId, list.id)}>Excluir</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </header>
 
       <div className="rounded-lg bg-secondary/40 border p-2 min-h-10">

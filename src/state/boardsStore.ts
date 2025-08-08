@@ -50,7 +50,12 @@ interface BoardsState {
   deleteBoard: (boardId: string) => void;
   updateBoardTitle: (boardId: string, title: string) => void;
   updateBoard: (boardId: string, patch: Partial<Board>) => void;
+  // Lists management
+  addList: (boardId: string, title: string) => string;
+  deleteList: (boardId: string, listId: string) => void;
+  moveList: (boardId: string, fromIndex: number, toIndex: number) => void;
   updateListTitle: (boardId: string, listId: string, title: string) => void;
+  // Cards management
   addCard: (boardId: string, listId: string, title: string) => string;
   updateCard: (boardId: string, cardId: string, patch: Partial<Card>) => void;
   deleteCard: (boardId: string, listId: string, cardId: string) => void;

@@ -11,6 +11,8 @@ export default function BoardView() {
   const { boardId } = useParams();
   const board = useBoardsStore((s) => (boardId ? s.boards[boardId] : undefined));
   const moveCard = useBoardsStore((s) => s.moveCard);
+  const moveList = useBoardsStore((s) => s.moveList);
+  const addList = useBoardsStore((s) => s.addList);
   const updateBoardTitle = useBoardsStore((s) => s.updateBoardTitle);
   const navigate = useNavigate();
   const titleRef = useRef<HTMLHeadingElement>(null);
@@ -80,6 +82,8 @@ export default function BoardView() {
                 onMoveCard={(fromId, toId, fromIdx, toIdx) =>
                   moveCard(board.id, fromId, toId, fromIdx, toIdx)
                 }
+                onMoveList={(fromIdx, toIdx) => moveList(board.id, fromIdx, toIdx)}
+                onAddList={(title) => addList(board.id, title)}
               />
             </section>
           </main>
