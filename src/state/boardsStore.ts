@@ -48,6 +48,11 @@ interface BoardsState {
   boardOrder: string[]; // order of board ids (recent first)
   createBoard: (title: string) => string; // returns boardId
   deleteBoard: (boardId: string) => void;
+  updateBoardTitle: (boardId: string, title: string) => void;
+  updateListTitle: (boardId: string, listId: string, title: string) => void;
+  addCard: (boardId: string, listId: string, title: string) => string;
+  updateCard: (boardId: string, cardId: string, patch: Partial<Card>) => void;
+  deleteCard: (boardId: string, listId: string, cardId: string) => void;
   moveCard: (
     boardId: string,
     fromListId: string,
@@ -77,6 +82,100 @@ export const useBoardsStore = create<BoardsState>()(
             boards: rest,
             boardOrder: state.boardOrder.filter((id) => id !== boardId),
           };
+        });
+      },
+      updateBoardTitle: (boardId: string, title: string) => {
+        set((state) => {
+          const board = state.boards[boardId];
+          if (!board) return state;
+          const updated: Board = { ...board, title };
+          return { boards: { ...state.boards, [boardId]: updated } };
+        });
+      },
+      updateListTitle: (boardId: string, listId: string, title: string) => {
+        set((state) => {
+          const board = state.boards[boardId];
+          if (!board) return state;
+          const list = board.lists[listId];
+          if (!list) return state;
+          const updatedList: List = { ...list, title };
+          const updated: Board = {
+            ...board,
+            lists: { ...board.lists, [listId]: updatedList },
+          };
+          return { boards: { ...state.boards, [boardId]: updated } };
+        });
+      },
+      addCard: (boardId: string, listId: string, title: string) => {
+        const id = uid("c");
+        set((state) => {
+          const board = state.boards[boardId];
+          if (!board) return state;
+          const listCards = Array.from(board.cardsByList[listId] || []);
+          const newCard: Card = {
+            id,
+            listId,
+            title,
+            description: "",
+            position: listCards.length,
+            labels: [],
+            members: [],
+          };
+          const updated: Board = {
+            ...board,
+            cardsByList: {
+              ...board.cardsByList,
+              [listId]: [...listCards, newCard],
+            },
+          };
+          return { boards: { ...state.boards, [boardId]: updated } };
+        });
+        return id;
+      },
+      updateCard: (boardId: string, cardId: string, patch: Partial<Card>) => {
+        set((state) => {
+          const board = state.boards[boardId];
+          if (!board) return state;
+          let foundListId: string | null = null;
+          let foundIndex = -1;
+          for (const lid of Object.keys(board.cardsByList)) {
+            const idx = (board.cardsByList[lid] || []).findIndex((c) => c.id === cardId);
+            if (idx !== -1) {
+              foundListId = lid;
+              foundIndex = idx;
+              break;
+            }
+          }
+          if (!foundListId || foundIndex === -1) return state;
+          const existing = board.cardsByList[foundListId][foundIndex];
+          const { listId: _ignoreList, position: _ignorePos, ...rest } = patch as any;
+          const updatedCard: Card = { ...existing, ...rest };
+          const updatedList = board.cardsByList[foundListId].slice();
+          updatedList[foundIndex] = updatedCard;
+          const updated: Board = {
+            ...board,
+            cardsByList: {
+              ...board.cardsByList,
+              [foundListId]: updatedList,
+            },
+          };
+          return { boards: { ...state.boards, [boardId]: updated } };
+        });
+      },
+      deleteCard: (boardId: string, listId: string, cardId: string) => {
+        set((state) => {
+          const board = state.boards[boardId];
+          if (!board) return state;
+          const source = Array.from(board.cardsByList[listId] || []);
+          const filtered = source.filter((c) => c.id !== cardId).map((c, i) => ({ ...c, position: i }));
+          const updated: Board = {
+            ...board,
+            cardsByList: {
+              ...board.cardsByList,
+              [listId]: filtered,
+            },
+          };
+          return { boards: { ...state.boards, [boardId]: updated } };
         });
       },
       moveCard: (boardId, fromListId, toListId, fromIndex, toIndex) => {

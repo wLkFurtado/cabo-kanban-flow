@@ -1,13 +1,19 @@
 import { AppHeader } from "@/components/layout/AppHeader";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { KanbanBoard } from "@/components/kanban/KanbanBoard";
+import { EditableText } from "@/components/editable/EditableText";
 import { useBoardsStore } from "@/state/boardsStore";
 import { useParams, Link } from "react-router-dom";
+import { useEffect } from "react";
 
 export default function BoardView() {
   const { boardId } = useParams();
   const board = useBoardsStore((s) => (boardId ? s.boards[boardId] : undefined));
   const moveCard = useBoardsStore((s) => s.moveCard);
+  const updateBoardTitle = useBoardsStore((s) => s.updateBoardTitle);
+  useEffect(() => {
+    if (board) document.title = `${board.title} | Meus Boards`;
+  }, [board?.title]);
 
   if (!board) {
     return (
@@ -35,11 +41,14 @@ export default function BoardView() {
           <main className="flex-1">
             <section className="px-4 md:px-6 py-6 md:py-8">
               <header className="mb-4">
-                <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{board.title}</h1>
+                <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+                  <EditableText value={board.title} onSubmit={(v) => updateBoardTitle(board.id, v)} />
+                </h1>
                 <p className="text-sm text-muted-foreground mt-1">Organize suas demandas por listas e cartões.</p>
               </header>
 
               <KanbanBoard
+                boardId={board.id}
                 listsOrder={board.listsOrder}
                 lists={board.lists}
                 cardsByList={board.cardsByList}
