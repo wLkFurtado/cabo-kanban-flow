@@ -45,9 +45,17 @@ export default function BoardView() {
             <section className="px-4 md:px-6 py-6 md:py-8">
               <header className="mb-4">
                 <div className="flex items-start justify-between gap-2">
-                  <h1 ref={titleRef} className="text-2xl md:text-3xl font-bold tracking-tight">
-                    <EditableText value={board.title} onSubmit={(v) => updateBoardTitle(board.id, v)} />
-                  </h1>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      {board.icon && <span className="text-2xl leading-none">{board.icon}</span>}
+                      <h1 ref={titleRef} className="text-2xl md:text-3xl font-bold tracking-tight">
+                        <EditableText value={board.title} onSubmit={(v) => updateBoardTitle(board.id, v)} />
+                      </h1>
+                    </div>
+                    {board.description && (
+                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{board.description}</p>
+                    )}
+                  </div>
                   <BoardActions
                     boardId={board.id}
                     onRename={() => {
@@ -59,7 +67,9 @@ export default function BoardView() {
                     onDeleted={() => navigate("/")}
                   />
                 </div>
-                <p className="text-sm text-muted-foreground mt-1">Organize suas demandas por listas e cartões.</p>
+                {!board.description && (
+                  <p className="text-sm text-muted-foreground mt-1">Organize suas demandas por listas e cartões.</p>
+                )}
               </header>
 
               <KanbanBoard

@@ -49,6 +49,7 @@ interface BoardsState {
   createBoard: (title: string) => string; // returns boardId
   deleteBoard: (boardId: string) => void;
   updateBoardTitle: (boardId: string, title: string) => void;
+  updateBoard: (boardId: string, patch: Partial<Board>) => void;
   updateListTitle: (boardId: string, listId: string, title: string) => void;
   addCard: (boardId: string, listId: string, title: string) => string;
   updateCard: (boardId: string, cardId: string, patch: Partial<Card>) => void;
@@ -89,6 +90,14 @@ export const useBoardsStore = create<BoardsState>()(
           const board = state.boards[boardId];
           if (!board) return state;
           const updated: Board = { ...board, title };
+          return { boards: { ...state.boards, [boardId]: updated } };
+        });
+      },
+      updateBoard: (boardId: string, patch: Partial<Board>) => {
+        set((state) => {
+          const board = state.boards[boardId];
+          if (!board) return state;
+          const updated: Board = { ...board, ...patch };
           return { boards: { ...state.boards, [boardId]: updated } };
         });
       },

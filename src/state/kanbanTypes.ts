@@ -38,4 +38,7 @@ export interface Board {
   listsOrder: string[];
   lists: Record<string, List>;
   cardsByList: Record<string, Card[]>;
+  icon?: string; // Emoji ou ícone curto
+  description?: string;
+  color?: string; // Ex.: hsl(...) ou #hex
 }

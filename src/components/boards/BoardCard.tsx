@@ -25,12 +25,18 @@ export function BoardCard({ board }: BoardCardProps) {
     >
       <div className="flex items-start justify-between gap-2">
         <div ref={titleRef} className="min-w-0" onClick={(e) => e.stopPropagation()}>
-          <EditableText
-            value={board.title}
-            onSubmit={(v) => updateBoardTitle(board.id, v)}
-            className="text-base font-semibold"
-            placeholder="Sem título"
-          />
+          <div className="flex items-center gap-2">
+            {board.icon && <span className="text-xl leading-none">{board.icon}</span>}
+            <EditableText
+              value={board.title}
+              onSubmit={(v) => updateBoardTitle(board.id, v)}
+              className="text-base font-semibold"
+              placeholder="Sem título"
+            />
+          </div>
+          {board.description && (
+            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{board.description}</p>
+          )}
         </div>
         <div onClick={(e) => e.stopPropagation()}>
           <BoardActions
