@@ -2,15 +2,18 @@ import { AppHeader } from "@/components/layout/AppHeader";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { KanbanBoard } from "@/components/kanban/KanbanBoard";
 import { EditableText } from "@/components/editable/EditableText";
+import { BoardActions } from "@/components/boards/BoardActions";
 import { useBoardsStore } from "@/state/boardsStore";
-import { useParams, Link } from "react-router-dom";
-import { useEffect } from "react";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { useEffect, useRef } from "react";
 
 export default function BoardView() {
   const { boardId } = useParams();
   const board = useBoardsStore((s) => (boardId ? s.boards[boardId] : undefined));
   const moveCard = useBoardsStore((s) => s.moveCard);
   const updateBoardTitle = useBoardsStore((s) => s.updateBoardTitle);
+  const navigate = useNavigate();
+  const titleRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     if (board) document.title = `${board.title} | Meus Boards`;
   }, [board?.title]);
@@ -41,9 +44,21 @@ export default function BoardView() {
           <main className="flex-1">
             <section className="px-4 md:px-6 py-6 md:py-8">
               <header className="mb-4">
-                <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-                  <EditableText value={board.title} onSubmit={(v) => updateBoardTitle(board.id, v)} />
-                </h1>
+                <div className="flex items-start justify-between gap-2">
+                  <h1 ref={titleRef} className="text-2xl md:text-3xl font-bold tracking-tight">
+                    <EditableText value={board.title} onSubmit={(v) => updateBoardTitle(board.id, v)} />
+                  </h1>
+                  <BoardActions
+                    boardId={board.id}
+                    onRename={() => {
+                      const btn = titleRef.current?.querySelector(
+                        'button[aria-label="Editar texto"]'
+                      ) as HTMLButtonElement | null;
+                      btn?.click();
+                    }}
+                    onDeleted={() => navigate("/")}
+                  />
+                </div>
                 <p className="text-sm text-muted-foreground mt-1">Organize suas demandas por listas e cartões.</p>
               </header>
 

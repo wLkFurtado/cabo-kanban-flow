@@ -2,8 +2,9 @@ import { AppHeader } from "@/components/layout/AppHeader";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { useBoardsStore } from "@/state/boardsStore";
 import { Button } from "@/components/ui/button";
-import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { BoardCard } from "@/components/boards/BoardCard";
 
 const Index = () => {
   const boards = useBoardsStore((s) => s.boards);
@@ -48,15 +49,7 @@ const Index = () => {
                   <div className="text-sm text-muted-foreground">Nenhum board ainda. Crie o primeiro acima.</div>
                 )}
                 {boardOrder.map((id) => (
-                  <Link
-                    key={id}
-                    to={`/board/${id}`}
-                    className="rounded-lg border bg-card p-4 hover:shadow-md transition-shadow"
-                    aria-label={`Abrir board ${boards[id].title}`}
-                  >
-                    <h2 className="font-semibold">{boards[id].title}</h2>
-                    <p className="text-xs text-muted-foreground mt-1">{new Date(boards[id].createdAt).toLocaleDateString()}</p>
-                  </Link>
+                  <BoardCard key={id} board={boards[id]} />
                 ))}
               </div>
             </section>
