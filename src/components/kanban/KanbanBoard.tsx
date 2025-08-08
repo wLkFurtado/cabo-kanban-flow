@@ -1,13 +1,20 @@
 import { DragDropContext, DropResult } from "@hello-pangea/dnd";
-import { useKanbanStore } from "@/state/kanbanStore";
 import { KanbanList } from "./KanbanList";
+import type { Card, List } from "@/state/kanbanTypes";
 
-export function KanbanBoard() {
-  const listsOrder = useKanbanStore((s) => s.listsOrder);
-  const lists = useKanbanStore((s) => s.lists);
-  const cardsByList = useKanbanStore((s) => s.cardsByList);
-  const moveCard = useKanbanStore((s) => s.moveCard);
+interface KanbanBoardProps {
+  listsOrder: string[];
+  lists: Record<string, List>;
+  cardsByList: Record<string, Card[]>;
+  onMoveCard: (
+    fromListId: string,
+    toListId: string,
+    fromIndex: number,
+    toIndex: number
+  ) => void;
+}
 
+export function KanbanBoard({ listsOrder, lists, cardsByList, onMoveCard }: KanbanBoardProps) {
   const onDragEnd = (result: DropResult) => {
     const { destination, source } = result;
     if (!destination) return;
@@ -17,7 +24,7 @@ export function KanbanBoard() {
     )
       return;
 
-    moveCard(source.droppableId, destination.droppableId, source.index, destination.index);
+    onMoveCard(source.droppableId, destination.droppableId, source.index, destination.index);
   };
 
   return (

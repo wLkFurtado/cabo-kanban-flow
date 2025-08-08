@@ -1,6 +1,6 @@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import { Card as TCard } from "@/state/kanbanStore";
+import { Card as TCard } from "@/state/kanbanTypes";
 import { format, isPast, isWithinInterval, addDays, parseISO } from "date-fns";
 
 const labelColorClass: Record<string, string> = {

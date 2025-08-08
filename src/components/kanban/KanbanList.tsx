@@ -1,6 +1,6 @@
 import { Droppable, Draggable } from "@hello-pangea/dnd";
 import { KanbanCard } from "./KanbanCard";
-import { Card, List } from "@/state/kanbanStore";
+import { Card, List } from "@/state/kanbanTypes";
 
 interface KanbanListProps {
   list: List;
