@@ -45,8 +45,13 @@ export function KanbanBoard({ boardId, listsOrder, lists, cardsByList, onMoveCar
             {listsOrder.map((listId, index) => (
               <Draggable key={listId} draggableId={listId} index={index}>
                 {(dragProvided) => (
-                  <div ref={dragProvided.innerRef} {...dragProvided.draggableProps} {...dragProvided.dragHandleProps}>
-                    <KanbanList list={lists[listId]} cards={cardsByList[listId] || []} boardId={boardId} />
+                  <div ref={dragProvided.innerRef} {...dragProvided.draggableProps}>
+                    <KanbanList 
+                      list={lists[listId]} 
+                      cards={cardsByList[listId] || []} 
+                      boardId={boardId}
+                      dragHandleProps={dragProvided.dragHandleProps}
+                    />
                   </div>
                 )}
               </Draggable>
