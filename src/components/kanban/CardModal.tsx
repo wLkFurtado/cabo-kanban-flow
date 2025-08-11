@@ -4,21 +4,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { cn } from "@/lib/utils";
+
 import { Card as TCard, Label as TLabel, LabelColor, Member as TMember } from "@/state/kanbanTypes";
 import { parseISO, format } from "date-fns";
 import { useBoardsStore } from "@/state/boardsStore";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 
-const labelColorClass: Record<LabelColor, string> = {
-  green: "bg-[hsl(var(--label-green))]",
-  yellow: "bg-[hsl(var(--label-yellow))]",
-  orange: "bg-[hsl(var(--label-orange))]",
-  red: "bg-[hsl(var(--label-red))]",
-  purple: "bg-[hsl(var(--label-purple))]",
-  blue: "bg-[hsl(var(--label-blue))]",
-};
 
 interface CardModalProps {
   open: boolean;
@@ -147,15 +139,11 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
               {labels.map((l) => (
                 <button
                   key={l.id}
-                  className={cn(
-                    "inline-flex items-center gap-2 rounded-full px-2 py-1 text-xs border",
-                    labelColorClass[l.color]
-                  )}
+                  className="inline-flex items-center gap-2 rounded-full px-2 py-1 text-xs border bg-muted text-foreground"
                   onClick={() => removeLabel(l.id)}
                   title="Remover label"
                 >
-                  <span className="h-2 w-2 rounded-full bg-background/60" />
-                  <span className="text-background font-medium">{l.name}</span>
+                  <span className="font-medium">{l.name}</span>
                 </button>
               ))}
             </div>
@@ -164,20 +152,8 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                 placeholder="Nome da label"
                 value={newLabelName}
                 onChange={(e) => setNewLabelName(e.target.value)}
-                className="max-w-[200px]"
+                className="max-w-[260px]"
               />
-              <select
-                className="border rounded-md bg-background text-sm px-2"
-                value={newLabelColor}
-                onChange={(e) => setNewLabelColor(e.target.value as LabelColor)}
-              >
-                <option value="green">Verde</option>
-                <option value="yellow">Amarelo</option>
-                <option value="orange">Laranja</option>
-                <option value="red">Vermelho</option>
-                <option value="purple">Roxo</option>
-                <option value="blue">Azul</option>
-              </select>
               <Button size="sm" onClick={addLabel}>
                 Adicionar
               </Button>
@@ -210,6 +186,43 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
               <Button size="sm" onClick={addMember}>
                 Adicionar
               </Button>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-sm text-muted-foreground">Secretaria solicitante</label>
+            <Input
+              placeholder="Informe a secretaria solicitante"
+              value={(custom as any).secretariaSolicitante || ""}
+              onChange={(e) => setCustom((prev) => ({ ...(prev || {}), secretariaSolicitante: e.target.value }))}
+            />
+          </div>
+
+          <div>
+            <label className="text-sm text-muted-foreground">Tipos de demanda</label>
+            <div className="mt-2 flex flex-col gap-2">
+              {[
+                "Criação de demanda gráfica",
+                "Post para redes sociais",
+                "Nota ou matéria para imprensa/site",
+                "Apoio de mídia (rádio, TV, outdoor etc.)",
+              ].map((opt) => {
+                const list = Array.isArray((custom as any).tiposDemanda) ? ((custom as any).tiposDemanda as string[]) : [];
+                const checked = list.includes(opt);
+                return (
+                  <label key={opt} className="inline-flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={checked}
+                      onCheckedChange={(v) => {
+                        const curr = new Set(list);
+                        if (v) curr.add(opt); else curr.delete(opt);
+                        setCustom((prev) => ({ ...(prev || {}), tiposDemanda: Array.from(curr) }));
+                      }}
+                    />
+                    <span>{opt}</span>
+                  </label>
+                );
+              })}
             </div>
           </div>
         </div>
