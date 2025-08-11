@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { BoardCreateDialog } from "@/components/boards/BoardCreateDialog";
 import { Search } from "lucide-react";
+import { UserMenu } from "@/components/layout/UserMenu";
 
 export default function RootLayout() {
 
