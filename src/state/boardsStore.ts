@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import type { Board, Card, List } from "./kanbanTypes";
+import type { Board, Card, List, CustomField } from "./kanbanTypes";
 
 function uid(prefix = "id"): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 8)}${Date.now()
@@ -40,6 +40,7 @@ function createDefaultBoard(title: string): Board {
     listsOrder,
     lists,
     cardsByList,
+    customFields: [],
   };
 }
 
@@ -50,6 +51,13 @@ interface BoardsState {
   deleteBoard: (boardId: string) => void;
   updateBoardTitle: (boardId: string, title: string) => void;
   updateBoard: (boardId: string, patch: Partial<Board>) => void;
+  // Custom fields management
+  addCustomField: (boardId: string, field: Omit<CustomField, "id" | "order"> & Partial<Pick<CustomField, "order">>) => string;
+  updateCustomField: (boardId: string, fieldId: string, patch: Partial<CustomField>) => void;
+  deleteCustomField: (boardId: string, fieldId: string) => void;
+  reorderCustomFields: (boardId: string, fromIndex: number, toIndex: number) => void;
+  // Cards custom values
+  setCardCustomValue: (boardId: string, cardId: string, fieldId: string, value: unknown) => void;
   // Lists management
   addList: (boardId: string, title: string) => string;
   deleteList: (boardId: string, listId: string) => void;
@@ -103,6 +111,112 @@ export const useBoardsStore = create<BoardsState>()(
           const board = state.boards[boardId];
           if (!board) return state;
           const updated: Board = { ...board, ...patch };
+          return { boards: { ...state.boards, [boardId]: updated } };
+        });
+      },
+      // Custom fields management
+      addCustomField: (boardId, fieldInput) => {
+        const id = uid("cf");
+        set((state) => {
+          const board = state.boards[boardId];
+          if (!board) return state;
+          const fields = Array.from(board.customFields || []);
+          const order = fieldInput.order ?? fields.length;
+          const newField: CustomField = {
+            id,
+            name: fieldInput.name || "Novo campo",
+            type: fieldInput.type || "text",
+            required: fieldInput.required || false,
+            options: fieldInput.options || (fieldInput.type?.includes("select") ? ["Opção 1"] : undefined),
+            showOnCard: fieldInput.showOnCard || false,
+            helpText: fieldInput.helpText,
+            order,
+            defaultValue: fieldInput.defaultValue,
+          };
+          const newFields = [...fields, newField].sort((a, b) => a.order - b.order).map((f, i) => ({ ...f, order: i }));
+          const updated: Board = { ...board, customFields: newFields };
+          return { boards: { ...state.boards, [boardId]: updated } };
+        });
+        return id;
+      },
+      updateCustomField: (boardId, fieldId, patch) => {
+        set((state) => {
+          const board = state.boards[boardId];
+          if (!board) return state;
+          const fields = Array.from(board.customFields || []);
+          const idx = fields.findIndex((f) => f.id === fieldId);
+          if (idx === -1) return state;
+          const updatedField: CustomField = { ...fields[idx], ...patch } as CustomField;
+          fields[idx] = updatedField;
+          const normalized = fields.sort((a, b) => a.order - b.order).map((f, i) => ({ ...f, order: i }));
+          const updated: Board = { ...board, customFields: normalized };
+          return { boards: { ...state.boards, [boardId]: updated } };
+        });
+      },
+      deleteCustomField: (boardId, fieldId) => {
+        set((state) => {
+          const board = state.boards[boardId];
+          if (!board) return state;
+          const fields = (board.customFields || []).filter((f) => f.id !== fieldId).map((f, i) => ({ ...f, order: i }));
+          // Clean values from all cards
+          const newCardsByList: Board["cardsByList"] = Object.fromEntries(
+            Object.entries(board.cardsByList).map(([lid, cards]) => [
+              lid,
+              cards.map((c) => {
+                if (!c.custom) return c;
+                const { [fieldId]: _removed, ...rest } = c.custom as Record<string, unknown>;
+                return { ...c, custom: rest } as Card;
+              }),
+            ])
+          );
+          const updated: Board = { ...board, customFields: fields, cardsByList: newCardsByList };
+          return { boards: { ...state.boards, [boardId]: updated } };
+        });
+      },
+      reorderCustomFields: (boardId, fromIndex, toIndex) => {
+        set((state) => {
+          const board = state.boards[boardId];
+          if (!board) return state;
+          const fields = Array.from(board.customFields || []);
+          if (!fields.length) return state;
+          const moved = (function(){ const arr = fields.slice(); const [it] = arr.splice(fromIndex,1); arr.splice(toIndex,0,it); return arr; })();
+          const normalized = moved.map((f, i) => ({ ...f, order: i }));
+          const updated: Board = { ...board, customFields: normalized };
+          return { boards: { ...state.boards, [boardId]: updated } };
+        });
+      },
+      setCardCustomValue: (boardId, cardId, fieldId, value) => {
+        set((state) => {
+          const board = state.boards[boardId];
+          if (!board) return state;
+          let foundListId: string | null = null;
+          let foundIndex = -1;
+          for (const lid of Object.keys(board.cardsByList)) {
+            const idx = (board.cardsByList[lid] || []).findIndex((c) => c.id === cardId);
+            if (idx !== -1) {
+              foundListId = lid;
+              foundIndex = idx;
+              break;
+            }
+          }
+          if (!foundListId || foundIndex === -1) return state;
+          const existing = board.cardsByList[foundListId][foundIndex];
+          const custom = { ...(existing.custom || {}) } as Record<string, unknown>;
+          if (value === undefined || value === null || (typeof value === "string" && value.trim() === "")) {
+            delete custom[fieldId];
+          } else {
+            custom[fieldId] = value;
+          }
+          const updatedCard: Card = { ...existing, custom };
+          const updatedList = board.cardsByList[foundListId].slice();
+          updatedList[foundIndex] = updatedCard;
+          const updated: Board = {
+            ...board,
+            cardsByList: {
+              ...board.cardsByList,
+              [foundListId]: updatedList,
+            },
+          };
           return { boards: { ...state.boards, [boardId]: updated } };
         });
       },

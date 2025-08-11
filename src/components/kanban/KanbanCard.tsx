@@ -4,6 +4,8 @@ import { Card as TCard } from "@/state/kanbanTypes";
 import { format, isPast, isWithinInterval, addDays, parseISO } from "date-fns";
 import { useState } from "react";
 import { CardModal } from "./CardModal";
+import { useBoardsStore } from "@/state/boardsStore";
+import { Badge } from "@/components/ui/badge";
 
 const labelColorClass: Record<string, string> = {
   green: "bg-[hsl(var(--label-green))]",
@@ -57,6 +59,37 @@ export function KanbanCard({ card, boardId }: KanbanCardProps) {
         ) : null}
 
         <h3 className="text-sm font-medium leading-snug">{card.title}</h3>
+
+        {/* Custom field badges */}
+        {(() => {
+          const board = useBoardsStore.getState().boards[boardId];
+          const fields = (board?.customFields || []).filter((f) => f.showOnCard).sort((a,b)=>a.order-b.order).slice(0, 2);
+          if (!fields.length) return null;
+          const vals = (card as any).custom || {};
+          return (
+            <div className="mt-2 flex flex-wrap gap-1">
+              {fields.map((f) => {
+                const v = (vals as any)[f.id];
+                if (v === undefined || v === null || (typeof v === "string" && v.trim() === "")) return null;
+                let text = "";
+                if (f.type === "date" && typeof v === "string" && v) {
+                  try { text = format(parseISO(v.length>10? v : `${v}`), "dd MMM"); } catch { text = String(v); }
+                } else if (f.type === "checkbox") {
+                  text = v ? "✓" : "✕";
+                } else if (f.type === "multi-select" && Array.isArray(v)) {
+                  text = (v as string[]).join(", ");
+                } else {
+                  text = String(v);
+                }
+                return (
+                  <Badge key={f.id} variant="secondary">
+                    {f.name}: {text}
+                  </Badge>
+                );
+              })}
+            </div>
+          );
+        })()}
 
         <div className="mt-3 flex items-center justify-between">
           <div className="flex -space-x-2">

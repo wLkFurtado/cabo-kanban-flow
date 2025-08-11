@@ -8,6 +8,8 @@ import { cn } from "@/lib/utils";
 import { Card as TCard, Label as TLabel, LabelColor, Member as TMember } from "@/state/kanbanTypes";
 import { parseISO, format } from "date-fns";
 import { useBoardsStore } from "@/state/boardsStore";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useToast } from "@/hooks/use-toast";
 
 const labelColorClass: Record<LabelColor, string> = {
   green: "bg-[hsl(var(--label-green))]",
@@ -28,12 +30,15 @@ interface CardModalProps {
 export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps) {
   const updateCard = useBoardsStore((s) => s.updateCard);
   const deleteCard = useBoardsStore((s) => s.deleteCard);
+  const board = useBoardsStore((s) => s.boards[boardId]);
+  const { toast } = useToast();
 
   const [title, setTitle] = useState(card.title);
   const [description, setDescription] = useState(card.description || "");
   const [dueDate, setDueDate] = useState<string>(card.dueDate ? format(parseISO(card.dueDate), "yyyy-MM-dd") : "");
   const [labels, setLabels] = useState<TLabel[]>(card.labels || []);
   const [members, setMembers] = useState<TMember[]>(card.members || []);
+  const [custom, setCustom] = useState<Record<string, unknown>>((card as any).custom || {});
 
   useEffect(() => {
     if (open) {
@@ -42,6 +47,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
       setDueDate(card.dueDate ? format(parseISO(card.dueDate), "yyyy-MM-dd") : "");
       setLabels(card.labels || []);
       setMembers(card.members || []);
+      setCustom((card as any).custom || {});
     }
   }, [open, card]);
 
@@ -54,12 +60,27 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
       .toUpperCase();
 
   const handleSave = () => {
+    // Required fields validation
+    const requiredMissing = (board?.customFields || [])
+      .filter((f) => f.required)
+      .some((f) => {
+        const v = (custom as any)[f.id];
+        if (f.type === "checkbox") return v === undefined || v === null;
+        if (f.type === "multi-select") return !Array.isArray(v) || (v as any[]).length === 0;
+        return v === undefined || v === null || (typeof v === "string" && v.trim() === "");
+      });
+    if (requiredMissing) {
+      toast({ title: "Preencha os campos obrigatórios", variant: "destructive" });
+      return;
+    }
+
     updateCard(boardId, card.id, {
       title: title.trim() || "Sem título",
       description: description.trim(),
       dueDate: dueDate ? new Date(`${dueDate}T00:00:00`).toISOString() : undefined,
       labels,
       members,
+      custom,
     });
     onOpenChange(false);
   };
@@ -192,6 +213,70 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
             </div>
           </div>
         </div>
+
+        {/* Custom fields */}
+        {board?.customFields?.length ? (
+          <div className="space-y-3 mt-2">
+            <h4 className="text-sm font-medium">Campos personalizados</h4>
+            {(board.customFields || []).sort((a,b)=>a.order-b.order).map((f) => {
+              const val = (custom as any)[f.id];
+              const setVal = (v: unknown) => setCustom((prev) => ({ ...(prev || {}), [f.id]: v }));
+              return (
+                <div key={f.id} className="space-y-1">
+                  <label className="text-sm text-muted-foreground">{f.name}{f.required ? " *" : ""}</label>
+                  {f.type === "text" && (
+                    <Input value={(val as string) || ""} onChange={(e) => setVal(e.target.value)} />
+                  )}
+                  {f.type === "number" && (
+                    <Input
+                      type="number"
+                      value={(typeof val === "number" || typeof val === "string") ? (val as any) : ""}
+                      onChange={(e) => setVal(e.target.value === "" ? undefined : Number(e.target.value))}
+                    />
+                  )}
+                  {f.type === "date" && (
+                    <Input type="date" value={(val as string) || ""} onChange={(e) => setVal(e.target.value)} />
+                  )}
+                  {f.type === "checkbox" && (
+                    <div className="flex items-center gap-2">
+                      <Checkbox checked={!!val} onCheckedChange={(v) => setVal(!!v)} id={`cb_${f.id}`} />
+                    </div>
+                  )}
+                  {f.type === "select" && (
+                    <select
+                      className="border rounded-md bg-background text-sm px-2 py-1"
+                      value={(val as string) || ""}
+                      onChange={(e) => setVal(e.target.value)}
+                    >
+                      <option value="">Selecione</option>
+                      {(f.options || []).map((opt) => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  )}
+                  {f.type === "multi-select" && (
+                    <div className="flex flex-wrap gap-2">
+                      {(f.options || []).map((opt) => {
+                        const list = (Array.isArray(val) ? (val as string[]) : []);
+                        const checked = list.includes(opt);
+                        return (
+                          <label key={opt} className="inline-flex items-center gap-2 border rounded-md px-2 py-1 text-xs">
+                            <Checkbox checked={checked} onCheckedChange={(v) => {
+                              const curr = new Set(list);
+                              if (v) curr.add(opt); else curr.delete(opt);
+                              setVal(Array.from(curr));
+                            }} />
+                            <span>{opt}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
 
         <DialogFooter className="mt-4">
           <Button variant="destructive" onClick={handleDelete}>

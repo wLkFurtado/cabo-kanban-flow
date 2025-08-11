@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useBoardsStore } from "@/state/boardsStore";
 import { useToast } from "@/hooks/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CustomFieldsManager } from "@/components/boards/CustomFieldsManager";
 
 interface BoardDetailsDialogProps {
   boardId: string;
@@ -54,60 +56,71 @@ export function BoardDetailsDialog({ boardId, open, onOpenChange }: BoardDetails
           <DialogDescription>Atualize informações do seu board.</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <div className="grid grid-cols-6 gap-3">
-            <div className="col-span-2">
-              <label className="block text-sm font-medium mb-1">Emoji</label>
-              <Input
-                aria-label="Emoji do board"
-                placeholder="😀"
-                value={icon}
-                maxLength={2}
-                onChange={(e) => setIcon(e.target.value)}
-              />
-            </div>
-            <div className="col-span-4">
-              <label className="block text-sm font-medium mb-1">Título</label>
-              <Input
-                aria-label="Título do board"
-                placeholder="Nome do board"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && onSave()}
-              />
-            </div>
-          </div>
+        <Tabs defaultValue="details" className="w-full">
+          <TabsList className="mb-4">
+            <TabsTrigger value="details">Detalhes</TabsTrigger>
+            <TabsTrigger value="fields">Campos personalizados</TabsTrigger>
+          </TabsList>
 
-          <div>
-            <label className="block text-sm font-medium mb-1">Descrição</label>
-            <Textarea
-              aria-label="Descrição do board"
-              placeholder="Sobre o que é este board?"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="min-h-[100px]"
-            />
-          </div>
+          <TabsContent value="details" className="space-y-4">
+            <div className="grid grid-cols-6 gap-3">
+              <div className="col-span-2">
+                <label className="block text-sm font-medium mb-1">Emoji</label>
+                <Input
+                  aria-label="Emoji do board"
+                  placeholder="😀"
+                  value={icon}
+                  maxLength={2}
+                  onChange={(e) => setIcon(e.target.value)}
+                />
+              </div>
+              <div className="col-span-4">
+                <label className="block text-sm font-medium mb-1">Título</label>
+                <Input
+                  aria-label="Título do board"
+                  placeholder="Nome do board"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && onSave()}
+                />
+              </div>
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-1">Cor</label>
-            <div className="flex items-center gap-3">
-              <input
-                aria-label="Cor do board"
-                type="color"
-                value={color || "#7c3aed"}
-                onChange={(e) => setColor(e.target.value)}
-                className="h-9 w-12 rounded-md border border-input bg-background p-1"
-              />
-              <Input
-                aria-label="Cor em texto"
-                placeholder="#7c3aed ou hsl(262, 83%, 58%)"
-                value={color}
-                onChange={(e) => setColor(e.target.value)}
+            <div>
+              <label className="block text-sm font-medium mb-1">Descrição</label>
+              <Textarea
+                aria-label="Descrição do board"
+                placeholder="Sobre o que é este board?"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="min-h-[100px]"
               />
             </div>
-          </div>
-        </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">Cor</label>
+              <div className="flex items-center gap-3">
+                <input
+                  aria-label="Cor do board"
+                  type="color"
+                  value={color || "#7c3aed"}
+                  onChange={(e) => setColor(e.target.value)}
+                  className="h-9 w-12 rounded-md border border-input bg-background p-1"
+                />
+                <Input
+                  aria-label="Cor em texto"
+                  placeholder="#7c3aed ou hsl(262, 83%, 58%)"
+                  value={color}
+                  onChange={(e) => setColor(e.target.value)}
+                />
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="fields">
+            <CustomFieldsManager boardId={boardId} />
+          </TabsContent>
+        </Tabs>
 
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>

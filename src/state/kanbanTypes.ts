@@ -12,6 +12,20 @@ export interface Member {
   avatar?: string;
 }
 
+export type CustomFieldType = "text" | "number" | "date" | "select" | "checkbox" | "multi-select";
+
+export interface CustomField {
+  id: string;
+  name: string;
+  type: CustomFieldType;
+  required?: boolean;
+  options?: string[]; // for select / multi-select
+  showOnCard?: boolean; // show as badge on card front
+  helpText?: string;
+  order: number;
+  defaultValue?: unknown;
+}
+
 export interface Card {
   id: string;
   listId: string;
@@ -22,6 +36,7 @@ export interface Card {
   labels: Label[];
   members: Member[];
   archived?: boolean;
+  custom?: Record<string, unknown>;
 }
 
 export interface List {
@@ -41,4 +56,5 @@ export interface Board {
   icon?: string; // Emoji ou ícone curto
   description?: string;
   color?: string; // Ex.: hsl(...) ou #hex
+  customFields?: CustomField[];
 }
