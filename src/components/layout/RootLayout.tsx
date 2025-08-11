@@ -1,14 +1,12 @@
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet } from "react-router-dom";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useBoardsStore } from "@/state/boardsStore";
+import { BoardCreateDialog } from "@/components/boards/BoardCreateDialog";
 import { Search } from "lucide-react";
 
 export default function RootLayout() {
-  const createBoard = useBoardsStore((s) => s.createBoard);
-  const navigate = useNavigate();
 
   return (
     <SidebarProvider>
@@ -29,7 +27,7 @@ export default function RootLayout() {
                   <Input className="pl-8 w-64" placeholder="Buscar" aria-label="Buscar" />
                 </div>
                 <Button variant="outline">Filtros</Button>
-                <Button onClick={() => { const id = createBoard(""); navigate(`/board/${id}`); }}>Novo Board</Button>
+                <BoardCreateDialog trigger={<Button>Novo Board</Button>} />
               </div>
             </div>
           </header>

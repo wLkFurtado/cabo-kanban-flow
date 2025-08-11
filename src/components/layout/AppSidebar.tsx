@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
+import { BoardCreateDialog } from "@/components/boards/BoardCreateDialog";
 import { useBoardsStore } from "@/state/boardsStore";
-import { NavLink, useNavigate, useLocation } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import {
   Sidebar,
   SidebarContent,
@@ -17,12 +18,10 @@ import {
 import { Home, Columns3 } from "lucide-react";
 
 export function AppSidebar() {
-  const { collapsed } = useSidebar();
+  const { state } = useSidebar();
+  const collapsed = state === "collapsed";
   const boardOrder = useBoardsStore((s) => s.boardOrder);
   const boards = useBoardsStore((s) => s.boards);
-  const createBoard = useBoardsStore((s) => s.createBoard);
-  const navigate = useNavigate();
-  const location = useLocation();
 
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
     isActive ? "bg-muted text-primary font-medium" : "hover:bg-muted/50";
@@ -68,15 +67,9 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter>
-        <Button
-          className="w-full"
-          onClick={() => {
-            const id = createBoard("");
-            navigate(`/board/${id}`);
-          }}
-        >
-          Criar novo board
-        </Button>
+        <BoardCreateDialog
+          trigger={<Button className="w-full">Criar novo board</Button>}
+        />
       </SidebarFooter>
     </Sidebar>
   );
