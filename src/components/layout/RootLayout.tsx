@@ -8,7 +8,6 @@ import { Search } from "lucide-react";
 import { UserMenu } from "@/components/layout/UserMenu";
 
 export default function RootLayout() {
-
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
@@ -29,6 +28,7 @@ export default function RootLayout() {
                 </div>
                 <Button variant="outline">Filtros</Button>
                 <BoardCreateDialog trigger={<Button>Novo Board</Button>} />
+                <UserMenu />
               </div>
             </div>
           </header>
