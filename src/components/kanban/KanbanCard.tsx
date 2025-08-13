@@ -59,33 +59,86 @@ export function KanbanCard({ card, boardId }: KanbanCardProps) {
 
         <h3 className="text-sm font-medium leading-snug">{card.title}</h3>
 
-        {/* Custom field badges */}
+        {/* Communication-specific custom fields */}
         {(() => {
           const board = useBoardsStore.getState().boards[boardId];
-          const fields = (board?.customFields || []).filter((f) => f.showOnCard).sort((a,b)=>a.order-b.order).slice(0, 2);
-          if (!fields.length) return null;
+          const fields = board?.customFields || [];
           const vals = (card as any).custom || {};
+          
+          // Get specific field values
+          const secretaria = fields.find(f => f.name.includes("Secretaria"))?.id;
+          const dataEvento = fields.find(f => f.name.includes("Data do Evento"))?.id;
+          const local = fields.find(f => f.name.includes("Local"))?.id;
+          const classificacao = fields.find(f => f.name.includes("Classificação"))?.id;
+          const dividirCards = fields.find(f => f.name.includes("Dividir em Cards"))?.id;
+          const assunto = fields.find(f => f.name.includes("Assunto"))?.id;
+          
+          const secretariaVal = secretaria ? vals[secretaria] : null;
+          const dataEventoVal = dataEvento ? vals[dataEvento] : null;
+          const localVal = local ? vals[local] : null;
+          const classificacaoVal = classificacao ? vals[classificacao] : null;
+          const dividirCardsVal = dividirCards ? vals[dividirCards] : null;
+          const assuntoVal = assunto ? vals[assunto] : null;
+
+          const hasAnyCustomData = secretariaVal || dataEventoVal || localVal || classificacaoVal || dividirCardsVal || assuntoVal;
+          
+          if (!hasAnyCustomData) return null;
+
           return (
-            <div className="mt-2 flex flex-wrap gap-1">
-              {fields.map((f) => {
-                const v = (vals as any)[f.id];
-                if (v === undefined || v === null || (typeof v === "string" && v.trim() === "")) return null;
-                let text = "";
-                if (f.type === "date" && typeof v === "string" && v) {
-                  try { text = format(parseISO(v.length>10? v : `${v}`), "dd MMM"); } catch { text = String(v); }
-                } else if (f.type === "checkbox") {
-                  text = v ? "✓" : "✕";
-                } else if (f.type === "multi-select" && Array.isArray(v)) {
-                  text = (v as string[]).join(", ");
-                } else {
-                  text = String(v);
-                }
-                return (
-                  <Badge key={f.id} variant="secondary">
-                    {f.name}: {text}
+            <div className="mt-2 space-y-2">
+              {/* Identification Section */}
+              {secretariaVal && (
+                <div className="flex items-center gap-1">
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary border-primary/20">
+                    {String(secretariaVal).length > 20 ? `${String(secretariaVal).slice(0, 20)}...` : String(secretariaVal)}
                   </Badge>
-                );
-              })}
+                </div>
+              )}
+              
+              {/* Event Info Section */}
+              {(dataEventoVal || localVal) && (
+                <div className="flex items-center gap-1 flex-wrap">
+                  {dataEventoVal && (
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">
+                      📅 {(() => {
+                        try { 
+                          return format(parseISO(String(dataEventoVal)), "dd/MM"); 
+                        } catch { 
+                          return String(dataEventoVal); 
+                        }
+                      })()}
+                    </Badge>
+                  )}
+                  {localVal && (
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">
+                      📍 {String(localVal).length > 15 ? `${String(localVal).slice(0, 15)}...` : String(localVal)}
+                    </Badge>
+                  )}
+                </div>
+              )}
+              
+              {/* Subject line */}
+              {assuntoVal && (
+                <div className="text-[11px] text-muted-foreground line-clamp-1">
+                  {String(assuntoVal)}
+                </div>
+              )}
+              
+              {/* Bottom row: Classification and Social Media indicator */}
+              {(classificacaoVal || dividirCardsVal) && (
+                <div className="flex items-center justify-between">
+                  {classificacaoVal && (
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-amber-50 text-amber-800 border-amber-200">
+                      {String(classificacaoVal)}
+                    </Badge>
+                  )}
+                  {dividirCardsVal && (
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-800 border-blue-200">
+                      📱 Redes Sociais
+                    </Badge>
+                  )}
+                </div>
+              )}
             </div>
           );
         })()}
