@@ -5,6 +5,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 import { Card as TCard, Label as TLabel, LabelColor, Member as TMember } from "@/state/kanbanTypes";
@@ -142,11 +144,34 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* 1. Título/Nome do Evento */}
+          <div>
+            <label className="text-sm text-muted-foreground">Título/Nome do Evento *</label>
+            <Input
+              value={(custom as any).tituloEvento || ""}
+              onChange={(e) => setCustom((prev) => ({ ...(prev || {}), tituloEvento: e.target.value }))}
+              placeholder="Nome do evento ou campanha"
+            />
+          </div>
+
+          {/* 2. Descrição Breve */}
+          <div>
+            <label className="text-sm text-muted-foreground">Descrição Breve *</label>
+            <Textarea
+              value={(custom as any).descricaoBreve || ""}
+              onChange={(e) => setCustom((prev) => ({ ...(prev || {}), descricaoBreve: e.target.value }))}
+              placeholder="Descrição resumida do conteúdo"
+              className="min-h-[80px] resize-none"
+            />
+          </div>
+
+          {/* 3. Vencimento */}
           <div>
             <label className="text-sm text-muted-foreground">Vencimento</label>
             <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
           </div>
 
+          {/* 4. Labels */}
           <div>
             <label className="text-sm text-muted-foreground">Labels</label>
             <div className="mt-2 flex flex-wrap gap-2">
@@ -186,6 +211,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
             </div>
           </div>
 
+          {/* 5. Membros */}
           <div>
             <label className="text-sm text-muted-foreground">Membros</label>
             <div className="mt-2 flex flex-wrap gap-2">
@@ -215,6 +241,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
             </div>
           </div>
 
+          {/* 6. Secretaria solicitante */}
           <div>
             <label className="text-sm text-muted-foreground">Secretaria solicitante</label>
             <Input
@@ -224,6 +251,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
             />
           </div>
 
+          {/* 7. Tipos de demanda */}
           <div>
             <label className="text-sm text-muted-foreground">Tipos de demanda</label>
             <div className="mt-2 flex flex-col gap-2">
@@ -251,129 +279,156 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
               })}
             </div>
           </div>
-        </div>
 
-          {/* Fixed Communication Fields */}
-          <div className="space-y-3 mt-2">
-            <h4 className="text-sm font-medium">Campos de Comunicação</h4>
-            
-            {/* Título/Nome do Evento */}
-            <div>
-              <label className="text-sm text-muted-foreground">Título/Nome do Evento *</label>
-              <Input
-                value={(custom as any).tituloEvento || ""}
-                onChange={(e) => setCustom((prev) => ({ ...(prev || {}), tituloEvento: e.target.value }))}
-                placeholder="Nome do evento ou campanha"
-              />
-            </div>
+          {/* Assunto Principal */}
+          <div>
+            <label className="text-sm text-muted-foreground">Assunto Principal *</label>
+            <Input
+              value={(custom as any).assuntoPrincipal || ""}
+              onChange={(e) => setCustom((prev) => ({ ...(prev || {}), assuntoPrincipal: e.target.value }))}
+              placeholder="Assunto ou tema principal"
+            />
+          </div>
 
-            {/* Assunto Principal */}
-            <div>
-              <label className="text-sm text-muted-foreground">Assunto Principal *</label>
-              <Input
-                value={(custom as any).assuntoPrincipal || ""}
-                onChange={(e) => setCustom((prev) => ({ ...(prev || {}), assuntoPrincipal: e.target.value }))}
-                placeholder="Assunto ou tema principal"
-              />
-            </div>
+          {/* 8. Local do evento */}
+          <div>
+            <label className="text-sm text-muted-foreground">Local do evento</label>
+            <Input
+              value={(custom as any).local || ""}
+              onChange={(e) => setCustom((prev) => ({ ...(prev || {}), local: e.target.value }))}
+              placeholder="Local do evento"
+            />
+          </div>
 
-            {/* Descrição Breve */}
-            <div>
-              <label className="text-sm text-muted-foreground">Descrição Breve *</label>
-              <Textarea
-                value={(custom as any).descricaoBreve || ""}
-                onChange={(e) => setCustom((prev) => ({ ...(prev || {}), descricaoBreve: e.target.value }))}
-                placeholder="Descrição resumida do conteúdo"
-                className="min-h-[80px] resize-none"
-              />
-            </div>
+          {/* 9. Data do evento */}
+          <div>
+            <label className="text-sm text-muted-foreground">Data do evento</label>
+            <Input
+              type="date"
+              value={(custom as any).dataEvento || ""}
+              onChange={(e) => setCustom((prev) => ({ ...(prev || {}), dataEvento: e.target.value }))}
+            />
+          </div>
 
-            {/* Data do Evento */}
-            <div>
-              <label className="text-sm text-muted-foreground">Data do Evento</label>
-              <Input
-                type="date"
-                value={(custom as any).dataEvento || ""}
-                onChange={(e) => setCustom((prev) => ({ ...(prev || {}), dataEvento: e.target.value }))}
-              />
-            </div>
+          {/* 10. Classificação */}
+          <div>
+            <label className="text-sm text-muted-foreground">Classificação</label>
+            <select
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              value={(custom as any).classificacao || ""}
+              onChange={(e) => setCustom((prev) => ({ ...(prev || {}), classificacao: e.target.value }))}
+            >
+              <option value="">Selecione...</option>
+              <option value="Livre">Livre</option>
+              <option value="10 anos">10 anos</option>
+              <option value="12 anos">12 anos</option>
+              <option value="14 anos">14 anos</option>
+              <option value="16 anos">16 anos</option>
+              <option value="18 anos">18 anos</option>
+            </select>
+          </div>
 
-            {/* Local */}
-            <div>
-              <label className="text-sm text-muted-foreground">Local</label>
-              <Input
-                value={(custom as any).local || ""}
-                onChange={(e) => setCustom((prev) => ({ ...(prev || {}), local: e.target.value }))}
-                placeholder="Local do evento"
-              />
-            </div>
-
-            {/* Classificação */}
-            <div>
-              <label className="text-sm text-muted-foreground">Classificação</label>
-              <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                value={(custom as any).classificacao || ""}
-                onChange={(e) => setCustom((prev) => ({ ...(prev || {}), classificacao: e.target.value }))}
-              >
-                <option value="">Selecione...</option>
-                <option value="Livre">Livre</option>
-                <option value="10 anos">10 anos</option>
-                <option value="12 anos">12 anos</option>
-                <option value="14 anos">14 anos</option>
-                <option value="16 anos">16 anos</option>
-                <option value="18 anos">18 anos</option>
-              </select>
-            </div>
-
-            {/* Chamada para Ação */}
-            <div>
-              <label className="text-sm text-muted-foreground">Chamada para Ação</label>
-              <Input
-                value={(custom as any).chamadaAcao || ""}
-                onChange={(e) => setCustom((prev) => ({ ...(prev || {}), chamadaAcao: e.target.value }))}
-                placeholder="Ex: Inscreva-se já, Participe, etc."
-              />
-            </div>
-
-            {/* Dividir em Cards para Redes Sociais */}
-            <div>
-              <label className="text-sm text-muted-foreground">Dividir em Cards para Redes Sociais?</label>
-              <div className="flex items-center gap-2 mt-2">
-                <Checkbox
-                  checked={!!(custom as any).dividirCards}
-                  onCheckedChange={(v) => setCustom((prev) => ({ ...(prev || {}), dividirCards: !!v }))}
-                />
-                <span className="text-sm">Sim, dividir em múltiplos cards</span>
+          {/* Formato de Mídia */}
+          <div>
+            <label className="text-sm text-muted-foreground">Formato de Mídia</label>
+            <RadioGroup
+              value={(custom as any).formatoMidia || ""}
+              onValueChange={(value) => setCustom((prev) => ({ ...(prev || {}), formatoMidia: value }))}
+              className="mt-2"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="digital" id="digital" />
+                <Label htmlFor="digital">Digital</Label>
               </div>
-            </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="impresso" id="impresso" />
+                <Label htmlFor="impresso">Impresso</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="digital-impresso" id="digital-impresso" />
+                <Label htmlFor="digital-impresso">Digital e Impresso</Label>
+              </div>
+            </RadioGroup>
 
-            {/* Número de Cards (conditional) */}
-            {(custom as any).dividirCards && (
-              <div>
-                <label className="text-sm text-muted-foreground">Número de Cards</label>
-                <Input
-                  type="number"
-                  min="1"
-                  max="10"
-                  value={(custom as any).numeroCards || ""}
-                  onChange={(e) => setCustom((prev) => ({ ...(prev || {}), numeroCards: e.target.value ? Number(e.target.value) : undefined }))}
-                  placeholder="Quantos cards serão criados?"
-                />
+            {/* Digital Options */}
+            {((custom as any).formatoMidia === "digital" || (custom as any).formatoMidia === "digital-impresso") && (
+              <div className="mt-3 pl-4 border-l-2 border-muted">
+                <label className="text-sm text-muted-foreground">Opções Digitais</label>
+                <RadioGroup
+                  value={(custom as any).opcaoDigital || ""}
+                  onValueChange={(value) => setCustom((prev) => ({ ...(prev || {}), opcaoDigital: value }))}
+                  className="mt-2"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="feed" id="feed" />
+                    <Label htmlFor="feed">Feed</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="stories" id="stories" />
+                    <Label htmlFor="stories">Stories</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="carrossel" id="carrossel" />
+                    <Label htmlFor="carrossel">Carrossel</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="banner-site" id="banner-site" />
+                    <Label htmlFor="banner-site">Banner Site</Label>
+                  </div>
+                </RadioGroup>
+
+                {/* Banner Site Size Options */}
+                {(custom as any).opcaoDigital === "banner-site" && (
+                  <div className="mt-3 pl-4 border-l-2 border-muted">
+                    <label className="text-sm text-muted-foreground">Tamanho do Banner</label>
+                    <RadioGroup
+                      value={(custom as any).tamanhoBanner || ""}
+                      onValueChange={(value) => setCustom((prev) => ({ ...(prev || {}), tamanhoBanner: value }))}
+                      className="mt-2"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="1200x120" id="size-1200x120" />
+                        <Label htmlFor="size-1200x120">1200x120</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="1200x700" id="size-1200x700" />
+                        <Label htmlFor="size-1200x700">1200x700</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="custom" id="size-custom" />
+                        <Label htmlFor="size-custom">Personalizado</Label>
+                      </div>
+                    </RadioGroup>
+
+                    {/* Custom Size Input */}
+                    {(custom as any).tamanhoBanner === "custom" && (
+                      <div className="mt-2">
+                        <Input
+                          placeholder="Ex: 800x600"
+                          value={(custom as any).tamanhoCustom || ""}
+                          onChange={(e) => setCustom((prev) => ({ ...(prev || {}), tamanhoCustom: e.target.value }))}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
-            {/* Observações Especiais */}
-            <div>
-              <label className="text-sm text-muted-foreground">Observações Especiais</label>
-              <Textarea
-                value={(custom as any).observacoes || ""}
-                onChange={(e) => setCustom((prev) => ({ ...(prev || {}), observacoes: e.target.value }))}
-                placeholder="Observações ou instruções especiais"
-                className="min-h-[60px] resize-none"
-              />
-            </div>
+            {/* Impresso Options */}
+            {((custom as any).formatoMidia === "impresso" || (custom as any).formatoMidia === "digital-impresso") && (
+              <div className="mt-3 pl-4 border-l-2 border-muted">
+                <label className="text-sm text-muted-foreground">Tamanho do Material Impresso</label>
+                <Input
+                  placeholder="Ex: A4, 10x15cm, etc."
+                  value={(custom as any).tamanhoImpresso || ""}
+                  onChange={(e) => setCustom((prev) => ({ ...(prev || {}), tamanhoImpresso: e.target.value }))}
+                  className="mt-2"
+                />
+              </div>
+            )}
           </div>
+        </div>
 
         <DialogFooter className="mt-4">
           <Button variant="destructive" onClick={handleDelete}>
