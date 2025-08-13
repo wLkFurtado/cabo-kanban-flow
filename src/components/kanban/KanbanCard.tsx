@@ -65,37 +65,57 @@ export function KanbanCard({ card, boardId }: KanbanCardProps) {
           const fields = board?.customFields || [];
           const vals = (card as any).custom || {};
           
-          // Get specific field values
-          const secretaria = fields.find(f => f.name.includes("Secretaria"))?.id;
+          // Get specific field values by correct names
+          const tituloEvento = fields.find(f => f.name.includes("Título/Nome do Evento"))?.id;
+          const assuntoPrincipal = fields.find(f => f.name.includes("Assunto Principal"))?.id;
+          const descricaoBreve = fields.find(f => f.name.includes("Descrição Breve"))?.id;
           const dataEvento = fields.find(f => f.name.includes("Data do Evento"))?.id;
           const local = fields.find(f => f.name.includes("Local"))?.id;
           const classificacao = fields.find(f => f.name.includes("Classificação"))?.id;
-          const dividirCards = fields.find(f => f.name.includes("Dividir em Cards"))?.id;
-          const assunto = fields.find(f => f.name.includes("Assunto"))?.id;
+          const chamadaAcao = fields.find(f => f.name.includes("Chamada para Ação"))?.id;
+          const dividirCards = fields.find(f => f.name.includes("Dividir em Cards para Redes Sociais"))?.id;
+          const numeroCards = fields.find(f => f.name.includes("Número de Cards"))?.id;
+          const observacoes = fields.find(f => f.name.includes("Observações Especiais"))?.id;
           
-          const secretariaVal = secretaria ? vals[secretaria] : null;
+          const tituloEventoVal = tituloEvento ? vals[tituloEvento] : null;
+          const assuntoPrincipalVal = assuntoPrincipal ? vals[assuntoPrincipal] : null;
+          const descricaoBreveVal = descricaoBreve ? vals[descricaoBreve] : null;
           const dataEventoVal = dataEvento ? vals[dataEvento] : null;
           const localVal = local ? vals[local] : null;
           const classificacaoVal = classificacao ? vals[classificacao] : null;
+          const chamadaAcaoVal = chamadaAcao ? vals[chamadaAcao] : null;
           const dividirCardsVal = dividirCards ? vals[dividirCards] : null;
-          const assuntoVal = assunto ? vals[assunto] : null;
+          const numeroCardsVal = numeroCards ? vals[numeroCards] : null;
+          const observacoesVal = observacoes ? vals[observacoes] : null;
 
-          const hasAnyCustomData = secretariaVal || dataEventoVal || localVal || classificacaoVal || dividirCardsVal || assuntoVal;
+          const hasAnyCustomData = tituloEventoVal || assuntoPrincipalVal || descricaoBreveVal || dataEventoVal || localVal || classificacaoVal || chamadaAcaoVal || dividirCardsVal || numeroCardsVal || observacoesVal;
           
           if (!hasAnyCustomData) return null;
 
           return (
             <div className="mt-2 space-y-2">
-              {/* Identification Section */}
-              {secretariaVal && (
-                <div className="flex items-center gap-1">
-                  <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary border-primary/20">
-                    {String(secretariaVal).length > 20 ? `${String(secretariaVal).slice(0, 20)}...` : String(secretariaVal)}
-                  </Badge>
+              {/* Event Title - Main highlight */}
+              {tituloEventoVal && (
+                <div className="text-[12px] font-medium text-foreground line-clamp-1">
+                  {String(tituloEventoVal)}
                 </div>
               )}
               
-              {/* Event Info Section */}
+              {/* Subject - Secondary line */}
+              {assuntoPrincipalVal && (
+                <div className="text-[11px] text-muted-foreground line-clamp-1">
+                  {String(assuntoPrincipalVal)}
+                </div>
+              )}
+              
+              {/* Brief Description */}
+              {descricaoBreveVal && !assuntoPrincipalVal && (
+                <div className="text-[11px] text-muted-foreground line-clamp-1">
+                  {String(descricaoBreveVal)}
+                </div>
+              )}
+              
+              {/* Event Info Section - Date and Location */}
               {(dataEventoVal || localVal) && (
                 <div className="flex items-center gap-1 flex-wrap">
                   {dataEventoVal && (
@@ -104,7 +124,7 @@ export function KanbanCard({ card, boardId }: KanbanCardProps) {
                         try { 
                           return format(parseISO(String(dataEventoVal)), "dd/MM"); 
                         } catch { 
-                          return String(dataEventoVal); 
+                          return String(dataEventoVal).slice(0, 10); 
                         }
                       })()}
                     </Badge>
@@ -117,28 +137,36 @@ export function KanbanCard({ card, boardId }: KanbanCardProps) {
                 </div>
               )}
               
-              {/* Subject line */}
-              {assuntoVal && (
-                <div className="text-[11px] text-muted-foreground line-clamp-1">
-                  {String(assuntoVal)}
+              {/* Call to Action */}
+              {chamadaAcaoVal && (
+                <div className="text-[10px] text-muted-foreground line-clamp-1">
+                  💬 {String(chamadaAcaoVal)}
                 </div>
               )}
               
-              {/* Bottom row: Classification and Social Media indicator */}
-              {(classificacaoVal || dividirCardsVal) && (
-                <div className="flex items-center justify-between">
+              {/* Bottom row: Classification and Social Media indicators */}
+              <div className="flex items-center justify-between flex-wrap gap-1">
+                <div className="flex items-center gap-1">
                   {classificacaoVal && (
                     <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-amber-50 text-amber-800 border-amber-200">
                       {String(classificacaoVal)}
                     </Badge>
                   )}
-                  {dividirCardsVal && (
+                </div>
+                
+                <div className="flex items-center gap-1">
+                  {dividirCardsVal === "Sim" && (
                     <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-800 border-blue-200">
-                      📱 Redes Sociais
+                      📱 {numeroCardsVal ? `${numeroCardsVal} cards` : "Redes Sociais"}
+                    </Badge>
+                  )}
+                  {observacoesVal && (
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-orange-50 text-orange-800 border-orange-200">
+                      ⚠️ Obs
                     </Badge>
                   )}
                 </div>
-              )}
+              </div>
             </div>
           );
         })()}
