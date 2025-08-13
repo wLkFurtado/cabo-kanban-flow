@@ -1,19 +1,19 @@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import { Card as TCard } from "@/state/kanbanTypes";
+import { Card as TCard, LabelColor } from "@/state/kanbanTypes";
 import { format, isPast, isWithinInterval, addDays, parseISO } from "date-fns";
 import { useState } from "react";
 import { CardModal } from "./CardModal";
 import { useBoardsStore } from "@/state/boardsStore";
 import { Badge } from "@/components/ui/badge";
 
-const labelColorClass: Record<string, string> = {
-  green: "bg-[hsl(var(--label-green))]",
-  yellow: "bg-[hsl(var(--label-yellow))]",
-  orange: "bg-[hsl(var(--label-orange))]",
-  red: "bg-[hsl(var(--label-red))]",
-  purple: "bg-[hsl(var(--label-purple))]",
-  blue: "bg-[hsl(var(--label-blue))]",
+const labelColorClass: Record<LabelColor, string> = {
+  green: "bg-[hsl(var(--label-green))] text-white",
+  yellow: "bg-[hsl(var(--label-yellow))] text-black",
+  orange: "bg-[hsl(var(--label-orange))] text-white", 
+  red: "bg-[hsl(var(--label-red))] text-white",
+  purple: "bg-[hsl(var(--label-purple))] text-white",
+  blue: "bg-[hsl(var(--label-blue))] text-white",
 };
 
 interface KanbanCardProps {
@@ -46,14 +46,13 @@ export function KanbanCard({ card, boardId }: KanbanCardProps) {
         {card.labels?.length ? (
           <div className="mb-2 flex flex-wrap gap-1">
             {card.labels.map((l) => (
-              <span
+              <Badge
                 key={l.id}
-                className={cn(
-                  "inline-block h-2 w-8 rounded-full",
-                  labelColorClass[l.color]
-                )}
+                className={cn("text-xs px-2 py-0.5", labelColorClass[l.color])}
                 aria-label={`Label ${l.name}`}
-              />
+              >
+                {l.name}
+              </Badge>
             ))}
           </div>
         ) : null}

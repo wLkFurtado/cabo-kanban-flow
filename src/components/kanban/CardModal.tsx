@@ -4,12 +4,32 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 import { Card as TCard, Label as TLabel, LabelColor, Member as TMember } from "@/state/kanbanTypes";
 import { parseISO, format } from "date-fns";
 import { useBoardsStore } from "@/state/boardsStore";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+
+const labelColorClass: Record<LabelColor, string> = {
+  green: "bg-[hsl(var(--label-green))] text-white",
+  yellow: "bg-[hsl(var(--label-yellow))] text-black",
+  orange: "bg-[hsl(var(--label-orange))] text-white", 
+  red: "bg-[hsl(var(--label-red))] text-white",
+  purple: "bg-[hsl(var(--label-purple))] text-white",
+  blue: "bg-[hsl(var(--label-blue))] text-white",
+};
+
+const labelNames: Record<LabelColor, string> = {
+  green: "Verde",
+  yellow: "Amarelo", 
+  orange: "Laranja",
+  red: "Vermelho",
+  purple: "Roxo",
+  blue: "Azul",
+};
 
 
 interface CardModalProps {
@@ -82,16 +102,18 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
     onOpenChange(false);
   };
 
-  const [newLabelName, setNewLabelName] = useState("");
-  const [newLabelColor, setNewLabelColor] = useState<LabelColor>("blue");
   const [newMemberName, setNewMemberName] = useState("");
 
-  const addLabel = () => {
-    const name = newLabelName.trim();
-    if (!name) return;
-    const label: TLabel = { id: `l_${Math.random().toString(36).slice(2, 8)}`, name, color: newLabelColor };
+  const addLabel = (color: LabelColor) => {
+    // Verifica se já existe uma label com essa cor
+    if (labels.some(l => l.color === color)) return;
+    
+    const label: TLabel = { 
+      id: `l_${Math.random().toString(36).slice(2, 8)}`, 
+      name: labelNames[color], 
+      color 
+    };
     setLabels((prev) => [...prev, label]);
-    setNewLabelName("");
   };
 
   const removeLabel = (id: string) => {
@@ -137,26 +159,38 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
             <label className="text-sm text-muted-foreground">Labels</label>
             <div className="mt-2 flex flex-wrap gap-2">
               {labels.map((l) => (
-                <button
+                <Badge
                   key={l.id}
-                  className="inline-flex items-center gap-2 rounded-full px-2 py-1 text-xs border bg-muted text-foreground"
+                  className={cn("cursor-pointer", labelColorClass[l.color])}
                   onClick={() => removeLabel(l.id)}
-                  title="Remover label"
+                  title={`Remover label ${l.name}`}
                 >
-                  <span className="font-medium">{l.name}</span>
-                </button>
+                  {l.name}
+                </Badge>
               ))}
             </div>
-            <div className="mt-2 flex gap-2">
-              <Input
-                placeholder="Nome da label"
-                value={newLabelName}
-                onChange={(e) => setNewLabelName(e.target.value)}
-                className="max-w-[260px]"
-              />
-              <Button size="sm" onClick={addLabel}>
-                Adicionar
-              </Button>
+            <div className="mt-3">
+              <p className="text-xs text-muted-foreground mb-2">Clique em uma cor para adicionar:</p>
+              <div className="flex flex-wrap gap-2">
+                {(Object.keys(labelNames) as LabelColor[]).map((color) => {
+                  const hasLabel = labels.some(l => l.color === color);
+                  return (
+                    <button
+                      key={color}
+                      className={cn(
+                        "px-3 py-1.5 rounded-md text-xs font-medium transition-opacity",
+                        labelColorClass[color],
+                        hasLabel && "opacity-50 cursor-not-allowed"
+                      )}
+                      onClick={() => addLabel(color)}
+                      disabled={hasLabel}
+                      title={hasLabel ? `Label ${labelNames[color]} já adicionada` : `Adicionar label ${labelNames[color]}`}
+                    >
+                      {labelNames[color]}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
