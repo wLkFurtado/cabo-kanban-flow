@@ -62,6 +62,7 @@ export function CustomFieldsManager({ boardId }: Props) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="text">Texto</SelectItem>
+                <SelectItem value="textarea">Texto longo</SelectItem>
                 <SelectItem value="number">Número</SelectItem>
                 <SelectItem value="date">Data</SelectItem>
                 <SelectItem value="select">Select</SelectItem>

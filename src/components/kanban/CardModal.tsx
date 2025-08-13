@@ -261,24 +261,58 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
           </div>
         </div>
 
-        {/* Custom fields */}
+          {/* Custom fields */}
         {board?.customFields?.length ? (
           <div className="space-y-3 mt-2">
             <h4 className="text-sm font-medium">Campos personalizados</h4>
             {(board.customFields || []).sort((a,b)=>a.order-b.order).map((f) => {
               const val = (custom as any)[f.id];
               const setVal = (v: unknown) => setCustom((prev) => ({ ...(prev || {}), [f.id]: v }));
+              
+              // Conditional field logic
+              const shouldShow = () => {
+                // Show "Número de Cards" only if "Dividir em Cards" is checked
+                if (f.name === "Número de Cards") {
+                  const dividirCardsField = board.customFields?.find(cf => cf.name === "Dividir em Cards para Redes Sociais?");
+                  if (dividirCardsField) {
+                    const dividirCardsValue = (custom as any)[dividirCardsField.id];
+                    return !!dividirCardsValue;
+                  }
+                }
+                return true;
+              };
+
+              if (!shouldShow()) return null;
+
               return (
                 <div key={f.id} className="space-y-1">
-                  <label className="text-sm text-muted-foreground">{f.name}{f.required ? " *" : ""}</label>
+                  <label className="text-sm text-muted-foreground">
+                    {f.name}{f.required ? " *" : ""}
+                  </label>
+                  {f.helpText && (
+                    <p className="text-xs text-muted-foreground/70">{f.helpText}</p>
+                  )}
                   {f.type === "text" && (
-                    <Input value={(val as string) || ""} onChange={(e) => setVal(e.target.value)} />
+                    <Input 
+                      value={(val as string) || ""} 
+                      onChange={(e) => setVal(e.target.value)}
+                      placeholder={f.helpText}
+                    />
+                  )}
+                  {f.type === "textarea" && (
+                    <Textarea 
+                      value={(val as string) || ""} 
+                      onChange={(e) => setVal(e.target.value)}
+                      placeholder={f.helpText}
+                      className="min-h-[80px] resize-none"
+                    />
                   )}
                   {f.type === "number" && (
                     <Input
                       type="number"
                       value={(typeof val === "number" || typeof val === "string") ? (val as any) : ""}
                       onChange={(e) => setVal(e.target.value === "" ? undefined : Number(e.target.value))}
+                      placeholder={f.helpText}
                     />
                   )}
                   {f.type === "date" && (
@@ -287,15 +321,16 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                   {f.type === "checkbox" && (
                     <div className="flex items-center gap-2">
                       <Checkbox checked={!!val} onCheckedChange={(v) => setVal(!!v)} id={`cb_${f.id}`} />
+                      {f.helpText && <span className="text-xs text-muted-foreground">{f.helpText}</span>}
                     </div>
                   )}
                   {f.type === "select" && (
                     <select
-                      className="border rounded-md bg-background text-sm px-2 py-1"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                       value={(val as string) || ""}
                       onChange={(e) => setVal(e.target.value)}
                     >
-                      <option value="">Selecione</option>
+                      <option value="">Selecione...</option>
                       {(f.options || []).map((opt) => (
                         <option key={opt} value={opt}>{opt}</option>
                       ))}
@@ -307,7 +342,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                         const list = (Array.isArray(val) ? (val as string[]) : []);
                         const checked = list.includes(opt);
                         return (
-                          <label key={opt} className="inline-flex items-center gap-2 border rounded-md px-2 py-1 text-xs">
+                          <label key={opt} className="inline-flex items-center gap-2 border rounded-md px-2 py-1 text-xs hover:bg-muted cursor-pointer">
                             <Checkbox checked={checked} onCheckedChange={(v) => {
                               const curr = new Set(list);
                               if (v) curr.add(opt); else curr.delete(opt);

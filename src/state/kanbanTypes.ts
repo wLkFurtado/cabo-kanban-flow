@@ -12,7 +12,7 @@ export interface Member {
   avatar?: string;
 }
 
-export type CustomFieldType = "text" | "number" | "date" | "select" | "checkbox" | "multi-select";
+export type CustomFieldType = "text" | "textarea" | "number" | "date" | "select" | "checkbox" | "multi-select";
 
 export interface CustomField {
   id: string;
