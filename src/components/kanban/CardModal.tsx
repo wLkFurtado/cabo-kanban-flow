@@ -72,15 +72,13 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
       .toUpperCase();
 
   const handleSave = () => {
-    // Required fields validation
-    const requiredMissing = (board?.customFields || [])
-      .filter((f) => f.required)
-      .some((f) => {
-        const v = (custom as any)[f.id];
-        if (f.type === "checkbox") return v === undefined || v === null;
-        if (f.type === "multi-select") return !Array.isArray(v) || (v as any[]).length === 0;
-        return v === undefined || v === null || (typeof v === "string" && v.trim() === "");
-      });
+    // Required fields validation for fixed communication fields
+    const requiredFields = ['tituloEvento', 'assuntoPrincipal', 'descricaoBreve'];
+    const requiredMissing = requiredFields.some(field => {
+      const value = (custom as any)[field];
+      return !value || (typeof value === "string" && value.trim() === "");
+    });
+    
     if (requiredMissing) {
       toast({ title: "Preencha os campos obrigatórios", variant: "destructive" });
       return;
@@ -261,104 +259,127 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
           </div>
         </div>
 
-          {/* Custom fields */}
-        {board?.customFields?.length ? (
+          {/* Fixed Communication Fields */}
           <div className="space-y-3 mt-2">
-            <h4 className="text-sm font-medium">Campos personalizados</h4>
-            {(board.customFields || []).sort((a,b)=>a.order-b.order).map((f) => {
-              const val = (custom as any)[f.id];
-              const setVal = (v: unknown) => setCustom((prev) => ({ ...(prev || {}), [f.id]: v }));
-              
-              // Conditional field logic
-              const shouldShow = () => {
-                // Show "Número de Cards" only if "Dividir em Cards" is checked
-                if (f.name === "Número de Cards") {
-                  const dividirCardsField = board.customFields?.find(cf => cf.name === "Dividir em Cards para Redes Sociais?");
-                  if (dividirCardsField) {
-                    const dividirCardsValue = (custom as any)[dividirCardsField.id];
-                    return !!dividirCardsValue;
-                  }
-                }
-                return true;
-              };
+            <h4 className="text-sm font-medium">Campos de Comunicação</h4>
+            
+            {/* Título/Nome do Evento */}
+            <div>
+              <label className="text-sm text-muted-foreground">Título/Nome do Evento *</label>
+              <Input
+                value={(custom as any).tituloEvento || ""}
+                onChange={(e) => setCustom((prev) => ({ ...(prev || {}), tituloEvento: e.target.value }))}
+                placeholder="Nome do evento ou campanha"
+              />
+            </div>
 
-              if (!shouldShow()) return null;
+            {/* Assunto Principal */}
+            <div>
+              <label className="text-sm text-muted-foreground">Assunto Principal *</label>
+              <Input
+                value={(custom as any).assuntoPrincipal || ""}
+                onChange={(e) => setCustom((prev) => ({ ...(prev || {}), assuntoPrincipal: e.target.value }))}
+                placeholder="Assunto ou tema principal"
+              />
+            </div>
 
-              return (
-                <div key={f.id} className="space-y-1">
-                  <label className="text-sm text-muted-foreground">
-                    {f.name}{f.required ? " *" : ""}
-                  </label>
-                  {f.helpText && (
-                    <p className="text-xs text-muted-foreground/70">{f.helpText}</p>
-                  )}
-                  {f.type === "text" && (
-                    <Input 
-                      value={(val as string) || ""} 
-                      onChange={(e) => setVal(e.target.value)}
-                      placeholder={f.helpText}
-                    />
-                  )}
-                  {f.type === "textarea" && (
-                    <Textarea 
-                      value={(val as string) || ""} 
-                      onChange={(e) => setVal(e.target.value)}
-                      placeholder={f.helpText}
-                      className="min-h-[80px] resize-none"
-                    />
-                  )}
-                  {f.type === "number" && (
-                    <Input
-                      type="number"
-                      value={(typeof val === "number" || typeof val === "string") ? (val as any) : ""}
-                      onChange={(e) => setVal(e.target.value === "" ? undefined : Number(e.target.value))}
-                      placeholder={f.helpText}
-                    />
-                  )}
-                  {f.type === "date" && (
-                    <Input type="date" value={(val as string) || ""} onChange={(e) => setVal(e.target.value)} />
-                  )}
-                  {f.type === "checkbox" && (
-                    <div className="flex items-center gap-2">
-                      <Checkbox checked={!!val} onCheckedChange={(v) => setVal(!!v)} id={`cb_${f.id}`} />
-                      {f.helpText && <span className="text-xs text-muted-foreground">{f.helpText}</span>}
-                    </div>
-                  )}
-                  {f.type === "select" && (
-                    <select
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                      value={(val as string) || ""}
-                      onChange={(e) => setVal(e.target.value)}
-                    >
-                      <option value="">Selecione...</option>
-                      {(f.options || []).map((opt) => (
-                        <option key={opt} value={opt}>{opt}</option>
-                      ))}
-                    </select>
-                  )}
-                  {f.type === "multi-select" && (
-                    <div className="flex flex-wrap gap-2">
-                      {(f.options || []).map((opt) => {
-                        const list = (Array.isArray(val) ? (val as string[]) : []);
-                        const checked = list.includes(opt);
-                        return (
-                          <label key={opt} className="inline-flex items-center gap-2 border rounded-md px-2 py-1 text-xs hover:bg-muted cursor-pointer">
-                            <Checkbox checked={checked} onCheckedChange={(v) => {
-                              const curr = new Set(list);
-                              if (v) curr.add(opt); else curr.delete(opt);
-                              setVal(Array.from(curr));
-                            }} />
-                            <span>{opt}</span>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            {/* Descrição Breve */}
+            <div>
+              <label className="text-sm text-muted-foreground">Descrição Breve *</label>
+              <Textarea
+                value={(custom as any).descricaoBreve || ""}
+                onChange={(e) => setCustom((prev) => ({ ...(prev || {}), descricaoBreve: e.target.value }))}
+                placeholder="Descrição resumida do conteúdo"
+                className="min-h-[80px] resize-none"
+              />
+            </div>
+
+            {/* Data do Evento */}
+            <div>
+              <label className="text-sm text-muted-foreground">Data do Evento</label>
+              <Input
+                type="date"
+                value={(custom as any).dataEvento || ""}
+                onChange={(e) => setCustom((prev) => ({ ...(prev || {}), dataEvento: e.target.value }))}
+              />
+            </div>
+
+            {/* Local */}
+            <div>
+              <label className="text-sm text-muted-foreground">Local</label>
+              <Input
+                value={(custom as any).local || ""}
+                onChange={(e) => setCustom((prev) => ({ ...(prev || {}), local: e.target.value }))}
+                placeholder="Local do evento"
+              />
+            </div>
+
+            {/* Classificação */}
+            <div>
+              <label className="text-sm text-muted-foreground">Classificação</label>
+              <select
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                value={(custom as any).classificacao || ""}
+                onChange={(e) => setCustom((prev) => ({ ...(prev || {}), classificacao: e.target.value }))}
+              >
+                <option value="">Selecione...</option>
+                <option value="Livre">Livre</option>
+                <option value="10 anos">10 anos</option>
+                <option value="12 anos">12 anos</option>
+                <option value="14 anos">14 anos</option>
+                <option value="16 anos">16 anos</option>
+                <option value="18 anos">18 anos</option>
+              </select>
+            </div>
+
+            {/* Chamada para Ação */}
+            <div>
+              <label className="text-sm text-muted-foreground">Chamada para Ação</label>
+              <Input
+                value={(custom as any).chamadaAcao || ""}
+                onChange={(e) => setCustom((prev) => ({ ...(prev || {}), chamadaAcao: e.target.value }))}
+                placeholder="Ex: Inscreva-se já, Participe, etc."
+              />
+            </div>
+
+            {/* Dividir em Cards para Redes Sociais */}
+            <div>
+              <label className="text-sm text-muted-foreground">Dividir em Cards para Redes Sociais?</label>
+              <div className="flex items-center gap-2 mt-2">
+                <Checkbox
+                  checked={!!(custom as any).dividirCards}
+                  onCheckedChange={(v) => setCustom((prev) => ({ ...(prev || {}), dividirCards: !!v }))}
+                />
+                <span className="text-sm">Sim, dividir em múltiplos cards</span>
+              </div>
+            </div>
+
+            {/* Número de Cards (conditional) */}
+            {(custom as any).dividirCards && (
+              <div>
+                <label className="text-sm text-muted-foreground">Número de Cards</label>
+                <Input
+                  type="number"
+                  min="1"
+                  max="10"
+                  value={(custom as any).numeroCards || ""}
+                  onChange={(e) => setCustom((prev) => ({ ...(prev || {}), numeroCards: e.target.value ? Number(e.target.value) : undefined }))}
+                  placeholder="Quantos cards serão criados?"
+                />
+              </div>
+            )}
+
+            {/* Observações Especiais */}
+            <div>
+              <label className="text-sm text-muted-foreground">Observações Especiais</label>
+              <Textarea
+                value={(custom as any).observacoes || ""}
+                onChange={(e) => setCustom((prev) => ({ ...(prev || {}), observacoes: e.target.value }))}
+                placeholder="Observações ou instruções especiais"
+                className="min-h-[60px] resize-none"
+              />
+            </div>
           </div>
-        ) : null}
 
         <DialogFooter className="mt-4">
           <Button variant="destructive" onClick={handleDelete}>

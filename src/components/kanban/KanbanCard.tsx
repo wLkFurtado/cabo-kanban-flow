@@ -59,36 +59,23 @@ export function KanbanCard({ card, boardId }: KanbanCardProps) {
 
         <h3 className="text-sm font-medium leading-snug">{card.title}</h3>
 
-        {/* Communication-specific custom fields */}
+        {/* Communication-specific fixed fields */}
         {(() => {
-          const board = useBoardsStore.getState().boards[boardId];
-          const fields = board?.customFields || [];
           const vals = (card as any).custom || {};
           
-          // Get specific field values by correct names
-          const tituloEvento = fields.find(f => f.name.includes("Título/Nome do Evento"))?.id;
-          const assuntoPrincipal = fields.find(f => f.name.includes("Assunto Principal"))?.id;
-          const descricaoBreve = fields.find(f => f.name.includes("Descrição Breve"))?.id;
-          const dataEvento = fields.find(f => f.name.includes("Data do Evento"))?.id;
-          const local = fields.find(f => f.name.includes("Local"))?.id;
-          const classificacao = fields.find(f => f.name.includes("Classificação"))?.id;
-          const chamadaAcao = fields.find(f => f.name.includes("Chamada para Ação"))?.id;
-          const dividirCards = fields.find(f => f.name.includes("Dividir em Cards para Redes Sociais"))?.id;
-          const numeroCards = fields.find(f => f.name.includes("Número de Cards"))?.id;
-          const observacoes = fields.find(f => f.name.includes("Observações Especiais"))?.id;
-          
-          const tituloEventoVal = tituloEvento ? vals[tituloEvento] : null;
-          const assuntoPrincipalVal = assuntoPrincipal ? vals[assuntoPrincipal] : null;
-          const descricaoBreveVal = descricaoBreve ? vals[descricaoBreve] : null;
-          const dataEventoVal = dataEvento ? vals[dataEvento] : null;
-          const localVal = local ? vals[local] : null;
-          const classificacaoVal = classificacao ? vals[classificacao] : null;
-          const chamadaAcaoVal = chamadaAcao ? vals[chamadaAcao] : null;
-          const dividirCardsVal = dividirCards ? vals[dividirCards] : null;
-          const numeroCardsVal = numeroCards ? vals[numeroCards] : null;
-          const observacoesVal = observacoes ? vals[observacoes] : null;
+          // Fixed field keys for communication
+          const tituloEventoVal = vals.tituloEvento;
+          const assuntoPrincipalVal = vals.assuntoPrincipal;
+          const descricaoBreveVal = vals.descricaoBreve;
+          const dataEventoVal = vals.dataEvento;
+          const localVal = vals.local;
+          const classificacaoVal = vals.classificacao;
+          const chamadaAcaoVal = vals.chamadaAcao;
+          const dividirCardsVal = vals.dividirCards;
+          const numeroCardsVal = vals.numeroCards;
+          const observacoesVal = vals.observacoes;
 
-          const hasAnyCustomData = tituloEventoVal || assuntoPrincipalVal || descricaoBreveVal || dataEventoVal || localVal || classificacaoVal || chamadaAcaoVal || dividirCardsVal || numeroCardsVal || observacoesVal;
+          const hasAnyCustomData = tituloEventoVal || assuntoPrincipalVal || descricaoBreveVal || dataEventoVal || localVal || classificacaoVal || chamadaAcaoVal || dividirCardsVal || observacoesVal;
           
           if (!hasAnyCustomData) return null;
 
@@ -155,7 +142,7 @@ export function KanbanCard({ card, boardId }: KanbanCardProps) {
                 </div>
                 
                 <div className="flex items-center gap-1">
-                  {dividirCardsVal === "Sim" && (
+                  {dividirCardsVal && (
                     <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-800 border-blue-200">
                       📱 {numeroCardsVal ? `${numeroCardsVal} cards` : "Redes Sociais"}
                     </Badge>
