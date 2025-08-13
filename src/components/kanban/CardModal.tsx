@@ -310,22 +310,14 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
             />
           </div>
 
-          {/* 10. Classificação */}
+          {/* 10. Público Alvo */}
           <div>
-            <label className="text-sm text-muted-foreground">Classificação</label>
-            <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              value={(custom as any).classificacao || ""}
-              onChange={(e) => setCustom((prev) => ({ ...(prev || {}), classificacao: e.target.value }))}
-            >
-              <option value="">Selecione...</option>
-              <option value="Livre">Livre</option>
-              <option value="10 anos">10 anos</option>
-              <option value="12 anos">12 anos</option>
-              <option value="14 anos">14 anos</option>
-              <option value="16 anos">16 anos</option>
-              <option value="18 anos">18 anos</option>
-            </select>
+            <label className="text-sm text-muted-foreground">Público Alvo</label>
+            <Input
+              value={(custom as any).publicoAlvo || ""}
+              onChange={(e) => setCustom((prev) => ({ ...(prev || {}), publicoAlvo: e.target.value }))}
+              placeholder="Ex: Crianças, Jovens, Adultos, Idosos, etc."
+            />
           </div>
 
           {/* Formato de Mídia */}
