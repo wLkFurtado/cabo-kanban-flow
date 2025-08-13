@@ -84,9 +84,13 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
       return;
     }
 
+    // Use communication fields as primary title and description
+    const cardTitle = ((custom as any).tituloEvento || "").trim() || "Sem título";
+    const cardDescription = ((custom as any).descricaoBreve || "").trim();
+
     updateCard(boardId, card.id, {
-      title: title.trim() || "Sem título",
-      description: description.trim(),
+      title: cardTitle,
+      description: cardDescription,
       dueDate: dueDate ? new Date(`${dueDate}T00:00:00`).toISOString() : undefined,
       labels,
       members,
@@ -138,16 +142,6 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
         </DialogHeader>
 
         <div className="space-y-4">
-          <div>
-            <label className="text-sm text-muted-foreground">Título</label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} />
-          </div>
-
-          <div>
-            <label className="text-sm text-muted-foreground">Descrição</label>
-            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} />
-          </div>
-
           <div>
             <label className="text-sm text-muted-foreground">Vencimento</label>
             <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
