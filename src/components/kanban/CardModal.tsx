@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
 import { Card as TCard, Label as TLabel, LabelColor, Member as TMember } from "@/state/kanbanTypes";
@@ -143,7 +144,8 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
           <DialogTitle>Editar cartão</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <ScrollArea className="max-h-[70vh] pr-4">
+          <div className="space-y-4">
           {/* 1. Título/Nome do Evento */}
           <div>
             <label className="text-sm text-muted-foreground">Título/Nome do Evento *</label>
@@ -420,7 +422,8 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
               </div>
             )}
           </div>
-        </div>
+          </div>
+        </ScrollArea>
 
         <DialogFooter className="mt-4">
           <Button variant="destructive" onClick={handleDelete}>
