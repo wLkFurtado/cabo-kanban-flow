@@ -26,6 +26,17 @@ export interface CustomField {
   defaultValue?: unknown;
 }
 
+export type CommentType = "comment" | "activity";
+
+export interface Comment {
+  id: string;
+  cardId: string;
+  author: string;
+  content: string;
+  timestamp: string; // ISO string
+  type: CommentType;
+}
+
 export interface Card {
   id: string;
   listId: string;
@@ -37,6 +48,7 @@ export interface Card {
   members: Member[];
   archived?: boolean;
   custom?: Record<string, unknown>;
+  comments?: Comment[];
 }
 
 export interface List {

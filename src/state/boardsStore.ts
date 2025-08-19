@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import type { Board, Card, List, CustomField } from "./kanbanTypes";
+import type { Board, Card, List, CustomField, Comment } from "./kanbanTypes";
 
 function uid(prefix = "id"): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 8)}${Date.now()
@@ -58,6 +58,8 @@ interface BoardsState {
   reorderCustomFields: (boardId: string, fromIndex: number, toIndex: number) => void;
   // Cards custom values
   setCardCustomValue: (boardId: string, cardId: string, fieldId: string, value: unknown) => void;
+  // Comments management
+  addComment: (boardId: string, cardId: string, author: string, content: string, type: "comment" | "activity") => string;
   // Lists management
   addList: (boardId: string, title: string) => string;
   deleteList: (boardId: string, listId: string) => void;
@@ -219,6 +221,53 @@ export const useBoardsStore = create<BoardsState>()(
           };
           return { boards: { ...state.boards, [boardId]: updated } };
         });
+      },
+      addComment: (boardId, cardId, author, content, type) => {
+        const commentId = uid("comment");
+        set((state) => {
+          const board = state.boards[boardId];
+          if (!board) return state;
+          
+          let foundListId: string | null = null;
+          let foundIndex = -1;
+          for (const lid of Object.keys(board.cardsByList)) {
+            const idx = (board.cardsByList[lid] || []).findIndex((c) => c.id === cardId);
+            if (idx !== -1) {
+              foundListId = lid;
+              foundIndex = idx;
+              break;
+            }
+          }
+          if (!foundListId || foundIndex === -1) return state;
+          
+          const existing = board.cardsByList[foundListId][foundIndex];
+          const newComment: Comment = {
+            id: commentId,
+            cardId,
+            author,
+            content,
+            timestamp: new Date().toISOString(),
+            type,
+          };
+          
+          const updatedCard: Card = {
+            ...existing,
+            comments: [...(existing.comments || []), newComment],
+          };
+          
+          const updatedList = board.cardsByList[foundListId].slice();
+          updatedList[foundIndex] = updatedCard;
+          
+          const updated: Board = {
+            ...board,
+            cardsByList: {
+              ...board.cardsByList,
+              [foundListId]: updatedList,
+            },
+          };
+          return { boards: { ...state.boards, [boardId]: updated } };
+        });
+        return commentId;
       },
       addList: (boardId: string, title: string) => {
         const id = uid("l");

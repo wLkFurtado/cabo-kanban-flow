@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,9 +9,11 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { MessageSquare, Clock, User, Send } from "lucide-react";
 
-import { Card as TCard, Label as TLabel, LabelColor, Member as TMember } from "@/state/kanbanTypes";
-import { parseISO, format } from "date-fns";
+import { Card as TCard, Label as TLabel, LabelColor, Member as TMember, Comment } from "@/state/kanbanTypes";
+import { parseISO, format, formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { useBoardsStore } from "@/state/boardsStore";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
@@ -45,6 +47,7 @@ interface CardModalProps {
 export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps) {
   const updateCard = useBoardsStore((s) => s.updateCard);
   const deleteCard = useBoardsStore((s) => s.deleteCard);
+  const addComment = useBoardsStore((s) => s.addComment);
   const board = useBoardsStore((s) => s.boards[boardId]);
   const { toast } = useToast();
 
@@ -54,6 +57,8 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
   const [labels, setLabels] = useState<TLabel[]>(card.labels || []);
   const [members, setMembers] = useState<TMember[]>(card.members || []);
   const [custom, setCustom] = useState<Record<string, unknown>>((card as any).custom || {});
+  const [newComment, setNewComment] = useState("");
+  const commentsScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (open) {
@@ -137,15 +142,62 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
     setMembers((prev) => prev.filter((m) => m.id !== id));
   };
 
+  const handleAddComment = () => {
+    const content = newComment.trim();
+    if (!content) return;
+    
+    // For now, using a default author - this would come from auth in a real app
+    addComment(boardId, card.id, "Usuário", content, "comment");
+    setNewComment("");
+    
+    // Auto-scroll to bottom of comments
+    setTimeout(() => {
+      if (commentsScrollRef.current) {
+        commentsScrollRef.current.scrollTop = commentsScrollRef.current.scrollHeight;
+      }
+    }, 100);
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleAddComment();
+    }
+  };
+
+  const formatCommentTime = (timestamp: string) => {
+    try {
+      return formatDistanceToNow(parseISO(timestamp), { 
+        addSuffix: true, 
+        locale: ptBR 
+      });
+    } catch {
+      return "agora";
+    }
+  };
+
+  const comments = card.comments || [];
+  const commentsCount = comments.filter(c => c.type === "comment").length;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-6xl max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Editar cartão</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            Editar cartão
+            {commentsCount > 0 && (
+              <Badge variant="secondary" className="flex items-center gap-1">
+                <MessageSquare className="h-3 w-3" />
+                {commentsCount}
+              </Badge>
+            )}
+          </DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[70vh] pr-4">
-          <div className="space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 min-h-0">
+          {/* Left Column - Form */}
+          <ScrollArea className="max-h-[60vh] pr-4">
+            <div className="space-y-4">
           {/* 1. Título/Nome do Evento */}
           <div>
             <label className="text-sm text-muted-foreground">Título/Nome do Evento *</label>
@@ -422,8 +474,90 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
               </div>
             )}
           </div>
+            </div>
+          </ScrollArea>
+
+          {/* Right Column - Comments & Activity */}
+          <div className="flex flex-col border-l border-border pl-6">
+            <div className="flex items-center gap-2 mb-4">
+              <MessageSquare className="h-4 w-4" />
+              <h3 className="font-medium">Atividade</h3>
+            </div>
+
+            {/* Comments List */}
+            <ScrollArea className="flex-1 max-h-[50vh] mb-4" ref={commentsScrollRef}>
+              <div className="space-y-3">
+                {comments.length === 0 ? (
+                  <div className="text-center text-muted-foreground py-8">
+                    <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">Nenhum comentário ainda</p>
+                    <p className="text-xs">Seja o primeiro a comentar</p>
+                  </div>
+                ) : (
+                  comments
+                    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                    .map((comment) => (
+                      <div
+                        key={comment.id}
+                        className={cn(
+                          "flex gap-3 p-3 rounded-lg",
+                          comment.type === "activity" 
+                            ? "bg-muted/50 border-l-2 border-l-primary/30" 
+                            : "bg-background border"
+                        )}
+                      >
+                        <Avatar className="h-8 w-8 shrink-0">
+                          <AvatarFallback className="text-xs">
+                            {comment.type === "activity" ? (
+                              <Clock className="h-3 w-3" />
+                            ) : (
+                              <User className="h-3 w-3" />
+                            )}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium">{comment.author}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {formatCommentTime(comment.timestamp)}
+                            </span>
+                          </div>
+                          <p className="text-sm text-foreground whitespace-pre-wrap">
+                            {comment.content}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                )}
+              </div>
+            </ScrollArea>
+
+            {/* Add Comment */}
+            <div className="space-y-2">
+              <Textarea
+                placeholder="Adicione um comentário..."
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                onKeyDown={handleKeyPress}
+                className="min-h-[80px] resize-none"
+              />
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-muted-foreground">
+                  Pressione Enter para enviar
+                </span>
+                <Button 
+                  size="sm" 
+                  onClick={handleAddComment}
+                  disabled={!newComment.trim()}
+                  className="flex items-center gap-2"
+                >
+                  <Send className="h-3 w-3" />
+                  Comentar
+                </Button>
+              </div>
+            </div>
           </div>
-        </ScrollArea>
+        </div>
 
         <DialogFooter className="mt-4">
           <Button variant="destructive" onClick={handleDelete}>
