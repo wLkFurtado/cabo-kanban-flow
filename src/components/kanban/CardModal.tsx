@@ -5,15 +5,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 
-import { Card as TCard, Label as TLabel, LabelColor, Member as TMember } from "@/state/kanbanTypes";
+import { Card as TCard, Label as TLabel, LabelColor, Member as TMember, CustomField } from "@/state/kanbanTypes";
 import { parseISO, format } from "date-fns";
 import { useBoardsStore } from "@/state/boardsStore";
-import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 
 const labelColorClass: Record<LabelColor, string> = {
@@ -75,11 +75,16 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
       .toUpperCase();
 
   const handleSave = () => {
-    // Required fields validation for fixed communication fields
-    const requiredFields = ['tituloEvento', 'assuntoPrincipal', 'descricaoBreve'];
-    const requiredMissing = requiredFields.some(field => {
-      const value = (custom as any)[field];
-      return !value || (typeof value === "string" && value.trim() === "");
+    const customFields = board?.customFields || [];
+    
+    // Validate required custom fields
+    const requiredMissing = customFields.some(field => {
+      if (!field.required) return false;
+      const value = custom[field.id];
+      if (value === undefined || value === null) return true;
+      if (typeof value === "string" && value.trim() === "") return true;
+      if (Array.isArray(value) && value.length === 0) return true;
+      return false;
     });
     
     if (requiredMissing) {
@@ -87,13 +92,9 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
       return;
     }
 
-    // Use communication fields as primary title and description
-    const cardTitle = ((custom as any).tituloEvento || "").trim() || "Sem título";
-    const cardDescription = ((custom as any).descricaoBreve || "").trim();
-
     updateCard(boardId, card.id, {
-      title: cardTitle,
-      description: cardDescription,
+      title,
+      description,
       dueDate: dueDate ? new Date(`${dueDate}T00:00:00`).toISOString() : undefined,
       labels,
       members,
@@ -146,28 +147,26 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
 
         <ScrollArea className="max-h-[70vh] pr-4">
           <div className="space-y-4">
-          {/* 1. Título/Nome do Evento */}
+          {/* Basic Fields */}
           <div>
-            <label className="text-sm text-muted-foreground">Título/Nome do Evento *</label>
+            <label className="text-sm text-muted-foreground">Título</label>
             <Input
-              value={(custom as any).tituloEvento || ""}
-              onChange={(e) => setCustom((prev) => ({ ...(prev || {}), tituloEvento: e.target.value }))}
-              placeholder="Nome do evento ou campanha"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Título do cartão"
             />
           </div>
 
-          {/* 2. Descrição Breve */}
           <div>
-            <label className="text-sm text-muted-foreground">Descrição Breve *</label>
+            <label className="text-sm text-muted-foreground">Descrição</label>
             <Textarea
-              value={(custom as any).descricaoBreve || ""}
-              onChange={(e) => setCustom((prev) => ({ ...(prev || {}), descricaoBreve: e.target.value }))}
-              placeholder="Descrição resumida do conteúdo"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Descrição do cartão"
               className="min-h-[80px] resize-none"
             />
           </div>
 
-          {/* 3. Vencimento */}
           <div>
             <label className="text-sm text-muted-foreground">Vencimento</label>
             <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
@@ -243,185 +242,114 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
             </div>
           </div>
 
-          {/* 6. Secretaria solicitante */}
-          <div>
-            <label className="text-sm text-muted-foreground">Secretaria solicitante</label>
-            <Input
-              placeholder="Informe a secretaria solicitante"
-              value={(custom as any).secretariaSolicitante || ""}
-              onChange={(e) => setCustom((prev) => ({ ...(prev || {}), secretariaSolicitante: e.target.value }))}
-            />
-          </div>
-
-          {/* 7. Tipos de demanda */}
-          <div>
-            <label className="text-sm text-muted-foreground">Tipos de demanda</label>
-            <div className="mt-2 flex flex-col gap-2">
-              {[
-                "Criação de demanda gráfica",
-                "Post para redes sociais",
-                "Nota ou matéria para imprensa/site",
-                "Apoio de mídia (rádio, TV, outdoor etc.)",
-              ].map((opt) => {
-                const list = Array.isArray((custom as any).tiposDemanda) ? ((custom as any).tiposDemanda as string[]) : [];
-                const checked = list.includes(opt);
-                return (
-                  <label key={opt} className="inline-flex items-center gap-2 text-sm">
+          {/* Custom Fields */}
+          {board?.customFields?.filter(f => f).map((field) => {
+            const value = custom[field.id];
+            const isRequired = field.required;
+            
+            return (
+              <div key={field.id}>
+                <label className="text-sm text-muted-foreground">
+                  {field.name}
+                  {isRequired && " *"}
+                </label>
+                
+                {field.type === "text" && (
+                  <Input
+                    value={value as string || ""}
+                    onChange={(e) => setCustom(prev => ({ ...prev, [field.id]: e.target.value }))}
+                    placeholder={field.helpText}
+                  />
+                )}
+                
+                {field.type === "textarea" && (
+                  <Textarea
+                    value={value as string || ""}
+                    onChange={(e) => setCustom(prev => ({ ...prev, [field.id]: e.target.value }))}
+                    placeholder={field.helpText}
+                    className="min-h-[80px] resize-none"
+                  />
+                )}
+                
+                {field.type === "number" && (
+                  <Input
+                    type="number"
+                    value={value as number || ""}
+                    onChange={(e) => setCustom(prev => ({ ...prev, [field.id]: e.target.value ? Number(e.target.value) : "" }))}
+                    placeholder={field.helpText}
+                  />
+                )}
+                
+                {field.type === "date" && (
+                  <Input
+                    type="date"
+                    value={value as string || ""}
+                    onChange={(e) => setCustom(prev => ({ ...prev, [field.id]: e.target.value }))}
+                  />
+                )}
+                
+                {field.type === "checkbox" && (
+                  <div className="flex items-center space-x-2 mt-2">
                     <Checkbox
-                      checked={checked}
-                      onCheckedChange={(v) => {
-                        const curr = new Set(list);
-                        if (v) curr.add(opt); else curr.delete(opt);
-                        setCustom((prev) => ({ ...(prev || {}), tiposDemanda: Array.from(curr) }));
-                      }}
+                      checked={!!value}
+                      onCheckedChange={(checked) => setCustom(prev => ({ ...prev, [field.id]: checked }))}
+                      id={`checkbox-${field.id}`}
                     />
-                    <span>{opt}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Assunto Principal */}
-          <div>
-            <label className="text-sm text-muted-foreground">Assunto Principal *</label>
-            <Input
-              value={(custom as any).assuntoPrincipal || ""}
-              onChange={(e) => setCustom((prev) => ({ ...(prev || {}), assuntoPrincipal: e.target.value }))}
-              placeholder="Assunto ou tema principal"
-            />
-          </div>
-
-          {/* 8. Local do evento */}
-          <div>
-            <label className="text-sm text-muted-foreground">Local do evento</label>
-            <Input
-              value={(custom as any).local || ""}
-              onChange={(e) => setCustom((prev) => ({ ...(prev || {}), local: e.target.value }))}
-              placeholder="Local do evento"
-            />
-          </div>
-
-          {/* 9. Data do evento */}
-          <div>
-            <label className="text-sm text-muted-foreground">Data do evento</label>
-            <Input
-              type="date"
-              value={(custom as any).dataEvento || ""}
-              onChange={(e) => setCustom((prev) => ({ ...(prev || {}), dataEvento: e.target.value }))}
-            />
-          </div>
-
-          {/* 10. Público Alvo */}
-          <div>
-            <label className="text-sm text-muted-foreground">Público Alvo</label>
-            <Input
-              value={(custom as any).publicoAlvo || ""}
-              onChange={(e) => setCustom((prev) => ({ ...(prev || {}), publicoAlvo: e.target.value }))}
-              placeholder="Ex: Crianças, Jovens, Adultos, Idosos, etc."
-            />
-          </div>
-
-          {/* Formato de Mídia */}
-          <div>
-            <label className="text-sm text-muted-foreground">Formato de Mídia</label>
-            <RadioGroup
-              value={(custom as any).formatoMidia || ""}
-              onValueChange={(value) => setCustom((prev) => ({ ...(prev || {}), formatoMidia: value }))}
-              className="mt-2"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="digital" id="digital" />
-                <Label htmlFor="digital">Digital</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="impresso" id="impresso" />
-                <Label htmlFor="impresso">Impresso</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="digital-impresso" id="digital-impresso" />
-                <Label htmlFor="digital-impresso">Digital e Impresso</Label>
-              </div>
-            </RadioGroup>
-
-            {/* Digital Options */}
-            {((custom as any).formatoMidia === "digital" || (custom as any).formatoMidia === "digital-impresso") && (
-              <div className="mt-3 pl-4 border-l-2 border-muted">
-                <label className="text-sm text-muted-foreground">Opções Digitais</label>
-                <RadioGroup
-                  value={(custom as any).opcaoDigital || ""}
-                  onValueChange={(value) => setCustom((prev) => ({ ...(prev || {}), opcaoDigital: value }))}
-                  className="mt-2"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="feed" id="feed" />
-                    <Label htmlFor="feed">Feed</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="stories" id="stories" />
-                    <Label htmlFor="stories">Stories</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="carrossel" id="carrossel" />
-                    <Label htmlFor="carrossel">Carrossel</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="banner-site" id="banner-site" />
-                    <Label htmlFor="banner-site">Banner Site</Label>
-                  </div>
-                </RadioGroup>
-
-                {/* Banner Site Size Options */}
-                {(custom as any).opcaoDigital === "banner-site" && (
-                  <div className="mt-3 pl-4 border-l-2 border-muted">
-                    <label className="text-sm text-muted-foreground">Tamanho do Banner</label>
-                    <RadioGroup
-                      value={(custom as any).tamanhoBanner || ""}
-                      onValueChange={(value) => setCustom((prev) => ({ ...(prev || {}), tamanhoBanner: value }))}
-                      className="mt-2"
-                    >
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="1200x120" id="size-1200x120" />
-                        <Label htmlFor="size-1200x120">1200x120</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="1200x700" id="size-1200x700" />
-                        <Label htmlFor="size-1200x700">1200x700</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="custom" id="size-custom" />
-                        <Label htmlFor="size-custom">Personalizado</Label>
-                      </div>
-                    </RadioGroup>
-
-                    {/* Custom Size Input */}
-                    {(custom as any).tamanhoBanner === "custom" && (
-                      <div className="mt-2">
-                        <Input
-                          placeholder="Ex: 800x600"
-                          value={(custom as any).tamanhoCustom || ""}
-                          onChange={(e) => setCustom((prev) => ({ ...(prev || {}), tamanhoCustom: e.target.value }))}
-                        />
-                      </div>
-                    )}
+                    <Label htmlFor={`checkbox-${field.id}`} className="text-sm">
+                      {field.helpText || "Marcar se aplicável"}
+                    </Label>
                   </div>
                 )}
+                
+                {field.type === "select" && (
+                  <Select
+                    value={value as string || ""}
+                    onValueChange={(selectedValue) => setCustom(prev => ({ ...prev, [field.id]: selectedValue }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={field.helpText || "Selecione uma opção"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {field.options?.map((option) => (
+                        <SelectItem key={option} value={option}>
+                          {option}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                
+                {field.type === "multi-select" && (
+                  <div className="mt-2 space-y-2">
+                    {field.options?.map((option) => {
+                      const selectedValues = Array.isArray(value) ? value as string[] : [];
+                      const isChecked = selectedValues.includes(option);
+                      
+                      return (
+                        <label key={option} className="inline-flex items-center gap-2 text-sm">
+                          <Checkbox
+                            checked={isChecked}
+                            onCheckedChange={(checked) => {
+                              const current = Array.isArray(value) ? value as string[] : [];
+                              const updated = checked
+                                ? [...current, option]
+                                : current.filter(v => v !== option);
+                              setCustom(prev => ({ ...prev, [field.id]: updated }));
+                            }}
+                          />
+                          <span>{option}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+                
+                {field.helpText && field.type !== "checkbox" && (
+                  <p className="text-xs text-muted-foreground mt-1">{field.helpText}</p>
+                )}
               </div>
-            )}
-
-            {/* Impresso Options */}
-            {((custom as any).formatoMidia === "impresso" || (custom as any).formatoMidia === "digital-impresso") && (
-              <div className="mt-3 pl-4 border-l-2 border-muted">
-                <label className="text-sm text-muted-foreground">Tamanho do Material Impresso</label>
-                <Input
-                  placeholder="Ex: A4, 10x15cm, etc."
-                  value={(custom as any).tamanhoImpresso || ""}
-                  onChange={(e) => setCustom((prev) => ({ ...(prev || {}), tamanhoImpresso: e.target.value }))}
-                  className="mt-2"
-                />
-              </div>
-            )}
-          </div>
+            );
+          })}
           </div>
         </ScrollArea>
 
