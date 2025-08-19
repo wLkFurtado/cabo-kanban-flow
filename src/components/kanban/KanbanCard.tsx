@@ -41,14 +41,21 @@ export function KanbanCard({ card, boardId }: KanbanCardProps) {
 
   return (
     <>
-      <article className="group rounded-md bg-card shadow-sm hover:shadow-md transition-shadow border p-3 cursor-pointer" onClick={() => setOpen(true)}>
+      <article className="group rounded-xl bg-card shadow-sm hover:shadow-lg transition-all duration-200 border border-border/50 hover:border-border p-4 cursor-pointer bg-gradient-to-br from-card to-card/80" onClick={() => setOpen(true)}>
+        {/* Card image placeholder */}
+        <div className="mb-3 aspect-video bg-gradient-to-br from-muted/30 to-muted/10 rounded-lg border flex items-center justify-center">
+          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+            <span className="text-primary text-lg">📝</span>
+          </div>
+        </div>
+
         {/* Labels */}
         {card.labels?.length ? (
-          <div className="mb-2 flex flex-wrap gap-1">
+          <div className="mb-3 flex flex-wrap gap-1.5">
             {card.labels.map((l) => (
               <Badge
                 key={l.id}
-                className={cn("text-xs px-2 py-0.5", labelColorClass[l.color])}
+                className={cn("text-xs px-2.5 py-1 font-medium rounded-full", labelColorClass[l.color])}
                 aria-label={`Label ${l.name}`}
               >
                 {l.name}
@@ -57,7 +64,7 @@ export function KanbanCard({ card, boardId }: KanbanCardProps) {
           </div>
         ) : null}
 
-        <h3 className="text-sm font-medium leading-snug">{card.title}</h3>
+        <h3 className="text-sm font-semibold leading-snug mb-2 text-card-foreground">{card.title}</h3>
 
         {/* Communication-specific fixed fields */}
         {(() => {
@@ -158,34 +165,51 @@ export function KanbanCard({ card, boardId }: KanbanCardProps) {
           );
         })()}
 
-        <div className="mt-3 flex items-center justify-between">
-          <div className="flex -space-x-2">
+        {/* Bottom section */}
+        <div className="mt-4 flex items-center justify-between">
+          <div className="flex -space-x-1">
             {card.members?.slice(0, 3).map((m) => (
-              <Avatar key={m.id} className="size-6 border bg-muted">
-                <AvatarFallback className="text-[10px]">
+              <Avatar key={m.id} className="size-7 border-2 border-background shadow-sm">
+                <AvatarFallback className="text-xs font-medium bg-gradient-to-br from-primary/20 to-secondary/20 text-primary">
                   {initials(m.name)}
                 </AvatarFallback>
               </Avatar>
             ))}
+            {card.members && card.members.length > 3 && (
+              <div className="size-7 rounded-full border-2 border-background bg-muted flex items-center justify-center shadow-sm">
+                <span className="text-xs text-muted-foreground font-medium">+{card.members.length - 3}</span>
+              </div>
+            )}
           </div>
 
-          {due ? (
-            <time
-              dateTime={card.dueDate}
-              className={cn(
-                "text-[11px] px-2 py-0.5 rounded-md border",
-                isOverdue
-                  ? "text-[hsl(var(--destructive))] border-[hsl(var(--destructive))]"
-                  : isSoon
-                  ? "text-[hsl(var(--warning))] border-[hsl(var(--warning))]"
-                  : "text-muted-foreground border-muted"
-              )}
-              aria-label="Data de vencimento"
-              title={format(due, "dd/MM/yyyy")}
-            >
-              {format(due, "dd MMM")}
-            </time>
-          ) : null}
+          <div className="flex items-center gap-2">
+            {/* Comments indicator */}
+            {card.comments && card.comments.length > 0 && (
+              <div className="flex items-center gap-1 text-muted-foreground">
+                <span className="text-xs">💬</span>
+                <span className="text-xs font-medium">{card.comments.length}</span>
+              </div>
+            )}
+            
+            {/* Due date */}
+            {due ? (
+              <time
+                dateTime={card.dueDate}
+                className={cn(
+                  "text-xs px-2.5 py-1 rounded-full border font-medium",
+                  isOverdue
+                    ? "text-destructive border-destructive/20 bg-destructive/5"
+                    : isSoon
+                    ? "text-warning border-warning/20 bg-warning/5"
+                    : "text-muted-foreground border-border bg-muted/30"
+                )}
+                aria-label="Data de vencimento"
+                title={format(due, "dd/MM/yyyy")}
+              >
+                {format(due, "dd MMM")}
+              </time>
+            ) : null}
+          </div>
         </div>
       </article>
       <CardModal open={open} onOpenChange={setOpen} boardId={boardId} card={card} />
