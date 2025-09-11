@@ -26,15 +26,6 @@ const labelColorClass: Record<LabelColor, string> = {
   blue: "bg-[hsl(var(--label-blue))] text-white",
 };
 
-const labelNames: Record<LabelColor, string> = {
-  green: "Verde",
-  yellow: "Amarelo", 
-  orange: "Laranja",
-  red: "Vermelho",
-  purple: "Roxo",
-  blue: "Azul",
-};
-
 interface CardModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -58,6 +49,8 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
   const [coverImages, setCoverImages] = useState<string[]>(card.coverImages || []);
   const [newComment, setNewComment] = useState("");
   const [newMemberName, setNewMemberName] = useState("");
+  const [newTagName, setNewTagName] = useState("");
+  const [selectedTagColor, setSelectedTagColor] = useState<LabelColor>("blue");
   const commentsScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -110,16 +103,17 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
     onOpenChange(false);
   };
 
-  const addLabel = (color: LabelColor) => {
-    // Verifica se já existe uma label com essa cor
-    if (labels.some(l => l.color === color)) return;
+  const addLabel = () => {
+    const name = newTagName.trim();
+    if (!name) return;
     
     const label: TLabel = { 
       id: `l_${Math.random().toString(36).slice(2, 8)}`, 
-      name: labelNames[color], 
-      color 
+      name, 
+      color: selectedTagColor 
     };
     setLabels((prev) => [...prev, label]);
+    setNewTagName("");
   };
 
   const removeLabel = (id: string) => {
@@ -460,42 +454,76 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                 </>
               )}
 
-              {/* 5. Labels */}
+              {/* 5. Tags */}
               <div>
-                <label className="text-sm text-muted-foreground">Labels</label>
+                <label className="text-sm text-muted-foreground">Tags</label>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {labels.map((l) => (
                     <Badge
                       key={l.id}
                       className={cn("cursor-pointer", labelColorClass[l.color])}
                       onClick={() => removeLabel(l.id)}
-                      title={`Remover label ${l.name}`}
+                      title={`Remover tag ${l.name}`}
                     >
                       {l.name}
                     </Badge>
                   ))}
                 </div>
-                <div className="mt-3">
-                  <p className="text-xs text-muted-foreground mb-2">Clique em uma cor para adicionar:</p>
-                  <div className="flex flex-wrap gap-2">
-                    {(Object.keys(labelNames) as LabelColor[]).map((color) => {
-                      const hasLabel = labels.some(l => l.color === color);
-                      return (
-                        <button
-                          key={color}
-                          className={cn(
-                            "px-3 py-1.5 rounded-md text-xs font-medium transition-opacity",
-                            labelColorClass[color],
-                            hasLabel && "opacity-50 cursor-not-allowed"
-                          )}
-                          onClick={() => addLabel(color)}
-                          disabled={hasLabel}
-                          title={hasLabel ? `Label ${labelNames[color]} já adicionada` : `Adicionar label ${labelNames[color]}`}
-                        >
-                          {labelNames[color]}
-                        </button>
-                      );
-                    })}
+                <div className="mt-3 space-y-3">
+                  <p className="text-xs text-muted-foreground">Criar nova tag:</p>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Nome da tag"
+                      value={newTagName}
+                      onChange={(e) => setNewTagName(e.target.value)}
+                      className="flex-1"
+                    />
+                    <Select value={selectedTagColor} onValueChange={(value: LabelColor) => setSelectedTagColor(value)}>
+                      <SelectTrigger className="w-[120px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="green">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-[hsl(var(--label-green))]" />
+                            Verde
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="yellow">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-[hsl(var(--label-yellow))]" />
+                            Amarelo
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="orange">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-[hsl(var(--label-orange))]" />
+                            Laranja
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="red">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-[hsl(var(--label-red))]" />
+                            Vermelho
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="purple">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-[hsl(var(--label-purple))]" />
+                            Roxo
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="blue">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-[hsl(var(--label-blue))]" />
+                            Azul
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button size="sm" onClick={addLabel} disabled={!newTagName.trim()}>
+                      Adicionar
+                    </Button>
                   </div>
                 </div>
               </div>

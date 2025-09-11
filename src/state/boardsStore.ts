@@ -678,7 +678,7 @@ export const useBoardsStore = create<BoardsState>()(
                   id: uid("activity"),
                   cardId,
                   author: "Sistema",
-                  content: `label_added:adicionou a etiqueta ${label.name}`,
+                  content: `label_added:adicionou a tag ${label.name}`,
                   timestamp: new Date().toISOString(),
                   type: "activity",
                 });
@@ -692,7 +692,7 @@ export const useBoardsStore = create<BoardsState>()(
                   id: uid("activity"),
                   cardId,
                   author: "Sistema",
-                  content: `label_removed:removeu a etiqueta ${label.name}`,
+                  content: `label_removed:removeu a tag ${label.name}`,
                   timestamp: new Date().toISOString(),
                   type: "activity",
                 });

@@ -67,14 +67,14 @@ export function KanbanCard({ card, boardId }: KanbanCardProps) {
           </div>
         </div>
 
-        {/* Labels */}
+        {/* Tags */}
         {card.labels?.length ? (
           <div className="mb-3 flex flex-wrap gap-1.5">
             {card.labels.map((l) => (
               <Badge
                 key={l.id}
                 className={cn("text-xs px-2.5 py-1 font-medium rounded-full", labelColorClass[l.color])}
-                aria-label={`Label ${l.name}`}
+                aria-label={`Tag ${l.name}`}
               >
                 {l.name}
               </Badge>
