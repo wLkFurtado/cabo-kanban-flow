@@ -26,9 +26,6 @@ export function AppSidebar() {
 
       <SidebarContent>
         {/* Aqui serão adicionadas as futuras abas do SaaS */}
-        <div className="p-4 text-center text-sm text-muted-foreground">
-          {!collapsed && "Menu em desenvolvimento"}
-        </div>
       </SidebarContent>
     </Sidebar>
   );
