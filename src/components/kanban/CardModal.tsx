@@ -57,6 +57,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
   const [labels, setLabels] = useState<TLabel[]>(card.labels || []);
   const [members, setMembers] = useState<TMember[]>(card.members || []);
   const [custom, setCustom] = useState<Record<string, unknown>>((card as any).custom || {});
+  const [coverImage, setCoverImage] = useState(card.coverImage || "");
   const [newComment, setNewComment] = useState("");
   const commentsScrollRef = useRef<HTMLDivElement>(null);
 
@@ -68,6 +69,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
       setLabels(card.labels || []);
       setMembers(card.members || []);
       setCustom((card as any).custom || {});
+      setCoverImage(card.coverImage || "");
     }
   }, [open, card]);
 
@@ -103,6 +105,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
       labels,
       members,
       custom,
+      coverImage: coverImage.trim() || undefined,
     });
     onOpenChange(false);
   };
@@ -198,6 +201,45 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
           {/* Left Column - Form */}
           <ScrollArea className="max-h-[60vh] pr-4">
             <div className="space-y-4">
+          {/* Cover Image */}
+          <div>
+            <label className="text-sm text-muted-foreground">Capa do Card</label>
+            <div className="mt-2 space-y-2">
+              <Input
+                placeholder="URL da imagem de capa"
+                value={coverImage}
+                onChange={(e) => setCoverImage(e.target.value)}
+              />
+              {coverImage && (
+                <div className="relative">
+                  <div className="aspect-video bg-muted rounded-lg overflow-hidden border">
+                    <img
+                      src={coverImage}
+                      alt="Preview da capa"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                        const fallback = (e.target as HTMLImageElement).nextElementSibling as HTMLDivElement;
+                        if (fallback) fallback.style.display = 'flex';
+                      }}
+                    />
+                    <div className="hidden w-full h-full items-center justify-center bg-muted text-muted-foreground text-sm">
+                      Erro ao carregar imagem
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="absolute top-2 right-2"
+                    onClick={() => setCoverImage("")}
+                  >
+                    Remover
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* 1. Título/Nome do Evento */}
           <div>
             <label className="text-sm text-muted-foreground">Título/Nome do Evento *</label>

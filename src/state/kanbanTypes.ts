@@ -49,6 +49,7 @@ export interface Card {
   archived?: boolean;
   custom?: Record<string, unknown>;
   comments?: Comment[];
+  coverImage?: string; // URL da imagem de capa
 }
 
 export interface List {
