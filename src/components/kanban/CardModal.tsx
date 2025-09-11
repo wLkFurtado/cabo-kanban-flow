@@ -9,7 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
-import { MessageSquare, Clock, User, Send } from "lucide-react";
+import { MessageSquare, Clock, User, Send, Calendar, Tag, Paperclip, ArrowRight, Plus } from "lucide-react";
 
 import { Card as TCard, Label as TLabel, LabelColor, Member as TMember, Comment } from "@/state/kanbanTypes";
 import { parseISO, format, formatDistanceToNow } from "date-fns";
@@ -186,13 +186,38 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
 
   const formatCommentTime = (timestamp: string) => {
     try {
-      return formatDistanceToNow(parseISO(timestamp), { 
-        addSuffix: true, 
-        locale: ptBR 
-      });
+      return format(parseISO(timestamp), "d 'de' MMMM 'de' yyyy, HH:mm", { locale: ptBR });
     } catch {
       return "agora";
     }
+  };
+
+  const getActivityIcon = (activityType: string) => {
+    switch (activityType) {
+      case 'card_created':
+        return <Plus className="size-4 text-green-500" />;
+      case 'card_moved':
+        return <ArrowRight className="size-4 text-blue-500" />;
+      case 'member_added':
+      case 'member_removed':
+        return <User className="size-4 text-purple-500" />;
+      case 'due_date_set':
+      case 'due_date_changed':
+        return <Calendar className="size-4 text-orange-500" />;
+      case 'label_added':
+      case 'label_removed':
+        return <Tag className="size-4 text-indigo-500" />;
+      case 'attachment_added':
+      case 'attachment_removed':
+        return <Paperclip className="size-4 text-gray-500" />;
+      default:
+        return <div className="size-4 rounded-full bg-gray-300" />;
+    }
+  };
+
+  const parseActivity = (content: string) => {
+    const [type, description] = content.split(':');
+    return { type, description };
   };
 
   const comments = card.comments || [];
@@ -492,13 +517,24 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                 {comments.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Nenhuma atividade ainda.</p>
                 ) : (
-                  comments.map((comment) => (
+                  comments
+                    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                    .map((comment) => (
                     <div key={comment.id} className="flex gap-3 text-sm">
-                      <Avatar className="size-8 border bg-muted shrink-0">
-                        <AvatarFallback className="text-xs">
-                          {comment.type === "activity" ? "📝" : <User className="h-4 w-4" />}
-                        </AvatarFallback>
-                      </Avatar>
+                      <div className="flex-shrink-0 mt-1">
+                        {comment.type === 'activity' ? (
+                          (() => {
+                            const { type } = parseActivity(comment.content);
+                            return getActivityIcon(type);
+                          })()
+                        ) : (
+                          <Avatar className="size-8 border bg-muted">
+                            <AvatarFallback className="text-xs">
+                              <User className="h-4 w-4" />
+                            </AvatarFallback>
+                          </Avatar>
+                        )}
+                      </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="font-medium text-foreground">{comment.author}</span>
@@ -508,12 +544,19 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                           </span>
                         </div>
                         <div className={cn(
-                          "p-3 rounded-lg text-sm break-words",
+                          "text-sm break-words",
                           comment.type === "activity" 
-                            ? "bg-muted/50 text-muted-foreground italic border-l-2 border-primary/20" 
-                            : "bg-muted text-foreground"
+                            ? "text-muted-foreground" 
+                            : "p-3 rounded-lg bg-muted text-foreground"
                         )}>
-                          {comment.content}
+                          {comment.type === 'activity' ? (
+                            (() => {
+                              const { description } = parseActivity(comment.content);
+                              return description;
+                            })()
+                          ) : (
+                            comment.content
+                          )}
                         </div>
                       </div>
                     </div>

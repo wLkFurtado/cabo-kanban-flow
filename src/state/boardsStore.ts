@@ -193,6 +193,8 @@ interface BoardsState {
   setCardCustomValue: (boardId: string, cardId: string, fieldId: string, value: unknown) => void;
   // Comments management
   addComment: (boardId: string, cardId: string, author: string, content: string, type: "comment" | "activity") => string;
+  // Activity tracking
+  addActivity: (boardId: string, cardId: string, author: string, activityType: string, description: string) => string;
   // Lists management
   addList: (boardId: string, title: string) => string;
   deleteList: (boardId: string, listId: string) => void;
@@ -437,6 +439,53 @@ export const useBoardsStore = create<BoardsState>()(
         });
         return commentId;
       },
+      addActivity: (boardId, cardId, author, activityType, description) => {
+        const commentId = uid("activity");
+        set((state) => {
+          const board = state.boards[boardId];
+          if (!board) return state;
+          
+          let foundListId: string | null = null;
+          let foundIndex = -1;
+          for (const lid of Object.keys(board.cardsByList)) {
+            const idx = (board.cardsByList[lid] || []).findIndex((c) => c.id === cardId);
+            if (idx !== -1) {
+              foundListId = lid;
+              foundIndex = idx;
+              break;
+            }
+          }
+          if (!foundListId || foundIndex === -1) return state;
+          
+          const existing = board.cardsByList[foundListId][foundIndex];
+          const newActivity: Comment = {
+            id: commentId,
+            cardId,
+            author,
+            content: `${activityType}:${description}`,
+            timestamp: new Date().toISOString(),
+            type: "activity",
+          };
+          
+          const updatedCard: Card = {
+            ...existing,
+            comments: [...(existing.comments || []), newActivity],
+          };
+          
+          const updatedList = board.cardsByList[foundListId].slice();
+          updatedList[foundIndex] = updatedCard;
+          
+          const updated: Board = {
+            ...board,
+            cardsByList: {
+              ...board.cardsByList,
+              [foundListId]: updatedList,
+            },
+          };
+          return { boards: { ...state.boards, [boardId]: updated } };
+        });
+        return commentId;
+      },
       addList: (boardId: string, title: string) => {
         const id = uid("l");
         set((state) => {
@@ -520,6 +569,14 @@ export const useBoardsStore = create<BoardsState>()(
             position: listCards.length,
             labels: [],
             members: [],
+            comments: [{
+              id: uid("activity"),
+              cardId: id,
+              author: "Sistema",
+              content: "card_created:criou este cartão",
+              timestamp: new Date().toISOString(),
+              type: "activity",
+            }],
           };
           const updated: Board = {
             ...board,
@@ -548,8 +605,133 @@ export const useBoardsStore = create<BoardsState>()(
           }
           if (!foundListId || foundIndex === -1) return state;
           const existing = board.cardsByList[foundListId][foundIndex];
+          
+          // Track changes for activities
+          const activities: Comment[] = [];
+          
+          // Track member changes
+          if (patch.members && JSON.stringify(patch.members) !== JSON.stringify(existing.members)) {
+            const oldMembers = existing.members || [];
+            const newMembers = patch.members || [];
+            
+            // Check for added members
+            newMembers.forEach(member => {
+              if (!oldMembers.find(m => m.id === member.id)) {
+                activities.push({
+                  id: uid("activity"),
+                  cardId,
+                  author: "Sistema",
+                  content: `member_added:adicionou ${member.name} a este cartão`,
+                  timestamp: new Date().toISOString(),
+                  type: "activity",
+                });
+              }
+            });
+            
+            // Check for removed members
+            oldMembers.forEach(member => {
+              if (!newMembers.find(m => m.id === member.id)) {
+                activities.push({
+                  id: uid("activity"),
+                  cardId,
+                  author: "Sistema",
+                  content: `member_removed:removeu ${member.name} deste cartão`,
+                  timestamp: new Date().toISOString(),
+                  type: "activity",
+                });
+              }
+            });
+          }
+          
+          // Track due date changes
+          if (patch.dueDate !== undefined && patch.dueDate !== existing.dueDate) {
+            if (existing.dueDate && patch.dueDate) {
+              activities.push({
+                id: uid("activity"),
+                cardId,
+                author: "Sistema",
+                content: `due_date_changed:alterou o prazo para ${new Date(patch.dueDate).toLocaleDateString('pt-BR')}`,
+                timestamp: new Date().toISOString(),
+                type: "activity",
+              });
+            } else if (patch.dueDate) {
+              activities.push({
+                id: uid("activity"),
+                cardId,
+                author: "Sistema",
+                content: `due_date_set:definiu o prazo para ${new Date(patch.dueDate).toLocaleDateString('pt-BR')}`,
+                timestamp: new Date().toISOString(),
+                type: "activity",
+              });
+            }
+          }
+          
+          // Track label changes
+          if (patch.labels && JSON.stringify(patch.labels) !== JSON.stringify(existing.labels)) {
+            const oldLabels = existing.labels || [];
+            const newLabels = patch.labels || [];
+            
+            // Check for added labels
+            newLabels.forEach(label => {
+              if (!oldLabels.find(l => l.id === label.id)) {
+                activities.push({
+                  id: uid("activity"),
+                  cardId,
+                  author: "Sistema",
+                  content: `label_added:adicionou a etiqueta ${label.name}`,
+                  timestamp: new Date().toISOString(),
+                  type: "activity",
+                });
+              }
+            });
+            
+            // Check for removed labels
+            oldLabels.forEach(label => {
+              if (!newLabels.find(l => l.id === label.id)) {
+                activities.push({
+                  id: uid("activity"),
+                  cardId,
+                  author: "Sistema",
+                  content: `label_removed:removeu a etiqueta ${label.name}`,
+                  timestamp: new Date().toISOString(),
+                  type: "activity",
+                });
+              }
+            });
+          }
+          
+          // Track cover image changes
+          if (patch.coverImages && JSON.stringify(patch.coverImages) !== JSON.stringify(existing.coverImages)) {
+            const oldImages = existing.coverImages || [];
+            const newImages = patch.coverImages || [];
+            
+            if (newImages.length > oldImages.length) {
+              activities.push({
+                id: uid("activity"),
+                cardId,
+                author: "Sistema",
+                content: `attachment_added:anexou uma imagem`,
+                timestamp: new Date().toISOString(),
+                type: "activity",
+              });
+            } else if (newImages.length < oldImages.length) {
+              activities.push({
+                id: uid("activity"),
+                cardId,
+                author: "Sistema",
+                content: `attachment_removed:removeu uma imagem`,
+                timestamp: new Date().toISOString(),
+                type: "activity",
+              });
+            }
+          }
+          
           const { listId: _ignoreList, position: _ignorePos, ...rest } = patch as any;
-          const updatedCard: Card = { ...existing, ...rest };
+          const updatedCard: Card = { 
+            ...existing, 
+            ...rest,
+            comments: [...(existing.comments || []), ...activities]
+          };
           const updatedList = board.cardsByList[foundListId].slice();
           updatedList[foundIndex] = updatedCard;
           const updated: Board = {
@@ -602,7 +784,24 @@ export const useBoardsStore = create<BoardsState>()(
           }
 
           const [moved] = source.splice(fromIndex, 1);
-          const movedCard: Card = { ...moved, listId: toListId };
+          
+          // Add activity for card movement between different lists
+          const fromListTitle = board.lists[fromListId]?.title || fromListId;
+          const toListTitle = board.lists[toListId]?.title || toListId;
+          const activity: Comment = {
+            id: uid("activity"),
+            cardId: moved.id,
+            author: "Sistema",
+            content: `card_moved:moveu este cartão de "${fromListTitle}" para "${toListTitle}"`,
+            timestamp: new Date().toISOString(),
+            type: "activity",
+          };
+          
+          const movedCard: Card = { 
+            ...moved, 
+            listId: toListId,
+            comments: [...(moved.comments || []), activity]
+          };
           destination.splice(toIndex, 0, movedCard);
 
           const updated: Board = {
