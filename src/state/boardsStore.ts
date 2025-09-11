@@ -121,13 +121,23 @@ function createSolicitacaoArteBoard(): Board {
       order: 5,
     },
     {
+      id: "cf_formato_entrega",
+      name: "Formato de Entrega",
+      type: "select",
+      required: true,
+      showOnCard: true,
+      options: ["Digital", "Impressão", "Ambos"],
+      helpText: "Como a arte será entregue",
+      order: 6,
+    },
+    {
       id: "cf_observacoes",
       name: "Observações",
       type: "textarea",
       required: false,
       showOnCard: false,
       helpText: "Informações adicionais ou observações especiais",
-      order: 6,
+      order: 7,
     },
   ];
 

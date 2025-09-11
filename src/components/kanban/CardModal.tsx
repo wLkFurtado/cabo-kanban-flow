@@ -81,55 +81,26 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
       .toUpperCase();
 
   const handleSave = () => {
-    if (board?.isTemplate) {
-      // Template board validation for fixed communication fields
-      const requiredFields = ['tituloEvento', 'assuntoPrincipal', 'descricaoBreve'];
-      const requiredMissing = requiredFields.some(field => {
-        const value = (custom as any)[field];
-        return !value || (typeof value === "string" && value.trim() === "");
-      });
-      
-      if (requiredMissing) {
-        toast({ title: "Preencha os campos obrigatórios", variant: "destructive" });
-        return;
-      }
-
-      // Use communication fields as primary title and description
-      const cardTitle = ((custom as any).tituloEvento || "").trim() || "Sem título";
-      const cardDescription = ((custom as any).descricaoBreve || "").trim();
-
-      updateCard(boardId, card.id, {
-        title: cardTitle,
-        description: cardDescription,
-        dueDate: dueDate ? new Date(`${dueDate}T00:00:00`).toISOString() : undefined,
-        labels,
-        members,
-        custom,
-        coverImage: coverImage.trim() || undefined,
-      });
-    } else {
-      // Regular board validation for dynamic custom fields
-      const requiredFields = board?.customFields?.filter(f => f.required) || [];
-      const requiredMissing = requiredFields.some(field => {
-        const value = custom[field.id];
-        return !value || (typeof value === "string" && value.trim() === "");
-      });
-      
-      if (requiredMissing) {
-        toast({ title: "Preencha os campos obrigatórios", variant: "destructive" });
-        return;
-      }
-
-      updateCard(boardId, card.id, {
-        title: title.trim() || "Sem título",
-        description: description.trim(),
-        dueDate: dueDate ? new Date(`${dueDate}T00:00:00`).toISOString() : undefined,
-        labels,
-        members,
-        custom,
-        coverImage: coverImage.trim() || undefined,
-      });
+    // Validation for all boards - check required custom fields
+    const requiredFields = board?.customFields?.filter(f => f.required) || [];
+    const requiredMissing = requiredFields.some(field => {
+      const value = custom[field.id];
+      return !value || (typeof value === "string" && value.trim() === "");
+    });
+    
+    if (requiredMissing) {
+      toast({ title: "Preencha os campos obrigatórios", variant: "destructive" });
+      return;
     }
+    updateCard(boardId, card.id, {
+      title: title.trim() || "Sem título",
+      description: description.trim(),
+      dueDate: dueDate ? new Date(`${dueDate}T00:00:00`).toISOString() : undefined,
+      labels,
+      members,
+      custom,
+      coverImage: coverImage.trim() || undefined,
+    });
     onOpenChange(false);
   };
 
@@ -263,187 +234,206 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                 </div>
               </div>
 
-              {board?.isTemplate ? (
-                // Template board - Fixed fields for "Solicitação de Arte"
-                <>
-                  {/* 1. Título/Nome do Evento */}
-                  <div>
-                    <label className="text-sm text-muted-foreground">Título/Nome do Evento *</label>
-                    <Input
-                      value={(custom as any).tituloEvento || ""}
-                      onChange={(e) => setCustom((prev) => ({ ...(prev || {}), tituloEvento: e.target.value }))}
-                      placeholder="Nome do evento ou campanha"
-                    />
-                  </div>
+              {/* All boards: Basic fields + Dynamic custom fields */}
+              <>
+                {/* 1. Título */}
+                <div>
+                  <label className="text-sm text-muted-foreground">Título *</label>
+                  <Input
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="Título do cartão"
+                  />
+                </div>
 
-                  {/* 2. Descrição Breve */}
-                  <div>
-                    <label className="text-sm text-muted-foreground">Descrição Breve *</label>
-                    <Textarea
-                      value={(custom as any).descricaoBreve || ""}
-                      onChange={(e) => setCustom((prev) => ({ ...(prev || {}), descricaoBreve: e.target.value }))}
-                      placeholder="Descrição resumida do conteúdo"
-                      className="min-h-[80px] resize-none"
-                    />
-                  </div>
+                {/* 2. Descrição */}
+                <div>
+                  <label className="text-sm text-muted-foreground">Descrição</label>
+                  <Textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Descrição do cartão"
+                    className="min-h-[80px] resize-none"
+                  />
+                </div>
 
-                  {/* Assunto Principal */}
-                  <div>
-                    <label className="text-sm text-muted-foreground">Assunto Principal *</label>
-                    <Input
-                      value={(custom as any).assuntoPrincipal || ""}
-                      onChange={(e) => setCustom((prev) => ({ ...(prev || {}), assuntoPrincipal: e.target.value }))}
-                      placeholder="Assunto ou tema principal"
-                    />
-                  </div>
+                {/* 3. Vencimento */}
+                <div>
+                  <label className="text-sm text-muted-foreground">Vencimento</label>
+                  <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+                </div>
 
-                  {/* 6. Secretaria solicitante */}
-                  <div>
-                    <label className="text-sm text-muted-foreground">Secretaria solicitante</label>
-                    <Input
-                      placeholder="Informe a secretaria solicitante"
-                      value={(custom as any).secretariaSolicitante || ""}
-                      onChange={(e) => setCustom((prev) => ({ ...(prev || {}), secretariaSolicitante: e.target.value }))}
-                    />
-                  </div>
-
-                  {/* 7. Tipos de demanda */}
-                  <div>
-                    <label className="text-sm text-muted-foreground">Tipos de demanda</label>
-                    <div className="mt-2 flex flex-col gap-2">
-                      {[
-                        "Criação de demanda gráfica",
-                        "Post para redes sociais",
-                        "Nota ou matéria para imprensa/site",
-                        "Apoio de mídia (rádio, TV, outdoor etc.)",
-                      ].map((opt) => {
-                        const list = Array.isArray((custom as any).tiposDemanda) ? ((custom as any).tiposDemanda as string[]) : [];
-                        const checked = list.includes(opt);
+                {/* Dynamic Custom Fields */}
+                {board?.customFields && board.customFields.length > 0 && (
+                  <>
+                    {board.customFields
+                      .sort((a, b) => a.order - b.order)
+                      .map((field) => {
+                        const value = custom?.[field.id];
                         return (
-                          <label key={opt} className="inline-flex items-center gap-2 text-sm">
-                            <Checkbox
-                              checked={checked}
-                              onCheckedChange={(v) => {
-                                const curr = new Set(list);
-                                if (v) curr.add(opt); else curr.delete(opt);
-                                setCustom((prev) => ({ ...(prev || {}), tiposDemanda: Array.from(curr) }));
-                              }}
-                            />
-                            <span>{opt}</span>
-                          </label>
+                          <div key={field.id}>
+                            <label className="text-sm text-muted-foreground">
+                              {field.name} {field.required && <span className="text-red-500">*</span>}
+                            </label>
+                            {field.helpText && (
+                              <p className="text-xs text-muted-foreground mt-1">{field.helpText}</p>
+                            )}
+                            {field.type === "text" && (
+                              <Input
+                                placeholder={`Digite ${field.name.toLowerCase()}`}
+                                value={(value as string) || ""}
+                                onChange={(e) => setCustom((prev) => ({ ...(prev || {}), [field.id]: e.target.value }))}
+                              />
+                            )}
+                            {field.type === "textarea" && (
+                              <Textarea
+                                placeholder={`Digite ${field.name.toLowerCase()}`}
+                                value={(value as string) || ""}
+                                onChange={(e) => setCustom((prev) => ({ ...(prev || {}), [field.id]: e.target.value }))}
+                                className="min-h-[80px] resize-none"
+                              />
+                            )}
+                            {field.type === "number" && (
+                              <Input
+                                type="number"
+                                placeholder={`Digite ${field.name.toLowerCase()}`}
+                                value={(value as string) || ""}
+                                onChange={(e) => setCustom((prev) => ({ ...(prev || {}), [field.id]: e.target.value }))}
+                              />
+                            )}
+                            {field.type === "date" && (
+                              <Input
+                                type="date"
+                                value={(value as string) || ""}
+                                onChange={(e) => setCustom((prev) => ({ ...(prev || {}), [field.id]: e.target.value }))}
+                              />
+                            )}
+                            {field.type === "checkbox" && (
+                              <div className="flex items-center space-x-2">
+                                <Checkbox
+                                  checked={Boolean(value)}
+                                  onCheckedChange={(checked) => setCustom((prev) => ({ ...(prev || {}), [field.id]: checked }))}
+                                />
+                                <span className="text-sm">{field.name}</span>
+                              </div>
+                            )}
+                            {field.type === "select" && field.options && (
+                              <select
+                                value={(value as string) || ""}
+                                onChange={(e) => setCustom((prev) => ({ ...(prev || {}), [field.id]: e.target.value }))}
+                                className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
+                              >
+                                <option value="">Selecione uma opção</option>
+                                {field.options.map((option) => (
+                                  <option key={option} value={option}>
+                                    {option}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
+                            {field.type === "multi-select" && field.options && (
+                              <div className="space-y-2">
+                                {field.options.map((option) => {
+                                  const selectedValues = Array.isArray(value) ? (value as string[]) : [];
+                                  const isSelected = selectedValues.includes(option);
+                                  return (
+                                    <div key={option} className="flex items-center space-x-2">
+                                      <Checkbox
+                                        checked={isSelected}
+                                        onCheckedChange={(checked) => {
+                                          const currentValues = new Set(selectedValues);
+                                          if (checked) {
+                                            currentValues.add(option);
+                                          } else {
+                                            currentValues.delete(option);
+                                          }
+                                          setCustom((prev) => ({ ...(prev || {}), [field.id]: Array.from(currentValues) }));
+                                        }}
+                                      />
+                                      <span className="text-sm">{option}</span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                  </>
+                )}
+
+                {/* 4. Labels */}
+                <div>
+                  <label className="text-sm text-muted-foreground">Labels</label>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {labels.map((l) => (
+                      <Badge
+                        key={l.id}
+                        className={cn("cursor-pointer", labelColorClass[l.color])}
+                        onClick={() => removeLabel(l.id)}
+                        title={`Remover label ${l.name}`}
+                      >
+                        {l.name}
+                      </Badge>
+                    ))}
+                  </div>
+                  <div className="mt-3">
+                    <p className="text-xs text-muted-foreground mb-2">Clique em uma cor para adicionar:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {(Object.keys(labelNames) as LabelColor[]).map((color) => {
+                        const hasLabel = labels.some(l => l.color === color);
+                        return (
+                          <button
+                            key={color}
+                            className={cn(
+                              "px-3 py-1.5 rounded-md text-xs font-medium transition-opacity",
+                              labelColorClass[color],
+                              hasLabel && "opacity-50 cursor-not-allowed"
+                            )}
+                            onClick={() => addLabel(color)}
+                            disabled={hasLabel}
+                            title={hasLabel ? `Label ${labelNames[color]} já adicionada` : `Adicionar label ${labelNames[color]}`}
+                          >
+                            {labelNames[color]}
+                          </button>
                         );
                       })}
                     </div>
                   </div>
+                </div>
 
-                  {/* 8. Local do evento */}
-                  <div>
-                    <label className="text-sm text-muted-foreground">Local do evento</label>
+                {/* 5. Membros */}
+                <div>
+                  <label className="text-sm text-muted-foreground">Membros</label>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {members.map((m) => (
+                      <button
+                        key={m.id}
+                        onClick={() => removeMember(m.id)}
+                        className="flex items-center gap-2 border rounded-md px-2 py-1 text-xs"
+                      >
+                        <Avatar className="size-6 border bg-muted">
+                          <AvatarFallback className="text-[10px]">{initials(m.name)}</AvatarFallback>
+                        </Avatar>
+                        <span>{m.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="mt-2 flex gap-2">
                     <Input
-                      value={(custom as any).local || ""}
-                      onChange={(e) => setCustom((prev) => ({ ...(prev || {}), local: e.target.value }))}
-                      placeholder="Local do evento"
+                      placeholder="Nome do membro"
+                      value={newMemberName}
+                      onChange={(e) => setNewMemberName(e.target.value)}
+                      className="max-w-[220px]"
                     />
+                    <Button size="sm" onClick={addMember}>
+                      Adicionar
+                    </Button>
                   </div>
-
-                  {/* 9. Data do evento */}
-                  <div>
-                    <label className="text-sm text-muted-foreground">Data do evento</label>
-                    <Input
-                      type="date"
-                      value={(custom as any).dataEvento || ""}
-                      onChange={(e) => setCustom((prev) => ({ ...(prev || {}), dataEvento: e.target.value }))}
-                    />
-                  </div>
-
-                  {/* 10. Público Alvo */}
-                  <div>
-                    <label className="text-sm text-muted-foreground">Público Alvo</label>
-                    <Input
-                      value={(custom as any).publicoAlvo || ""}
-                      onChange={(e) => setCustom((prev) => ({ ...(prev || {}), publicoAlvo: e.target.value }))}
-                      placeholder="Ex: Crianças, Jovens, Adultos, Idosos, etc."
-                    />
-                  </div>
-
-                  {/* 3. Vencimento */}
-                  <div>
-                    <label className="text-sm text-muted-foreground">Vencimento</label>
-                    <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-                  </div>
-
-                  {/* 4. Labels */}
-                  <div>
-                    <label className="text-sm text-muted-foreground">Labels</label>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {labels.map((l) => (
-                        <Badge
-                          key={l.id}
-                          className={cn("cursor-pointer", labelColorClass[l.color])}
-                          onClick={() => removeLabel(l.id)}
-                          title={`Remover label ${l.name}`}
-                        >
-                          {l.name}
-                        </Badge>
-                      ))}
-                    </div>
-                    <div className="mt-3">
-                      <p className="text-xs text-muted-foreground mb-2">Clique em uma cor para adicionar:</p>
-                      <div className="flex flex-wrap gap-2">
-                        {(Object.keys(labelNames) as LabelColor[]).map((color) => {
-                          const hasLabel = labels.some(l => l.color === color);
-                          return (
-                            <button
-                              key={color}
-                              className={cn(
-                                "px-3 py-1.5 rounded-md text-xs font-medium transition-opacity",
-                                labelColorClass[color],
-                                hasLabel && "opacity-50 cursor-not-allowed"
-                              )}
-                              onClick={() => addLabel(color)}
-                              disabled={hasLabel}
-                              title={hasLabel ? `Label ${labelNames[color]} já adicionada` : `Adicionar label ${labelNames[color]}`}
-                            >
-                              {labelNames[color]}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 5. Membros */}
-                  <div>
-                    <label className="text-sm text-muted-foreground">Membros</label>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {members.map((m) => (
-                        <button
-                          key={m.id}
-                          onClick={() => removeMember(m.id)}
-                          className="flex items-center gap-2 border rounded-md px-2 py-1 text-xs"
-                        >
-                          <Avatar className="size-6 border bg-muted">
-                            <AvatarFallback className="text-[10px]">{initials(m.name)}</AvatarFallback>
-                          </Avatar>
-                          <span>{m.name}</span>
-                        </button>
-                      ))}
-                    </div>
-                    <div className="mt-2 flex gap-2">
-                      <Input
-                        placeholder="Nome do membro"
-                        value={newMemberName}
-                        onChange={(e) => setNewMemberName(e.target.value)}
-                        className="max-w-[220px]"
-                      />
-                      <Button size="sm" onClick={addMember}>
-                        Adicionar
-                      </Button>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                // Regular board - Standard Trello-like fields
+                </div>
+              </>
+            </div>
+          </ScrollArea>
                 <>
                   {/* Título */}
                   <div>
@@ -627,10 +617,11 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                   ))}
                 </>
               )}
-            </div>
-          </ScrollArea>
-
-          {/* Right Column - Comments */}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
           <div className="flex flex-col min-h-0">
             <div className="mb-4">
               <h3 className="font-semibold text-sm mb-2 flex items-center gap-2">
