@@ -187,9 +187,13 @@ export const useBoardsStore = create<BoardsState>()(
       boardOrder: [],
       initializeTemplateBoards: () => {
         const TEMPLATE_ID = "board_template_solicitacao_arte";
+        console.log("Initializing template boards");
         set((state) => {
+          console.log("Current boards:", Object.keys(state.boards));
           if (!state.boards[TEMPLATE_ID]) {
+            console.log("Creating template board");
             const templateBoard = createSolicitacaoArteBoard();
+            console.log("Template board created:", templateBoard);
             return {
               boards: { ...state.boards, [TEMPLATE_ID]: templateBoard },
               boardOrder: [TEMPLATE_ID, ...state.boardOrder.filter((id) => id !== TEMPLATE_ID)],
