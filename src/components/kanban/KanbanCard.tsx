@@ -30,6 +30,7 @@ export function KanbanCard({ card, boardId }: KanbanCardProps) {
       : false;
 
   const [open, setOpen] = useState(false);
+  const board = useBoardsStore((s) => s.boards[boardId]);
 
   const initials = (name: string) =>
     name
@@ -83,104 +84,142 @@ export function KanbanCard({ card, boardId }: KanbanCardProps) {
 
         <h3 className="text-sm font-semibold leading-snug mb-2 text-card-foreground">{card.title}</h3>
 
-        {/* Communication-specific fixed fields */}
-        {(() => {
-          const vals = (card as any).custom || {};
-          
-          // Fixed field keys for communication
-          const tituloEventoVal = vals.tituloEvento;
-          const assuntoPrincipalVal = vals.assuntoPrincipal;
-          const descricaoBreveVal = vals.descricaoBreve;
-          const dataEventoVal = vals.dataEvento;
-          const localVal = vals.local;
-          const classificacaoVal = vals.classificacao;
-          const chamadaAcaoVal = vals.chamadaAcao;
-          const dividirCardsVal = vals.dividirCards;
-          const numeroCardsVal = vals.numeroCards;
-          const observacoesVal = vals.observacoes;
+        {/* Communication-specific fields for template board or dynamic custom fields badges for regular boards */}
+        {board?.isTemplate ? (
+          // Template board - Show fixed communication fields preview
+          (() => {
+            const vals = (card as any).custom || {};
+            
+            // Fixed field keys for communication
+            const tituloEventoVal = vals.tituloEvento;
+            const assuntoPrincipalVal = vals.assuntoPrincipal;
+            const descricaoBreveVal = vals.descricaoBreve;
+            const dataEventoVal = vals.dataEvento;
+            const localVal = vals.local;
+            const classificacaoVal = vals.classificacao;
+            const chamadaAcaoVal = vals.chamadaAcao;
+            const dividirCardsVal = vals.dividirCards;
+            const numeroCardsVal = vals.numeroCards;
+            const observacoesVal = vals.observacoes;
 
-          const hasAnyCustomData = tituloEventoVal || assuntoPrincipalVal || descricaoBreveVal || dataEventoVal || localVal || classificacaoVal || chamadaAcaoVal || dividirCardsVal || observacoesVal;
-          
-          if (!hasAnyCustomData) return null;
+            const hasAnyCustomData = tituloEventoVal || assuntoPrincipalVal || descricaoBreveVal || dataEventoVal || localVal || classificacaoVal || chamadaAcaoVal || dividirCardsVal || observacoesVal;
+            
+            if (!hasAnyCustomData) return null;
 
-          return (
-            <div className="mt-2 space-y-2">
-              {/* Event Title - Main highlight */}
-              {tituloEventoVal && (
-                <div className="text-[12px] font-medium text-foreground line-clamp-1">
-                  {String(tituloEventoVal)}
-                </div>
-              )}
-              
-              {/* Subject - Secondary line */}
-              {assuntoPrincipalVal && (
-                <div className="text-[11px] text-muted-foreground line-clamp-1">
-                  {String(assuntoPrincipalVal)}
-                </div>
-              )}
-              
-              {/* Brief Description */}
-              {descricaoBreveVal && !assuntoPrincipalVal && (
-                <div className="text-[11px] text-muted-foreground line-clamp-1">
-                  {String(descricaoBreveVal)}
-                </div>
-              )}
-              
-              {/* Event Info Section - Date and Location */}
-              {(dataEventoVal || localVal) && (
-                <div className="flex items-center gap-1 flex-wrap">
-                  {dataEventoVal && (
-                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">
-                      📅 {(() => {
-                        try { 
-                          return format(parseISO(String(dataEventoVal)), "dd/MM"); 
-                        } catch { 
-                          return String(dataEventoVal).slice(0, 10); 
-                        }
-                      })()}
-                    </Badge>
-                  )}
-                  {localVal && (
-                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">
-                      📍 {String(localVal).length > 15 ? `${String(localVal).slice(0, 15)}...` : String(localVal)}
-                    </Badge>
-                  )}
-                </div>
-              )}
-              
-              {/* Call to Action */}
-              {chamadaAcaoVal && (
-                <div className="text-[10px] text-muted-foreground line-clamp-1">
-                  💬 {String(chamadaAcaoVal)}
-                </div>
-              )}
-              
-              {/* Bottom row: Classification and Social Media indicators */}
-              <div className="flex items-center justify-between flex-wrap gap-1">
-                <div className="flex items-center gap-1">
-                  {classificacaoVal && (
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-amber-50 text-amber-800 border-amber-200">
-                      {String(classificacaoVal)}
-                    </Badge>
-                  )}
-                </div>
+            return (
+              <div className="mt-2 space-y-2">
+                {/* Event Title - Main highlight */}
+                {tituloEventoVal && (
+                  <div className="text-[12px] font-medium text-foreground line-clamp-1">
+                    {String(tituloEventoVal)}
+                  </div>
+                )}
                 
-                <div className="flex items-center gap-1">
-                  {dividirCardsVal && (
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-800 border-blue-200">
-                      📱 {numeroCardsVal ? `${numeroCardsVal} cards` : "Redes Sociais"}
-                    </Badge>
-                  )}
-                  {observacoesVal && (
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-orange-50 text-orange-800 border-orange-200">
-                      ⚠️ Obs
-                    </Badge>
-                  )}
+                {/* Subject - Secondary line */}
+                {assuntoPrincipalVal && (
+                  <div className="text-[11px] text-muted-foreground line-clamp-1">
+                    {String(assuntoPrincipalVal)}
+                  </div>
+                )}
+                
+                {/* Brief Description */}
+                {descricaoBreveVal && !assuntoPrincipalVal && (
+                  <div className="text-[11px] text-muted-foreground line-clamp-1">
+                    {String(descricaoBreveVal)}
+                  </div>
+                )}
+                
+                {/* Event Info Section - Date and Location */}
+                {(dataEventoVal || localVal) && (
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {dataEventoVal && (
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">
+                        📅 {(() => {
+                          try { 
+                            return format(parseISO(String(dataEventoVal)), "dd/MM"); 
+                          } catch { 
+                            return String(dataEventoVal).slice(0, 10); 
+                          }
+                        })()}
+                      </Badge>
+                    )}
+                    {localVal && (
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">
+                        📍 {String(localVal).length > 15 ? `${String(localVal).slice(0, 15)}...` : String(localVal)}
+                      </Badge>
+                    )}
+                  </div>
+                )}
+                
+                {/* Call to Action */}
+                {chamadaAcaoVal && (
+                  <div className="text-[10px] text-muted-foreground line-clamp-1">
+                    💬 {String(chamadaAcaoVal)}
+                  </div>
+                )}
+                
+                {/* Bottom row: Classification and Social Media indicators */}
+                <div className="flex items-center justify-between flex-wrap gap-1">
+                  <div className="flex items-center gap-1">
+                    {classificacaoVal && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-amber-50 text-amber-800 border-amber-200">
+                        {String(classificacaoVal)}
+                      </Badge>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center gap-1">
+                    {dividirCardsVal && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-800 border-blue-200">
+                        📱 {numeroCardsVal ? `${numeroCardsVal} cards` : "Redes Sociais"}
+                      </Badge>
+                    )}
+                    {observacoesVal && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-orange-50 text-orange-800 border-orange-200">
+                        ⚠️ Obs
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </div>
+            );
+          })()
+        ) : (
+          // Regular board - Show badges for custom fields marked as showOnCard
+          board?.customFields?.some(field => field.showOnCard && (card as any).custom?.[field.id]) && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {board.customFields
+                .filter(field => field.showOnCard && (card as any).custom?.[field.id])
+                .map(field => {
+                  const value = (card as any).custom[field.id];
+                  if (!value) return null;
+                  
+                  let displayValue = String(value);
+                  if (field.type === "date") {
+                    try {
+                      displayValue = format(parseISO(String(value)), "dd/MM");
+                    } catch {
+                      displayValue = String(value).slice(0, 10);
+                    }
+                  } else if (field.type === "checkbox") {
+                    displayValue = value ? "Sim" : "Não";
+                  } else if (Array.isArray(value)) {
+                    displayValue = value.join(", ");
+                  }
+                  
+                  return (
+                    <Badge 
+                      key={field.id} 
+                      variant="secondary" 
+                      className="text-[10px] px-1.5 py-0.5"
+                    >
+                      {field.name}: {displayValue.length > 20 ? `${displayValue.slice(0, 20)}...` : displayValue}
+                    </Badge>
+                  );
+                })}
             </div>
-          );
-        })()}
+          )
+        )}
 
         {/* Bottom section */}
         <div className="mt-4 flex items-center justify-between">
