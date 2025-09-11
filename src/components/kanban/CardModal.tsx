@@ -297,7 +297,37 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                 />
               </div>
 
-              {/* 3. Vencimento */}
+              {/* 3. Membros */}
+              <div>
+                <label className="text-sm text-muted-foreground">Membros</label>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {members.map((m) => (
+                    <button
+                      key={m.id}
+                      onClick={() => removeMember(m.id)}
+                      className="flex items-center gap-2 border rounded-md px-2 py-1 text-xs"
+                    >
+                      <Avatar className="size-6 border bg-muted">
+                        <AvatarFallback className="text-[10px]">{initials(m.name)}</AvatarFallback>
+                      </Avatar>
+                      <span>{m.name}</span>
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-2 flex gap-2">
+                  <Input
+                    placeholder="Nome do membro"
+                    value={newMemberName}
+                    onChange={(e) => setNewMemberName(e.target.value)}
+                    className="max-w-[220px]"
+                  />
+                  <Button size="sm" onClick={addMember}>
+                    Adicionar
+                  </Button>
+                </div>
+              </div>
+
+              {/* 4. Vencimento */}
               <div>
                 <label className="text-sm text-muted-foreground">Vencimento</label>
                 <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
@@ -405,7 +435,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                 </>
               )}
 
-              {/* 4. Labels */}
+              {/* 5. Labels */}
               <div>
                 <label className="text-sm text-muted-foreground">Labels</label>
                 <div className="mt-2 flex flex-wrap gap-2">
@@ -442,36 +472,6 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                       );
                     })}
                   </div>
-                </div>
-              </div>
-
-              {/* 5. Membros */}
-              <div>
-                <label className="text-sm text-muted-foreground">Membros</label>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {members.map((m) => (
-                    <button
-                      key={m.id}
-                      onClick={() => removeMember(m.id)}
-                      className="flex items-center gap-2 border rounded-md px-2 py-1 text-xs"
-                    >
-                      <Avatar className="size-6 border bg-muted">
-                        <AvatarFallback className="text-[10px]">{initials(m.name)}</AvatarFallback>
-                      </Avatar>
-                      <span>{m.name}</span>
-                    </button>
-                  ))}
-                </div>
-                <div className="mt-2 flex gap-2">
-                  <Input
-                    placeholder="Nome do membro"
-                    value={newMemberName}
-                    onChange={(e) => setNewMemberName(e.target.value)}
-                    className="max-w-[220px]"
-                  />
-                  <Button size="sm" onClick={addMember}>
-                    Adicionar
-                  </Button>
                 </div>
               </div>
             </div>
