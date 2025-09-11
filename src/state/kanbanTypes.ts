@@ -70,4 +70,5 @@ export interface Board {
   description?: string;
   color?: string; // Ex.: hsl(...) ou #hex
   customFields?: CustomField[];
+  isTemplate?: boolean; // Indica se é um board template/fixo
 }

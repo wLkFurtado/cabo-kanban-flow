@@ -17,6 +17,9 @@ export function BoardHeader({ board, onDeleted }: BoardHeaderProps) {
   const updateBoardTitle = useBoardsStore((s) => s.updateBoardTitle);
   const titleRef = useRef<HTMLHeadingElement>(null);
   
+  // Verifica se é o board de solicitação de arte (ID específico ou template)
+  const isSolicitacaoArte = board.id === "b_q1lk2c5be4" || board.isTemplate;
+  
   // Calculate progress based on completed cards
   const totalCards = Object.values(board.cardsByList).flat().length;
   const completedCards = Object.values(board.cardsByList)
@@ -46,10 +49,14 @@ export function BoardHeader({ board, onDeleted }: BoardHeaderProps) {
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <h1 ref={titleRef} className="text-2xl font-bold tracking-tight">
-                <EditableText 
-                  value={board.title} 
-                  onSubmit={(v) => updateBoardTitle(board.id, v)} 
-                />
+                {isSolicitacaoArte ? (
+                  "SOLICITAÇÃO DE ARTE"
+                ) : (
+                  <EditableText 
+                    value={board.title} 
+                    onSubmit={(v) => updateBoardTitle(board.id, v)} 
+                  />
+                )}
               </h1>
               <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-warning">
                 <Star size={16} />
@@ -86,16 +93,18 @@ export function BoardHeader({ board, onDeleted }: BoardHeaderProps) {
             Compartilhar
           </Button>
           
-          <BoardActions
-            boardId={board.id}
-            onRename={() => {
-              const btn = titleRef.current?.querySelector(
-                'button[aria-label="Editar texto"]'
-              ) as HTMLButtonElement | null;
-              btn?.click();
-            }}
-            onDeleted={onDeleted}
-          />
+          {!isSolicitacaoArte && (
+            <BoardActions
+              boardId={board.id}
+              onRename={() => {
+                const btn = titleRef.current?.querySelector(
+                  'button[aria-label="Editar texto"]'
+                ) as HTMLButtonElement | null;
+                btn?.click();
+              }}
+              onDeleted={onDeleted}
+            />
+          )}
         </div>
       </div>
 

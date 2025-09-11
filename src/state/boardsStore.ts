@@ -104,6 +104,12 @@ export const useBoardsStore = create<BoardsState>()(
         set((state) => {
           const board = state.boards[boardId];
           if (!board) return state;
+          
+          // Não permite editar o título do board de solicitação de arte
+          if (boardId === "b_q1lk2c5be4" || board.isTemplate) {
+            return state;
+          }
+          
           const updated: Board = { ...board, title };
           return { boards: { ...state.boards, [boardId]: updated } };
         });
