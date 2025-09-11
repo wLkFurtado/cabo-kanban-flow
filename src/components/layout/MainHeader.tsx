@@ -53,10 +53,6 @@ export function MainHeader() {
       <div className="flex h-16 items-center gap-4 px-4 md:px-6">
         <SidebarTrigger className="md:hidden" />
         
-        {/* Logo */}
-        <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-secondary shadow-md" />
-        </div>
 
         {/* Search bar */}
         <div className="flex-1 max-w-md mx-4">
