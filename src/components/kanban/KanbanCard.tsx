@@ -45,9 +45,9 @@ export function KanbanCard({ card, boardId }: KanbanCardProps) {
       <article className="group rounded-xl bg-card shadow-sm hover:shadow-lg transition-all duration-200 border border-border/50 hover:border-border p-4 cursor-pointer bg-gradient-to-br from-card to-card/80" onClick={() => setOpen(true)}>
         {/* Card cover image */}
         <div className="mb-3 aspect-video bg-gradient-to-br from-muted/30 to-muted/10 rounded-lg border overflow-hidden">
-          {card.coverImage ? (
+          {card.coverImages && card.coverImages.length > 0 ? (
             <img
-              src={card.coverImage}
+              src={card.coverImages[0]}
               alt="Capa do card"
               className="w-full h-full object-cover"
               onError={(e) => {
@@ -59,7 +59,7 @@ export function KanbanCard({ card, boardId }: KanbanCardProps) {
           ) : null}
           <div className={cn(
             "w-full h-full flex items-center justify-center",
-            card.coverImage ? "hidden" : "flex"
+            card.coverImages && card.coverImages.length > 0 ? "hidden" : "flex"
           )}>
             <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
               <span className="text-primary text-lg">📝</span>

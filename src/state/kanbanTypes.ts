@@ -49,7 +49,7 @@ export interface Card {
   archived?: boolean;
   custom?: Record<string, unknown>;
   comments?: Comment[];
-  coverImage?: string; // URL da imagem de capa
+  coverImages?: string[]; // Array de imagens em base64
 }
 
 export interface List {

@@ -55,7 +55,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
   const [labels, setLabels] = useState<TLabel[]>(card.labels || []);
   const [members, setMembers] = useState<TMember[]>(card.members || []);
   const [custom, setCustom] = useState<Record<string, unknown>>((card as any).custom || {});
-  const [coverImage, setCoverImage] = useState(card.coverImage || "");
+  const [coverImages, setCoverImages] = useState<string[]>(card.coverImages || []);
   const [newComment, setNewComment] = useState("");
   const [newMemberName, setNewMemberName] = useState("");
   const commentsScrollRef = useRef<HTMLDivElement>(null);
@@ -68,7 +68,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
       setLabels(card.labels || []);
       setMembers(card.members || []);
       setCustom((card as any).custom || {});
-      setCoverImage(card.coverImage || "");
+      setCoverImages(card.coverImages || []);
     }
   }, [open, card]);
 
@@ -100,7 +100,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
       labels,
       members,
       custom,
-      coverImage: coverImage.trim() || undefined,
+      coverImages: coverImages.length > 0 ? coverImages : undefined,
     });
     onOpenChange(false);
   };
@@ -161,6 +161,29 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
     }
   };
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    
+    files.forEach((file) => {
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          if (event.target?.result) {
+            setCoverImages((prev) => [...prev, event.target!.result as string]);
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+    
+    // Clear the input
+    e.target.value = '';
+  };
+
+  const removeImage = (index: number) => {
+    setCoverImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const formatCommentTime = (timestamp: string) => {
     try {
       return formatDistanceToNow(parseISO(timestamp), { 
@@ -194,40 +217,60 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
           {/* Left Column - Form */}
           <ScrollArea className="max-h-[60vh] pr-4">
             <div className="space-y-4">
-              {/* Cover Image */}
+              {/* Cover Images */}
               <div>
-                <label className="text-sm text-muted-foreground">Capa do Card</label>
-                <div className="mt-2 space-y-2">
-                  <Input
-                    placeholder="URL da imagem de capa"
-                    value={coverImage}
-                    onChange={(e) => setCoverImage(e.target.value)}
-                  />
-                  {coverImage && (
-                    <div className="relative">
-                      <div className="aspect-video bg-muted rounded-lg overflow-hidden border">
-                        <img
-                          src={coverImage}
-                          alt="Preview da capa"
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).style.display = 'none';
-                            const fallback = (e.target as HTMLImageElement).nextElementSibling as HTMLDivElement;
-                            if (fallback) fallback.style.display = 'flex';
-                          }}
-                        />
-                        <div className="hidden w-full h-full items-center justify-center bg-muted text-muted-foreground text-sm">
-                          Erro ao carregar imagem
-                        </div>
+                <label className="text-sm text-muted-foreground">Imagens do Card</label>
+                <div className="mt-2 space-y-4">
+                  {/* Upload Button */}
+                  <div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleImageUpload}
+                      className="hidden"
+                      id="image-upload"
+                    />
+                    <label
+                      htmlFor="image-upload"
+                      className="flex items-center justify-center w-full h-24 border-2 border-dashed border-muted-foreground/25 rounded-lg cursor-pointer hover:border-muted-foreground/50 transition-colors"
+                    >
+                      <div className="text-center">
+                        <div className="text-muted-foreground text-sm">Clique para adicionar imagens</div>
+                        <div className="text-muted-foreground text-xs mt-1">Suporte para múltiplas imagens</div>
                       </div>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        className="absolute top-2 right-2"
-                        onClick={() => setCoverImage("")}
-                      >
-                        Remover
-                      </Button>
+                    </label>
+                  </div>
+                  
+                  {/* Image Gallery */}
+                  {coverImages.length > 0 && (
+                    <div className="grid grid-cols-2 gap-2">
+                      {coverImages.map((image, index) => (
+                        <div key={index} className="relative group">
+                          <div className="aspect-video bg-muted rounded-lg overflow-hidden border">
+                            <img
+                              src={image}
+                              alt={`Imagem ${index + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() => removeImage(index)}
+                          >
+                            ×
+                          </Button>
+                          {index === 0 && (
+                            <div className="absolute bottom-2 left-2">
+                              <Badge variant="secondary" className="text-xs">
+                                Capa Principal
+                              </Badge>
+                            </div>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
