@@ -6,11 +6,14 @@ import { BoardCreateDialog } from "@/components/boards/BoardCreateDialog";
 const Index = () => {
   const boards = useBoardsStore((s) => s.boards);
   const boardOrder = useBoardsStore((s) => s.boardOrder);
+  const initializeTemplateBoards = useBoardsStore((s) => s.initializeTemplateBoards);
   const [title, setTitle] = useState("");
 
   useEffect(() => {
     document.title = "Meus Boards | Comunicação Cabo Frio";
-  }, []);
+    // Initialize template boards when component mounts
+    initializeTemplateBoards();
+  }, [initializeTemplateBoards]);
 
 
   return (

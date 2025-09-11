@@ -44,6 +44,107 @@ function createDefaultBoard(title: string): Board {
   };
 }
 
+// Template board for "Solicitação de Arte" with predefined custom fields
+function createSolicitacaoArteBoard(): Board {
+  const TEMPLATE_ID = "board_template_solicitacao_arte";
+  const now = new Date().toISOString();
+  const listsOrder = ["briefing", "desenvolvimento", "revisao", "aprovado", "entregue"];
+  const lists: Record<string, List> = {
+    briefing: { id: "briefing", title: "Briefing", position: 0 },
+    desenvolvimento: { id: "desenvolvimento", title: "Em Desenvolvimento", position: 1 },
+    revisao: { id: "revisao", title: "Em Revisão", position: 2 },
+    aprovado: { id: "aprovado", title: "Aprovado", position: 3 },
+    entregue: { id: "entregue", title: "Entregue", position: 4 },
+  };
+  const cardsByList: Record<string, Card[]> = {
+    briefing: [],
+    desenvolvimento: [],
+    revisao: [],
+    aprovado: [],
+    entregue: [],
+  };
+
+  const customFields: CustomField[] = [
+    {
+      id: "cf_cliente",
+      name: "Cliente",
+      type: "text",
+      required: true,
+      showOnCard: true,
+      helpText: "Nome do cliente ou empresa",
+      order: 0,
+    },
+    {
+      id: "cf_tipo_arte",
+      name: "Tipo de Arte",
+      type: "select",
+      required: true,
+      showOnCard: true,
+      options: ["Post Instagram", "Story", "Feed", "Banner", "Logo", "Flyer", "Cartão de Visita", "Outro"],
+      helpText: "Selecione o tipo de arte a ser desenvolvida",
+      order: 1,
+    },
+    {
+      id: "cf_dimensoes",
+      name: "Dimensões",
+      type: "text",
+      required: false,
+      showOnCard: false,
+      helpText: "Ex: 1080x1080px, A4, etc.",
+      order: 2,
+    },
+    {
+      id: "cf_prazo",
+      name: "Prazo de Entrega",
+      type: "date",
+      required: true,
+      showOnCard: true,
+      helpText: "Data limite para entrega da arte",
+      order: 3,
+    },
+    {
+      id: "cf_briefing",
+      name: "Briefing",
+      type: "textarea",
+      required: true,
+      showOnCard: false,
+      helpText: "Descrição detalhada do que precisa ser desenvolvido",
+      order: 4,
+    },
+    {
+      id: "cf_referencias",
+      name: "Referências",
+      type: "textarea",
+      required: false,
+      showOnCard: false,
+      helpText: "Links, imagens ou descrições de referências visuais",
+      order: 5,
+    },
+    {
+      id: "cf_observacoes",
+      name: "Observações",
+      type: "textarea",
+      required: false,
+      showOnCard: false,
+      helpText: "Informações adicionais ou observações especiais",
+      order: 6,
+    },
+  ];
+
+  return {
+    id: TEMPLATE_ID,
+    title: "SOLICITAÇÃO DE ARTE",
+    createdAt: now,
+    listsOrder,
+    lists,
+    cardsByList,
+    customFields,
+    isTemplate: true,
+    description: "Board template para solicitações de arte e design",
+    icon: "🎨",
+  };
+}
+
 interface BoardsState {
   boards: Record<string, Board>;
   boardOrder: string[]; // order of board ids (recent first)
@@ -51,6 +152,7 @@ interface BoardsState {
   deleteBoard: (boardId: string) => void;
   updateBoardTitle: (boardId: string, title: string) => void;
   updateBoard: (boardId: string, patch: Partial<Board>) => void;
+  initializeTemplateBoards: () => void;
   // Custom fields management
   addCustomField: (boardId: string, field: Omit<CustomField, "id" | "order"> & Partial<Pick<CustomField, "order">>) => string;
   updateCustomField: (boardId: string, fieldId: string, patch: Partial<CustomField>) => void;
@@ -83,16 +185,42 @@ export const useBoardsStore = create<BoardsState>()(
     (set, get) => ({
       boards: {},
       boardOrder: [],
+      initializeTemplateBoards: () => {
+        const TEMPLATE_ID = "board_template_solicitacao_arte";
+        set((state) => {
+          if (!state.boards[TEMPLATE_ID]) {
+            const templateBoard = createSolicitacaoArteBoard();
+            return {
+              boards: { ...state.boards, [TEMPLATE_ID]: templateBoard },
+              boardOrder: [TEMPLATE_ID, ...state.boardOrder.filter((id) => id !== TEMPLATE_ID)],
+            };
+          }
+          // Ensure template is always first
+          if (state.boardOrder[0] !== TEMPLATE_ID) {
+            return {
+              ...state,
+              boardOrder: [TEMPLATE_ID, ...state.boardOrder.filter((id) => id !== TEMPLATE_ID)],
+            };
+          }
+          return state;
+        });
+      },
       createBoard: (title: string) => {
         const board = createDefaultBoard(title);
         set((state) => ({
           boards: { ...state.boards, [board.id]: board },
-          boardOrder: [board.id, ...state.boardOrder.filter((id) => id !== board.id)],
+          boardOrder: state.boardOrder[0] === "board_template_solicitacao_arte"
+            ? [state.boardOrder[0], board.id, ...state.boardOrder.slice(1).filter((id) => id !== board.id)]
+            : [board.id, ...state.boardOrder.filter((id) => id !== board.id)],
         }));
         return board.id;
       },
       deleteBoard: (boardId: string) => {
         set((state) => {
+          // Prevent deletion of template board
+          if (state.boards[boardId]?.isTemplate) {
+            return state;
+          }
           const { [boardId]: _, ...rest } = state.boards;
           return {
             boards: rest,
@@ -128,6 +256,8 @@ export const useBoardsStore = create<BoardsState>()(
         set((state) => {
           const board = state.boards[boardId];
           if (!board) return state;
+          // Prevent adding fields to template board
+          if (board.isTemplate) return state;
           const fields = Array.from(board.customFields || []);
           const order = fieldInput.order ?? fields.length;
           const newField: CustomField = {
@@ -151,6 +281,8 @@ export const useBoardsStore = create<BoardsState>()(
         set((state) => {
           const board = state.boards[boardId];
           if (!board) return state;
+          // Prevent updating fields in template board
+          if (board.isTemplate) return state;
           const fields = Array.from(board.customFields || []);
           const idx = fields.findIndex((f) => f.id === fieldId);
           if (idx === -1) return state;
@@ -165,6 +297,8 @@ export const useBoardsStore = create<BoardsState>()(
         set((state) => {
           const board = state.boards[boardId];
           if (!board) return state;
+          // Prevent deleting fields from template board
+          if (board.isTemplate) return state;
           const fields = (board.customFields || []).filter((f) => f.id !== fieldId).map((f, i) => ({ ...f, order: i }));
           // Clean values from all cards
           const newCardsByList: Board["cardsByList"] = Object.fromEntries(
@@ -185,6 +319,8 @@ export const useBoardsStore = create<BoardsState>()(
         set((state) => {
           const board = state.boards[boardId];
           if (!board) return state;
+          // Prevent reordering fields in template board
+          if (board.isTemplate) return state;
           const fields = Array.from(board.customFields || []);
           if (!fields.length) return state;
           const moved = (function(){ const arr = fields.slice(); const [it] = arr.splice(fromIndex,1); arr.splice(toIndex,0,it); return arr; })();
@@ -459,6 +595,11 @@ export const useBoardsStore = create<BoardsState>()(
       name: "ccf-boards",
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({ boards: state.boards, boardOrder: state.boardOrder }),
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          state.initializeTemplateBoards();
+        }
+      },
     }
   )
 );

@@ -18,6 +18,8 @@ export function CustomFieldsManager({ boardId }: Props) {
   const reorderCustomFields = useBoardsStore((s) => s.reorderCustomFields);
 
   if (!board) return null;
+  
+  const isTemplate = !!board.isTemplate;
   const fields = (board.customFields || []).slice().sort((a,b)=>a.order-b.order);
 
   const handleAdd = () => {
@@ -52,11 +54,12 @@ export function CustomFieldsManager({ boardId }: Props) {
             <Input
               value={f.name}
               onChange={(e) => updateCustomField(boardId, f.id, { name: e.target.value })}
+              disabled={isTemplate}
             />
           </div>
           <div className="col-span-3">
             <Label className="text-xs">Tipo</Label>
-            <Select value={f.type} onValueChange={(v) => updateCustomField(boardId, f.id, { type: v as any, options: (v.includes("select") ? (opts.length?opts:["Opção 1"]) : undefined) })}>
+            <Select value={f.type} onValueChange={(v) => updateCustomField(boardId, f.id, { type: v as any, options: (v.includes("select") ? (opts.length?opts:["Opção 1"]) : undefined) })} disabled={isTemplate}>
               <SelectTrigger>
                 <SelectValue placeholder="Tipo" />
               </SelectTrigger>
@@ -73,24 +76,42 @@ export function CustomFieldsManager({ boardId }: Props) {
           </div>
           <div className="col-span-2 flex items-center gap-2">
             <div className="flex items-center gap-2">
-              <Switch checked={!!f.required} onCheckedChange={(v) => updateCustomField(boardId, f.id, { required: v })} id={`req_${f.id}`} />
+              <Switch checked={!!f.required} onCheckedChange={(v) => updateCustomField(boardId, f.id, { required: v })} id={`req_${f.id}`} disabled={isTemplate} />
               <Label htmlFor={`req_${f.id}`} className="text-xs">Obrigatório</Label>
             </div>
           </div>
           <div className="col-span-2 flex items-center gap-2">
             <div className="flex items-center gap-2">
-              <Switch checked={!!f.showOnCard} onCheckedChange={(v) => updateCustomField(boardId, f.id, { showOnCard: v })} id={`show_${f.id}`} />
+              <Switch checked={!!f.showOnCard} onCheckedChange={(v) => updateCustomField(boardId, f.id, { showOnCard: v })} id={`show_${f.id}`} disabled={isTemplate} />
               <Label htmlFor={`show_${f.id}`} className="text-xs">Mostrar no card</Label>
             </div>
           </div>
           <div className="col-span-0 md:col-span-0 flex items-center justify-end gap-1">
-            <Button variant="ghost" size="icon" onClick={() => reorderCustomFields(boardId, f.order, Math.max(0, f.order-1))} title="Mover para cima">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => reorderCustomFields(boardId, f.order, Math.max(0, f.order-1))} 
+              title="Mover para cima"
+              disabled={isTemplate}
+            >
               <ArrowUp className="size-4" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={() => reorderCustomFields(boardId, f.order, Math.min(fields.length-1, f.order+1))} title="Mover para baixo">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => reorderCustomFields(boardId, f.order, Math.min(fields.length-1, f.order+1))} 
+              title="Mover para baixo"
+              disabled={isTemplate}
+            >
               <ArrowDown className="size-4" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={() => deleteCustomField(boardId, f.id)} title="Excluir">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => deleteCustomField(boardId, f.id)} 
+              title="Excluir"
+              disabled={isTemplate}
+            >
               <X className="size-4" />
             </Button>
           </div>
@@ -102,14 +123,14 @@ export function CustomFieldsManager({ boardId }: Props) {
             <div className="space-y-2">
               {opts.map((opt, idx) => (
                 <div key={idx} className="flex items-center gap-2">
-                  <Input value={opt} onChange={(e) => updateOption(idx, e.target.value)} className="max-w-sm" />
-                  <Button variant="ghost" size="icon" onClick={() => removeOption(idx)} title="Remover">
+                  <Input value={opt} onChange={(e) => updateOption(idx, e.target.value)} className="max-w-sm" disabled={isTemplate} />
+                  <Button variant="ghost" size="icon" onClick={() => removeOption(idx)} title="Remover" disabled={isTemplate}>
                     <X className="size-4" />
                   </Button>
                 </div>
               ))}
             </div>
-            <Button variant="secondary" size="sm" onClick={addOption} className="mt-1">
+            <Button variant="secondary" size="sm" onClick={addOption} className="mt-1" disabled={isTemplate}>
               <Plus className="size-4 mr-1" /> Adicionar opção
             </Button>
           </div>
@@ -122,10 +143,31 @@ export function CustomFieldsManager({ boardId }: Props) {
     <section className="space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium">Campos personalizados</h3>
-        <Button size="sm" onClick={handleAdd}><Plus className="size-4 mr-1" /> Novo campo</Button>
+        <Button size="sm" onClick={handleAdd} disabled={isTemplate}>
+          <Plus className="size-4 mr-1" /> Novo campo
+        </Button>
       </div>
+      
+      {isTemplate && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/50">
+          <div className="flex items-start gap-2">
+            <div className="text-amber-600 dark:text-amber-400">🎨</div>
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                Board Template - Solicitação de Arte
+              </p>
+              <p className="text-xs text-amber-700 dark:text-amber-400">
+                Este é um board template com campos pré-definidos para solicitações de arte. Os campos não podem ser modificados.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {fields.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Nenhum campo ainda. Crie o primeiro.</p>
+        <p className="text-sm text-muted-foreground">
+          {isTemplate ? "Este board template não possui campos personalizados configurados." : "Nenhum campo ainda. Crie o primeiro."}
+        </p>
       ) : (
         <div className="space-y-3">
           {fields.map((f) => (
