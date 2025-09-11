@@ -99,17 +99,6 @@ export function BoardHeader({ board, onDeleted }: BoardHeaderProps) {
         </div>
       </div>
 
-      {/* Second row: Progress bar and task counter */}
-        <div className="flex-1 max-w-md">
-          <div className="flex items-center justify-between text-sm mb-2">
-            <span className="text-muted-foreground">Progresso do Board</span>
-            <span className="font-medium">{progress}%</span>
-          </div>
-          <Progress value={progress} className="h-2" />
-        </div>
-        <div className="text-sm text-muted-foreground">
-          <span className="font-medium">{totalCards}</span> tarefas
-        </div>
     </div>
   );
 }
