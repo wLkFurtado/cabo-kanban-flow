@@ -67,12 +67,12 @@ export default function Agenda() {
         </header>
 
         <main className="container mx-auto p-6">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            <div className="lg:col-span-3">
-              <div className="bg-card rounded-lg border p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <Calendar className="h-5 w-5" />
-                  <h2 className="text-lg font-semibold">Calendário de Demandas</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-6 gap-6">
+            <div className="lg:col-span-5">
+              <div className="bg-card rounded-lg border p-8">
+                <div className="flex items-center gap-2 mb-6">
+                  <Calendar className="h-6 w-6" />
+                  <h2 className="text-xl font-semibold">Calendário de Demandas</h2>
                 </div>
                 <AgendaCalendar
                   selectedDate={selectedDate}
@@ -81,7 +81,7 @@ export default function Agenda() {
               </div>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-3">
               {overdueDemands.length > 0 && (
                 <div className="bg-card rounded-lg border border-destructive p-4">
                   <div className="flex items-center gap-2 mb-3">
