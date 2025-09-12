@@ -2,7 +2,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { useEventsStore } from "@/state/eventsStore";
+import { useUserDemands } from "@/hooks/useUserDemands";
 
 interface AgendaCalendarProps {
   selectedDate?: Date;
@@ -10,10 +10,10 @@ interface AgendaCalendarProps {
 }
 
 export function AgendaCalendar({ selectedDate, onDateSelect }: AgendaCalendarProps) {
-  const { events } = useEventsStore();
+  const { getDatesWithDemands } = useUserDemands();
 
-  // Get dates that have events
-  const datesWithEvents = new Set(events.map(event => event.date));
+  // Get dates that have demands
+  const datesWithDemands = getDatesWithDemands();
 
   return (
     <div className="p-4">
@@ -24,15 +24,15 @@ export function AgendaCalendar({ selectedDate, onDateSelect }: AgendaCalendarPro
         locale={ptBR}
         className={cn("rounded-md border pointer-events-auto")}
         modifiers={{
-          hasEvent: (date) => {
+          hasDemand: (date) => {
             const dateStr = format(date, 'yyyy-MM-dd');
-            return datesWithEvents.has(dateStr);
+            return datesWithDemands.has(dateStr);
           }
         }}
         modifiersStyles={{
-          hasEvent: {
-            backgroundColor: 'hsl(var(--accent))',
-            color: 'hsl(var(--accent-foreground))',
+          hasDemand: {
+            backgroundColor: 'hsl(var(--primary))',
+            color: 'hsl(var(--primary-foreground))',
             fontWeight: 'bold',
           }
         }}
