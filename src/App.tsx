@@ -11,8 +11,16 @@ import Pautas from "./pages/Pautas";
 import RootLayout from "@/components/layout/RootLayout";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      gcTime: 1000 * 60 * 10, // 10 minutes
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -21,7 +29,11 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route element={<RootLayout />}>
+          <Route element={
+            <ProtectedRoute>
+              <RootLayout />
+            </ProtectedRoute>
+          }>
             <Route path="/" element={<Index />} />
             <Route path="/board/:boardId" element={<BoardView />} />
             <Route path="/agenda" element={<Agenda />} />

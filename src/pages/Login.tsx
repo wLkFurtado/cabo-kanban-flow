@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/components/ui/use-toast";
-import { useAuthStore } from "@/state/authStore";
+import { useAuth } from "@/hooks/useAuth";
 import { useNavigate, Link } from "react-router-dom";
+import { useEffect } from "react";
 import { Seo } from "@/components/seo/Seo";
 
 const schema = z.object({
@@ -18,17 +19,33 @@ type FormValues = z.infer<typeof schema>;
 
 export default function Login() {
   const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { email: "", password: "" } });
-  const login = useAuthStore((s) => s.login);
+  const { signIn, user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate("/");
+    }
+  }, [user, navigate]);
+
   async function onSubmit(values: FormValues) {
     try {
-      await login(values.email, values.password);
+      const { error } = await signIn(values.email, values.password);
+      
+      if (error) {
+        throw error;
+      }
+      
       toast({ title: "Bem-vindo!", description: "Login realizado com sucesso." });
       navigate("/");
     } catch (e: any) {
-      toast({ title: "Erro ao entrar", description: e.message ?? "Tente novamente.", variant: "destructive" });
+      toast({ 
+        title: "Erro ao entrar", 
+        description: e.message || "Credenciais inválidas. Tente novamente.", 
+        variant: "destructive" 
+      });
     }
   }
 

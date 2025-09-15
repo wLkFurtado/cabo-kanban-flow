@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/components/ui/use-toast";
-import { useAuthStore } from "@/state/authStore";
+import { useAuth } from "@/hooks/useAuth";
 import { useNavigate, Link } from "react-router-dom";
+import { useEffect } from "react";
 import { Seo } from "@/components/seo/Seo";
 
 const schema = z
@@ -30,23 +31,40 @@ export default function Register() {
     resolver: zodResolver(schema),
     defaultValues: { name: "", email: "", phone: "", role: "", password: "", confirmPassword: "" },
   });
-  const registerUser = useAuthStore((s) => s.register);
+  const { signUp, user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate("/");
+    }
+  }, [user, navigate]);
+
   async function onSubmit(values: FormValues) {
     try {
-      await registerUser({
-        name: values.name,
-        email: values.email,
-        password: values.password,
-        role: values.role,
+      const { error } = await signUp(values.email, values.password, {
+        full_name: values.name,
         phone: values.phone,
+        role: values.role,
       });
-      toast({ title: "Conta criada!", description: "Cadastro realizado com sucesso." });
-      navigate("/");
+      
+      if (error) {
+        throw error;
+      }
+      
+      toast({ 
+        title: "Conta criada!", 
+        description: "Sua conta foi criada com sucesso. Verifique seu email para confirmar." 
+      });
+      navigate("/login");
     } catch (e: any) {
-      toast({ title: "Erro ao cadastrar", description: e.message ?? "Tente novamente.", variant: "destructive" });
+      toast({ 
+        title: "Erro ao cadastrar", 
+        description: e.message || "Erro interno. Tente novamente.", 
+        variant: "destructive" 
+      });
     }
   }
 
