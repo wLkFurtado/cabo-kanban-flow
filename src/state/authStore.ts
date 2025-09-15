@@ -86,6 +86,10 @@ export const useAuthStore = create<AuthState>()(
         const updated: StoredUser = { ...current, avatarUrl };
         set({ usersByEmail: { ...usersByEmail, [currentUserEmail]: updated } });
       },
+      getAllUsers: () => {
+        const { usersByEmail } = get();
+        return Object.values(usersByEmail).map(({ password, ...user }) => user);
+      },
     }),
     {
       name: "auth-store",

@@ -1,4 +1,4 @@
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { Card as TCard, LabelColor } from "@/state/kanbanTypes";
 import { format, isPast, isWithinInterval, addDays, parseISO } from "date-fns";
@@ -224,17 +224,27 @@ export function KanbanCard({ card, boardId }: KanbanCardProps) {
         {/* Bottom section */}
         <div className="mt-4 flex items-center justify-between">
           <div className="flex -space-x-1">
-            {card.members?.slice(0, 3).map((m) => (
-              <Avatar key={m.id} className="size-7 border-2 border-background shadow-sm">
-                <AvatarFallback className="text-xs font-medium bg-gradient-to-br from-primary/20 to-secondary/20 text-primary">
-                  {initials(m.name)}
-                </AvatarFallback>
-              </Avatar>
-            ))}
-            {card.members && card.members.length > 3 && (
-              <div className="size-7 rounded-full border-2 border-background bg-muted flex items-center justify-center shadow-sm">
-                <span className="text-xs text-muted-foreground font-medium">+{card.members.length - 3}</span>
-              </div>
+            {/* Members */}
+            {card.members && card.members.length > 0 && (
+              <>
+                {card.members.slice(0, 3).map((member, index) => (
+                  <Avatar 
+                    key={member.id} 
+                    className="h-6 w-6 border-2 border-background"
+                    style={{ marginLeft: index > 0 ? '-4px' : '0' }}
+                  >
+                    <AvatarImage src={member.avatar} />
+                    <AvatarFallback className="text-[10px] bg-primary text-primary-foreground">
+                      {member.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                ))}
+                {card.members.length > 3 && (
+                  <div className="h-6 w-6 rounded-full bg-muted border-2 border-background flex items-center justify-center text-[10px] font-medium text-muted-foreground">
+                    +{card.members.length - 3}
+                  </div>
+                )}
+              </>
             )}
           </div>
 

@@ -9,13 +9,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
-import { MessageSquare, Clock, User, Send, Calendar, Tag, Paperclip, ArrowRight, Plus, Image, Users, CalendarDays } from "lucide-react";
+import { MessageSquare, Clock, User, Send, Calendar, Tag, Paperclip, ArrowRight, Plus, Image, CalendarDays, Users } from "lucide-react";
 
-import { Card as TCard, Label as TLabel, LabelColor, Member as TMember, Comment } from "@/state/kanbanTypes";
+import { Card as TCard, Label as TLabel, LabelColor, Comment, Member } from "@/state/kanbanTypes";
 import { parseISO, format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useBoardsStore } from "@/state/boardsStore";
 import { useToast } from "@/hooks/use-toast";
+import { MemberSelect } from "./MemberSelect";
 
 const labelColorClass: Record<LabelColor, string> = {
   green: "bg-[hsl(var(--label-green))] text-white",
@@ -47,11 +48,10 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
   const [description, setDescription] = useState(card.description || "");
   const [dueDate, setDueDate] = useState<string>(card.dueDate ? format(parseISO(card.dueDate), "yyyy-MM-dd") : "");
   const [labels, setLabels] = useState<TLabel[]>(card.labels || []);
-  const [members, setMembers] = useState<TMember[]>(card.members || []);
+  const [members, setMembers] = useState<Member[]>(card.members || []);
   const [custom, setCustom] = useState<Record<string, unknown>>((card as any).custom || {});
   const [coverImages, setCoverImages] = useState<string[]>(card.coverImages || []);
   const [newComment, setNewComment] = useState("");
-  const [newMemberName, setNewMemberName] = useState("");
   const [newTagName, setNewTagName] = useState("");
   const [selectedTagColor, setSelectedTagColor] = useState<LabelColor>("blue");
   const commentsScrollRef = useRef<HTMLDivElement>(null);
@@ -61,7 +61,6 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
   const [showTags, setShowTags] = useState(false);
   const [showDates, setShowDates] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
-
   useEffect(() => {
     if (open) {
       setTitle(card.title);
@@ -129,17 +128,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
     setLabels((prev) => prev.filter((l) => l.id !== id));
   };
 
-  const addMember = () => {
-    const name = newMemberName.trim();
-    if (!name) return;
-    const member: TMember = { id: `m_${Math.random().toString(36).slice(2, 8)}`, name };
-    setMembers((prev) => [...prev, member]);
-    setNewMemberName("");
-  };
 
-  const removeMember = (id: string) => {
-    setMembers((prev) => prev.filter((m) => m.id !== id));
-  };
 
   const handleAddComment = () => {
     const content = newComment.trim();
@@ -329,37 +318,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                     />
                   </div>
 
-                  {/* 3. Membros */}
-                  <div>
-                    <label className="text-sm text-muted-foreground">Membros</label>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {members.map((m) => (
-                        <button
-                          key={m.id}
-                          onClick={() => removeMember(m.id)}
-                          className="flex items-center gap-2 border rounded-md px-2 py-1 text-xs"
-                        >
-                          <Avatar className="size-6 border bg-muted">
-                            <AvatarFallback className="text-[10px]">{initials(m.name)}</AvatarFallback>
-                          </Avatar>
-                          <span>{m.name}</span>
-                        </button>
-                      ))}
-                    </div>
-                    <div className="mt-2 flex gap-2">
-                      <Input
-                        placeholder="Nome do membro"
-                        value={newMemberName}
-                        onChange={(e) => setNewMemberName(e.target.value)}
-                        className="max-w-[220px]"
-                      />
-                      <Button size="sm" onClick={addMember}>
-                        Adicionar
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* 4. Vencimento */}
+                  {/* 3. Vencimento */}
                   <div>
                     <label className="text-sm text-muted-foreground">Vencimento</label>
                     <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
@@ -607,6 +566,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                         </Badge>
                       )}
                     </Button>
+
                   </div>
 
                   {/* Title - Always Visible */}
@@ -754,35 +714,16 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                     <div className="border rounded-lg p-4 space-y-4 animate-fade-in">
                       <h3 className="font-semibold flex items-center gap-2">
                         <Users className="h-4 w-4" />
-                        Membros
+                        Membros do Card
                       </h3>
-                      <div className="flex flex-wrap gap-2">
-                        {members.map((m) => (
-                          <button
-                            key={m.id}
-                            onClick={() => removeMember(m.id)}
-                            className="flex items-center gap-2 border rounded-md px-3 py-2 text-sm hover:bg-muted transition-colors"
-                          >
-                            <Avatar className="size-6 border bg-muted">
-                              <AvatarFallback className="text-[10px]">{initials(m.name)}</AvatarFallback>
-                            </Avatar>
-                            <span>{m.name}</span>
-                          </button>
-                        ))}
-                      </div>
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder="Nome do membro"
-                          value={newMemberName}
-                          onChange={(e) => setNewMemberName(e.target.value)}
-                          className="flex-1"
-                        />
-                        <Button size="sm" onClick={addMember}>
-                          Adicionar
-                        </Button>
-                      </div>
+                      <MemberSelect
+                        selectedMembers={members}
+                        onMembersChange={setMembers}
+                      />
                     </div>
                   )}
+
+
                 </div>
               </ScrollArea>
             </>

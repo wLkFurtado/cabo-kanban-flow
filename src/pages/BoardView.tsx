@@ -13,10 +13,6 @@ export default function BoardView() {
   const addList = useBoardsStore((s) => s.addList);
   const navigate = useNavigate();
 
-  console.log("BoardView - boardId:", boardId);
-  console.log("BoardView - board found:", !!board);
-  console.log("BoardView - board data:", board);
-
   useEffect(() => {
     if (board) document.title = `${board.title} | Comunicação Cabo Frio`;
   }, [board?.title]);

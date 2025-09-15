@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import BoardView from "./pages/BoardView";
 import Agenda from "./pages/Agenda";
+import Pautas from "./pages/Pautas";
 import RootLayout from "@/components/layout/RootLayout";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -24,6 +25,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/board/:boardId" element={<BoardView />} />
             <Route path="/agenda" element={<Agenda />} />
+            <Route path="/pautas" element={<Pautas />} />
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="/login" element={<Login />} />
