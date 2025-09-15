@@ -35,15 +35,34 @@ export default function Login() {
       const { error } = await signIn(values.email, values.password);
       
       if (error) {
-        throw error;
+        console.error('Login error:', error);
+        
+        // Provide more specific error messages
+        let errorMessage = "Credenciais inválidas. Verifique seu e-mail e senha.";
+        
+        if (error.message.includes('Invalid login credentials')) {
+          errorMessage = "E-mail ou senha incorretos. Verifique os dados informados.";
+        } else if (error.message.includes('Email not confirmed')) {
+          errorMessage = "Por favor, confirme seu e-mail antes de fazer login.";
+        } else if (error.message.includes('Too many requests')) {
+          errorMessage = "Muitas tentativas de login. Tente novamente em alguns minutos.";
+        }
+        
+        toast({ 
+          title: "Erro ao entrar", 
+          description: errorMessage,
+          variant: "destructive" 
+        });
+        return;
       }
       
       toast({ title: "Bem-vindo!", description: "Login realizado com sucesso." });
       navigate("/");
     } catch (e: any) {
+      console.error('Unexpected login error:', e);
       toast({ 
-        title: "Erro ao entrar", 
-        description: e.message || "Credenciais inválidas. Tente novamente.", 
+        title: "Erro inesperado", 
+        description: "Ocorreu um erro inesperado. Tente novamente.", 
         variant: "destructive" 
       });
     }
