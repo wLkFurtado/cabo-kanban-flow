@@ -23,7 +23,7 @@ interface MemberSelectProps {
 export function MemberSelect({ selectedMembers, onMembersChange, className }: MemberSelectProps) {
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const getAllUsers = useAuthStore((s) => s.getAllUsers);
+  const { getAllUsers } = useAuthStore();
   
   const allUsers = getAllUsers();
   

@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Badge } from '../ui/badge';
 import { usePautasStore } from '../../state/pautasStore';
-import { Evento } from '../../state/pautasTypes';
+import { Evento, TipoEvento, PrioridadeEvento, StatusEvento, RecorrenciaEvento } from '../../state/pautasTypes';
 import { cn } from '../../lib/utils';
 
 interface EventModalProps {
@@ -36,17 +36,18 @@ export const EventModal: React.FC<EventModalProps> = ({
     horaInicio: '',
     dataFim: '',
     horaFim: '',
-    tipo: 'reuniao' as Evento['tipo'],
-    prioridade: 'media' as Evento['prioridade'],
-    status: 'agendado' as Evento['status'],
+    tipo: 'reuniao' as TipoEvento,
+    prioridade: 'media' as PrioridadeEvento,
+    status: 'agendado' as StatusEvento,
     responsavel: '',
     participantes: [] as string[],
     local: '',
     observacoes: '',
-    recorrencia: 'nenhuma' as const,
+    recorrencia: 'nenhuma' as RecorrenciaEvento,
     lembrete: 15,
     tags: [] as string[],
-    anexos: [] as string[]
+    anexos: [] as string[],
+    cor: '#3b82f6'
   });
   const [newTag, setNewTag] = useState('');
   const [newParticipante, setNewParticipante] = useState('');
@@ -77,10 +78,11 @@ export const EventModal: React.FC<EventModalProps> = ({
         participantes: evento.participantes || [],
         local: evento.local || '',
         observacoes: evento.observacoes || '',
-        recorrencia: evento.recorrencia || 'nenhuma',
+        recorrencia: evento.recorrencia,
         lembrete: evento.lembrete || 15,
         tags: evento.tags || [],
-        anexos: evento.anexos || []
+        anexos: evento.anexos || [],
+        cor: evento.cor || '#3b82f6'
       });
     } else if (initialDate) {
       // Novo evento com data inicial
@@ -104,7 +106,8 @@ export const EventModal: React.FC<EventModalProps> = ({
         recorrencia: 'nenhuma',
         lembrete: 15,
         tags: [],
-        anexos: []
+        anexos: [],
+        cor: '#3b82f6'
       });
     } else {
       // Reset para novo evento
@@ -126,7 +129,8 @@ export const EventModal: React.FC<EventModalProps> = ({
         recorrencia: 'nenhuma',
         lembrete: 15,
         tags: [],
-        anexos: []
+        anexos: [],
+        cor: '#3b82f6'
       });
     }
     setErrors({});
@@ -192,7 +196,8 @@ export const EventModal: React.FC<EventModalProps> = ({
       recorrencia: formData.recorrencia,
       lembrete: formData.lembrete,
       tags: formData.tags,
-      anexos: formData.anexos
+      anexos: formData.anexos,
+      cor: formData.cor
     };
     
     if (evento) {

@@ -42,9 +42,8 @@ export const WeeklyAgenda: React.FC<WeeklyAgendaProps> = ({
       return weekDays.some(day => isSameDay(eventoDate, day));
     }).filter(evento => {
       // Aplicar filtros
-      if (filtros.tipo && evento.tipo !== filtros.tipo) return false;
-      if (filtros.status && evento.status !== filtros.status) return false;
-      if (filtros.prioridade && evento.prioridade !== filtros.prioridade) return false;
+      if (filtros.tipos.length > 0 && !filtros.tipos.includes(evento.tipo)) return false;
+      if (filtros.status.length > 0 && !filtros.status.includes(evento.status)) return false;
       return true;
     });
   }, [eventos, weekDays, filtros]);

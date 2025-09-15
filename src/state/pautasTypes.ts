@@ -15,7 +15,14 @@ export interface Evento {
   lembrete: number; // minutos antes
   tags: string[];
   anexos: string[];
+  cor?: string; // Cor do evento
 }
+
+// Tipos auxiliares para TypeScript
+export type TipoEvento = Evento['tipo'];
+export type PrioridadeEvento = Evento['prioridade'];
+export type StatusEvento = Evento['status'];
+export type RecorrenciaEvento = Evento['recorrencia'];
 
 
 
@@ -104,5 +111,6 @@ export const criarEventoVazio = (): Omit<Evento, 'id'> => ({
   recorrencia: 'nenhuma',
   lembrete: 15,
   tags: [],
-  anexos: []
+  anexos: [],
+  cor: '#3b82f6'
 });

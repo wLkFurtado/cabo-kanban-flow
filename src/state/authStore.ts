@@ -17,6 +17,7 @@ type AuthState = {
   currentUserEmail: string | null;
   // selectors
   getCurrentUser: () => UserProfile | null;
+  getAllUsers: () => UserProfile[];
   // actions
   register: (data: {
     name: string;

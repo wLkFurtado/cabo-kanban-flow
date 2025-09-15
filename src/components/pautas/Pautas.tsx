@@ -14,7 +14,7 @@ export const Pautas: React.FC = () => {
   const { 
     eventos, 
     filtros, 
-    setFiltros,
+    atualizarFiltros,
     calcularMetricas,
     obterEventosDoUsuario 
   } = usePautasStore();
