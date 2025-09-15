@@ -16,6 +16,33 @@ export interface AuthActions {
   updateProfile: (updates: any) => Promise<{ error: any }>;
 }
 
+// TEMPORARY MOCK - Remove after fixing Supabase connectivity
+const MOCK_USER = {
+  id: '00000000-0000-0000-0000-000000000001',
+  email: 'admin@troia.com',
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+  aud: 'authenticated',
+  role: 'authenticated',
+  email_confirmed_at: new Date().toISOString(),
+  phone: '',
+  confirmed_at: new Date().toISOString(),
+  last_sign_in_at: new Date().toISOString(),
+  app_metadata: {},
+  user_metadata: {},
+  identities: [],
+  factors: []
+} as User;
+
+const MOCK_SESSION = {
+  access_token: 'mock-token',
+  refresh_token: 'mock-refresh',
+  expires_in: 3600,
+  expires_at: Date.now() + 3600000,
+  token_type: 'bearer',
+  user: MOCK_USER
+} as Session;
+
 export function useAuth(): AuthState & AuthActions {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -23,22 +50,45 @@ export function useAuth(): AuthState & AuthActions {
   const { toast } = useToast();
 
   useEffect(() => {
+    // TEMPORARY: Use mock data instead of real Supabase
+    console.log('useAuth - Using MOCK data due to connectivity issues');
+    
+    // Simulate loading delay
+    setTimeout(() => {
+      setUser(MOCK_USER);
+      setSession(MOCK_SESSION);
+      setLoading(false);
+      console.log('useAuth - Mock user loaded:', MOCK_USER.email);
+    }, 500);
+
+    // Original code (commented out due to connectivity issues)
+    /*
     // Get initial session
     const getInitialSession = async () => {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (error) {
-        console.error('Error getting session:', error);
+      console.log('useAuth - Getting initial session...');
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        console.log('useAuth - Session result:', { session: !!session, error: error?.message });
+        
+        if (error) {
+          console.error('Error getting session:', error);
+        }
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
+      } catch (err) {
+        console.error('useAuth - Exception getting session:', err);
+        setLoading(false);
       }
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
     };
 
     getInitialSession();
 
     // Listen for auth changes
+    console.log('useAuth - Setting up auth state change listener...');
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('useAuth - Auth state changed:', { event, session: !!session });
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -53,6 +103,7 @@ export function useAuth(): AuthState & AuthActions {
     );
 
     return () => subscription.unsubscribe();
+    */
   }, [toast]);
 
   const signUp = async (email: string, password: string, userData: any = {}) => {
@@ -80,21 +131,34 @@ export function useAuth(): AuthState & AuthActions {
 
   const signIn = async (email: string, password: string) => {
     try {
+      console.log('useAuth - Attempting sign in for:', email);
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
+      console.log('useAuth - Sign in result:', { error: error?.message });
 
       return { error };
     } catch (error) {
+      console.error('useAuth - Sign in exception:', error);
       return { error };
     }
   };
 
   const signOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      return { error };
+      // TEMPORARY: Mock sign out
+      setUser(null);
+      setSession(null);
+      toast({
+        title: 'Desconectado',
+        description: 'Você foi desconectado com sucesso.',
+      });
+      return { error: null };
+      
+      // Original code
+      // const { error } = await supabase.auth.signOut();
+      // return { error };
     } catch (error) {
       return { error };
     }

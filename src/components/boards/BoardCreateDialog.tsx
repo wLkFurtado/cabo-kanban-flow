@@ -4,7 +4,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useBoardsStore } from "@/state/boardsStore";
+import { useBoards } from "@/hooks/useBoards";
+import { useToast } from "@/components/ui/use-toast";
 
 interface BoardCreateDialogProps {
   trigger: React.ReactNode;
@@ -14,8 +15,8 @@ interface BoardCreateDialogProps {
 
 export function BoardCreateDialog({ trigger, initialTitle = "", onCreated }: BoardCreateDialogProps) {
   const navigate = useNavigate();
-  const createBoard = useBoardsStore((s) => s.createBoard);
-  const updateBoard = useBoardsStore((s) => s.updateBoard);
+  const { createBoard, isCreating } = useBoards();
+  const { toast } = useToast();
 
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState(initialTitle);
@@ -39,25 +40,32 @@ export function BoardCreateDialog({ trigger, initialTitle = "", onCreated }: Boa
 
     try {
       setSubmitting(true);
-      const boardId = createBoard(name);
+      
+      // Create board using Supabase
+      const board = await createBoard({
+        title: name,
+        description: `Board criado com as etapas: ${cleanStages.join(", ")}`,
+        visibility: 'private'
+      });
 
-      // Build fresh lists structure replacing defaults
-      const listIds = cleanStages.map((_, i) => `l_${Math.random().toString(36).slice(2, 8)}${Date.now().toString(36).slice(-3)}_${i}`);
-      const listsOrder = listIds;
-      const lists = listIds.reduce<Record<string, { id: string; title: string; position: number }>>((acc, id, i) => {
-        acc[id] = { id, title: cleanStages[i], position: i };
-        return acc;
-      }, {});
-      const cardsByList = listIds.reduce<Record<string, any[]>>((acc, id) => {
-        acc[id] = [];
-        return acc;
-      }, {});
+      toast({
+        title: "Board criado com sucesso!",
+        description: `O board "${name}" foi criado e salvo no banco de dados.`,
+      });
 
-      updateBoard(boardId, { lists, listsOrder, cardsByList });
-
-      onCreated?.(boardId);
-      navigate(`/board/${boardId}`);
+      onCreated?.(board.id);
+      navigate(`/board/${board.id}`);
       setOpen(false);
+      
+      // Reset form
+      setTitle("");
+      setStages(["A fazer", "Fazendo", "Concluído"]);
+    } catch (error: any) {
+      toast({
+        title: "Erro ao criar board",
+        description: error.message || "Ocorreu um erro ao criar o board. Tente novamente.",
+        variant: "destructive",
+      });
     } finally {
       setSubmitting(false);
     }
@@ -106,8 +114,8 @@ export function BoardCreateDialog({ trigger, initialTitle = "", onCreated }: Boa
           <Button variant="outline" type="button" onClick={() => setOpen(false)}>
             Cancelar
           </Button>
-          <Button type="button" onClick={handleSubmit} disabled={submitting || !title.trim() || stages.filter((s) => s.trim()).length === 0}>
-            {submitting ? "Criando..." : "Criar board"}
+          <Button type="button" onClick={handleSubmit} disabled={submitting || isCreating || !title.trim() || stages.filter((s) => s.trim()).length === 0}>
+            {submitting || isCreating ? "Criando..." : "Criar board"}
           </Button>
         </DialogFooter>
       </DialogContent>

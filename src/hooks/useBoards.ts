@@ -38,35 +38,67 @@ export interface Card {
 }
 
 export function useBoards() {
-  const { user } = useAuth();
-  const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
-  const boardsQuery = useQuery({
+  const { data: boards, isLoading, error } = useQuery({
     queryKey: ['boards'],
     queryFn: async () => {
-      if (!user) return [];
+      const { data: { session } } = await supabase.auth.getSession();
       
-      const { data, error } = await supabase
+      if (!session?.user) {
+        throw new Error('Usuário não autenticado');
+      }
+      
+      // Primeiro buscar os boards que o usuário possui
+      const { data: ownedBoards, error: ownedError } = await supabase
         .from('boards')
         .select('*')
-        .order('created_at', { ascending: false });
+        .eq('owner_id', session.user.id);
 
-      if (error) throw error;
-      return data;
+      if (ownedError) {
+        throw ownedError;
+      }
+
+      // Depois buscar os boards onde o usuário é membro
+      const { data: memberBoards, error: memberError } = await supabase
+        .from('board_members')
+        .select(`
+          board_id,
+          role,
+          boards (*)
+        `)
+        .eq('user_id', session.user.id);
+
+      if (memberError) {
+        throw memberError;
+      }
+
+      // Combinar os resultados
+      const allBoards = [
+        ...(ownedBoards || []),
+        ...(memberBoards?.map(mb => mb.boards).filter(Boolean) || [])
+      ];
+
+      // Remover duplicatas
+      const uniqueBoards = allBoards.filter((board, index, self) => 
+        index === self.findIndex(b => b.id === board.id)
+      );
+
+      return uniqueBoards;
     },
-    enabled: !!user,
   });
 
   const createBoardMutation = useMutation({
     mutationFn: async (board: { title: string; description?: string; visibility?: 'private' | 'team' | 'public' }) => {
-      if (!user) throw new Error('User not authenticated');
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) throw new Error('User not authenticated');
 
       const { data, error } = await supabase
         .from('boards')
         .insert([{
           ...board,
-          owner_id: user.id,
+          owner_id: session.user.id,
           visibility: board.visibility || 'private'
         }])
         .select()
@@ -143,9 +175,9 @@ export function useBoards() {
   });
 
   return {
-    boards: boardsQuery.data || [],
-    loading: boardsQuery.isLoading,
-    error: boardsQuery.error,
+    boards: boards || [],
+    loading: isLoading,
+    error: error,
     createBoard: createBoardMutation.mutate,
     updateBoard: updateBoardMutation.mutate,
     deleteBoard: deleteBoardMutation.mutate,
@@ -155,20 +187,126 @@ export function useBoards() {
   };
 }
 
+// TEMPORARY MOCK DATA - Remove after fixing Supabase connectivity
+const MOCK_BOARD = {
+  id: 'b1b2c3d4-e5f6-7890-abcd-ef1234567890',
+  title: 'Projeto Kanban Demo',
+  description: 'Board de demonstração para testar a interface',
+  visibility: 'private',
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+  user_id: '00000000-0000-0000-0000-000000000001'
+};
+
+const MOCK_LISTS = [
+  {
+    id: 'list-1',
+    title: 'A Fazer',
+    color: '#ef4444',
+    position: 0,
+    board_id: 'b1b2c3d4-e5f6-7890-abcd-ef1234567890',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  },
+  {
+    id: 'list-2', 
+    title: 'Em Progresso',
+    color: '#f59e0b',
+    position: 1,
+    board_id: 'b1b2c3d4-e5f6-7890-abcd-ef1234567890',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  },
+  {
+    id: 'list-3',
+    title: 'Concluído',
+    color: '#10b981',
+    position: 2,
+    board_id: 'b1b2c3d4-e5f6-7890-abcd-ef1234567890',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  }
+];
+
+const MOCK_CARDS = [
+  {
+    id: 'card-1',
+    title: 'Configurar ambiente de desenvolvimento',
+    description: 'Instalar dependências e configurar o projeto',
+    list_id: 'list-1',
+    position: 0,
+    priority: 'high',
+    completed: false,
+    due_date: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  },
+  {
+    id: 'card-2',
+    title: 'Implementar autenticação',
+    description: 'Sistema de login e registro de usuários',
+    list_id: 'list-2',
+    position: 0,
+    priority: 'medium',
+    completed: false,
+    due_date: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  },
+  {
+    id: 'card-3',
+    title: 'Criar componentes básicos',
+    description: 'Componentes de UI reutilizáveis',
+    list_id: 'list-3',
+    position: 0,
+    priority: 'low',
+    completed: true,
+    due_date: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  }
+];
+
 export function useBoardDetails(boardId: string) {
+  console.log('useBoardDetails called with boardId:', boardId);
+  
+  // TEMPORARY: Return mock data instead of real Supabase queries
+  console.log('useBoardDetails - Using MOCK data due to connectivity issues');
+  
+  return {
+    board: MOCK_BOARD,
+    lists: MOCK_LISTS,
+    cards: MOCK_CARDS,
+    isLoading: false,
+    error: null,
+    addList: () => {},
+    addCard: () => {},
+    isAddingList: false,
+    isAddingCard: false,
+  };
+
+  // Original code (commented out due to connectivity issues)
+  /*
   const { user } = useAuth();
   const queryClient = useQueryClient();
+
+  console.log('useBoardDetails called with:', { boardId, user: user?.id });
 
   const boardQuery = useQuery({
     queryKey: ['board', boardId],
     queryFn: async () => {
+      console.log('Fetching board:', boardId);
       const { data, error } = await supabase
         .from('boards')
         .select('*')
         .eq('id', boardId)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Board query error:', error);
+        throw error;
+      }
+      console.log('Board data:', data);
       return data;
     },
     enabled: !!user && !!boardId,
@@ -177,13 +315,18 @@ export function useBoardDetails(boardId: string) {
   const listsQuery = useQuery({
     queryKey: ['board-lists', boardId],
     queryFn: async () => {
+      console.log('Fetching lists for board:', boardId);
       const { data, error } = await supabase
         .from('board_lists')
         .select('*')
         .eq('board_id', boardId)
         .order('position');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Lists query error:', error);
+        throw error;
+      }
+      console.log('Lists data:', data);
       return data;
     },
     enabled: !!user && !!boardId,
@@ -192,16 +335,40 @@ export function useBoardDetails(boardId: string) {
   const cardsQuery = useQuery({
     queryKey: ['board-cards', boardId],
     queryFn: async () => {
+      console.log('Fetching cards for board:', boardId);
+      // First get all list IDs for this board
+      const { data: boardLists, error: listsError } = await supabase
+        .from('board_lists')
+        .select('id')
+        .eq('board_id', boardId);
+
+      if (listsError) {
+        console.error('Board lists error:', listsError);
+        throw listsError;
+      }
+      
+      console.log('Board lists for cards:', boardLists);
+      
+      if (!boardLists || boardLists.length === 0) {
+        console.log('No lists found, returning empty cards array');
+        return [];
+      }
+
+      const listIds = boardLists.map(list => list.id);
+      console.log('List IDs:', listIds);
+
+      // Then get cards for those lists
       const { data, error } = await supabase
         .from('cards')
-        .select(`
-          *,
-          board_lists!inner(board_id)
-        `)
-        .eq('board_lists.board_id', boardId)
+        .select('*')
+        .in('list_id', listIds)
         .order('position');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Cards query error:', error);
+        throw error;
+      }
+      console.log('Cards data:', data);
       return data;
     },
     enabled: !!user && !!boardId,
@@ -267,4 +434,5 @@ export function useBoardDetails(boardId: string) {
     isAddingList: addListMutation.isPending,
     isAddingCard: addCardMutation.isPending,
   };
+  */
 }
