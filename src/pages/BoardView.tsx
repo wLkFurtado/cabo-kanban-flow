@@ -58,7 +58,9 @@ export default function BoardView() {
       dueDate: card.due_date || undefined,
       assignees: [],
       tags: [],
-      attachments: []
+      attachments: [],
+      labels: [],
+      members: []
     }));
 
     return { lists: convertedLists, cards: convertedCards };
@@ -69,7 +71,7 @@ export default function BoardView() {
   }
 
   if (error) {
-    return <div>Erro ao carregar board: {error.message}</div>;
+    return <div>Erro ao carregar board: {error instanceof Error ? error.message : 'Erro desconhecido'}</div>;
   }
 
   if (!board) {
@@ -97,6 +99,21 @@ export default function BoardView() {
     console.log('Move card:', { cardId, newListId, newPosition });
   };
 
+  // Convert lists array to Record format for KanbanBoard
+  const listsRecord = kanbanData.lists.reduce((acc, list) => {
+    acc[list.id] = list;
+    return acc;
+  }, {} as Record<string, List>);
+
+  // Group cards by list
+  const cardsByList = kanbanData.cards.reduce((acc, card) => {
+    if (!acc[card.listId]) {
+      acc[card.listId] = [];
+    }
+    acc[card.listId].push(card);
+    return acc;
+  }, {} as Record<string, Card[]>);
+
   return (
     <section className="flex flex-col h-full">
       <BoardHeader
@@ -104,28 +121,35 @@ export default function BoardView() {
           id: board.id,
           title: board.title,
           description: board.description || '',
-          visibility: board.visibility as 'private' | 'team' | 'public',
-          members: [],
-          lists: kanbanData.lists,
           createdAt: board.created_at,
-          updatedAt: board.updated_at
+          listsOrder: kanbanData.lists.map(l => l.id),
+          lists: listsRecord,
+          cardsByList: cardsByList,
+          icon: "📋",
+          color: "#7c3aed",
+          customFields: [],
+          isTemplate: false
         }}
-        onAddMember={() => {}}
-        onUpdateBoard={() => {}}
-        onDeleteBoard={() => {}}
+        onDeleted={() => {}}
       />
       
-      <ViewTabs />
+      <ViewTabs>
+        <div></div>
+      </ViewTabs>
       
       <div className="flex-1 overflow-hidden">
         <KanbanBoard
-          lists={kanbanData.lists}
-          cards={kanbanData.cards}
+          boardId={boardId}
+          listsOrder={kanbanData.lists.map(l => l.id)}
+          lists={listsRecord}
+          cardsByList={cardsByList}
+          onMoveCard={(fromListId, toListId, fromIndex, toIndex) => {
+            console.log('Move card:', { fromListId, toListId, fromIndex, toIndex });
+          }}
+          onMoveList={(fromIndex, toIndex) => {
+            console.log('Move list:', { fromIndex, toIndex });
+          }}
           onAddList={handleAddList}
-          onAddCard={handleAddCard}
-          onUpdateCard={handleUpdateCard}
-          onDeleteCard={handleDeleteCard}
-          onMoveCard={handleMoveCard}
         />
       </div>
     </section>

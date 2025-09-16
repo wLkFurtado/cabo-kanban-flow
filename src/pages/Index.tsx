@@ -58,7 +58,7 @@ const Index = () => {
           </div>
         </div>
         <div className="text-center py-12">
-          <p className="text-red-600">Erro ao carregar boards: {error.message}</p>
+          <p className="text-red-600">Erro ao carregar boards: {error instanceof Error ? error.message : 'Erro desconhecido'}</p>
         </div>
       </section>
     );

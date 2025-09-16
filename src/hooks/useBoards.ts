@@ -174,11 +174,20 @@ export function useBoards() {
     },
   });
 
+  const createBoard = async (board: { title: string; description?: string; visibility?: 'private' | 'team' | 'public' }) => {
+    return new Promise<Board>((resolve, reject) => {
+      createBoardMutation.mutate(board, {
+        onSuccess: (data) => resolve(data),
+        onError: (error) => reject(error)
+      });
+    });
+  };
+
   return {
     boards: boards || [],
     loading: isLoading,
     error: error,
-    createBoard: createBoardMutation.mutate,
+    createBoard,
     updateBoard: updateBoardMutation.mutate,
     deleteBoard: deleteBoardMutation.mutate,
     isCreating: createBoardMutation.isPending,
@@ -187,106 +196,7 @@ export function useBoards() {
   };
 }
 
-// TEMPORARY MOCK DATA - Remove after fixing Supabase connectivity
-const MOCK_BOARD = {
-  id: 'b1b2c3d4-e5f6-7890-abcd-ef1234567890',
-  title: 'Projeto Kanban Demo',
-  description: 'Board de demonstração para testar a interface',
-  visibility: 'private',
-  created_at: new Date().toISOString(),
-  updated_at: new Date().toISOString(),
-  user_id: '00000000-0000-0000-0000-000000000001'
-};
-
-const MOCK_LISTS = [
-  {
-    id: 'list-1',
-    title: 'A Fazer',
-    color: '#ef4444',
-    position: 0,
-    board_id: 'b1b2c3d4-e5f6-7890-abcd-ef1234567890',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  },
-  {
-    id: 'list-2', 
-    title: 'Em Progresso',
-    color: '#f59e0b',
-    position: 1,
-    board_id: 'b1b2c3d4-e5f6-7890-abcd-ef1234567890',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  },
-  {
-    id: 'list-3',
-    title: 'Concluído',
-    color: '#10b981',
-    position: 2,
-    board_id: 'b1b2c3d4-e5f6-7890-abcd-ef1234567890',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  }
-];
-
-const MOCK_CARDS = [
-  {
-    id: 'card-1',
-    title: 'Configurar ambiente de desenvolvimento',
-    description: 'Instalar dependências e configurar o projeto',
-    list_id: 'list-1',
-    position: 0,
-    priority: 'high',
-    completed: false,
-    due_date: null,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  },
-  {
-    id: 'card-2',
-    title: 'Implementar autenticação',
-    description: 'Sistema de login e registro de usuários',
-    list_id: 'list-2',
-    position: 0,
-    priority: 'medium',
-    completed: false,
-    due_date: null,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  },
-  {
-    id: 'card-3',
-    title: 'Criar componentes básicos',
-    description: 'Componentes de UI reutilizáveis',
-    list_id: 'list-3',
-    position: 0,
-    priority: 'low',
-    completed: true,
-    due_date: null,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  }
-];
-
 export function useBoardDetails(boardId: string) {
-  console.log('useBoardDetails called with boardId:', boardId);
-  
-  // TEMPORARY: Return mock data instead of real Supabase queries
-  console.log('useBoardDetails - Using MOCK data due to connectivity issues');
-  
-  return {
-    board: MOCK_BOARD,
-    lists: MOCK_LISTS,
-    cards: MOCK_CARDS,
-    isLoading: false,
-    error: null,
-    addList: () => {},
-    addCard: () => {},
-    isAddingList: false,
-    isAddingCard: false,
-  };
-
-  // Original code (commented out due to connectivity issues)
-  /*
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -427,12 +337,11 @@ export function useBoardDetails(boardId: string) {
     board: boardQuery.data,
     lists: listsQuery.data || [],
     cards: cardsQuery.data || [],
-    loading: boardQuery.isLoading || listsQuery.isLoading || cardsQuery.isLoading,
+    isLoading: boardQuery.isLoading || listsQuery.isLoading || cardsQuery.isLoading,
     error: boardQuery.error || listsQuery.error || cardsQuery.error,
     addList: addListMutation.mutate,
     addCard: addCardMutation.mutate,
     isAddingList: addListMutation.isPending,
     isAddingCard: addCardMutation.isPending,
   };
-  */
 }
