@@ -833,6 +833,10 @@ export type Database = {
         Args: { "": unknown[] }
         Returns: number
       }
+      user_has_board_access: {
+        Args: { board_uuid: string }
+        Returns: boolean
+      }
       vector_avg: {
         Args: { "": number[] }
         Returns: string
