@@ -44,89 +44,99 @@ export function useBoards() {
   const { data: boards, isLoading, error } = useQuery({
     queryKey: ['boards'],
     queryFn: async () => {
-      console.log('🔍 useBoards - Starting board fetch...');
+      console.log('🚀 [useBoards] Starting to fetch boards...');
       
-      const { data: { session } } = await supabase.auth.getSession();
-      console.log('🔍 useBoards - Current user session:', !!session);
-      console.log('🔍 useBoards - User ID:', session?.user?.id);
-      
-      if (!session?.user) {
-        console.log('❌ useBoards - No user session found');
-        throw new Error('Usuário não autenticado');
-      }
-
       try {
-        console.log('🔍 useBoards - Fetching owned boards...');
-        // Primeiro buscar os boards que o usuário possui
+        const { data: { user } } = await supabase.auth.getUser();
+        console.log('🔐 [useBoards] Current user:', user?.id, user?.email);
+        
+        if (!user) {
+          console.log('❌ [useBoards] No authenticated user found');
+          throw new Error('User not authenticated');
+        }
+
+        // Step 1: Fetch owned boards (simple query, no joins)
+        console.log('📋 [useBoards] Fetching owned boards...');
         const { data: ownedBoards, error: ownedError } = await supabase
           .from('boards')
-          .select(`
-            *,
-            board_lists(*)
-          `)
-          .eq('owner_id', session.user.id);
+          .select('*')
+          .eq('owner_id', user.id)
+          .order('created_at', { ascending: false });
 
         if (ownedError) {
-          console.error('❌ useBoards - Error fetching owned boards:', ownedError);
+          console.error('❌ [useBoards] Error fetching owned boards:', ownedError);
           throw ownedError;
         }
 
-        console.log('✅ useBoards - Owned boards found:', ownedBoards?.length || 0);
-        console.log('📋 useBoards - Owned board details:', ownedBoards?.map(b => ({
-          id: b.id,
-          title: b.title,
-          lists: b.board_lists?.length || 0
-        })));
+        console.log('✅ [useBoards] Owned boards fetched:', ownedBoards?.length || 0);
 
-        console.log('🔍 useBoards - Fetching member boards...');
-        // Depois buscar os boards onde o usuário é membro
-        const { data: memberBoards, error: memberError } = await supabase
+        // Step 2: Fetch board_members to get member board IDs
+        console.log('👥 [useBoards] Fetching board memberships...');
+        const { data: memberships, error: membershipError } = await supabase
           .from('board_members')
-          .select(`
-            board_id,
-            role,
-            boards (
-              *,
-              board_lists(*)
-            )
-          `)
-          .eq('user_id', session.user.id);
+          .select('board_id')
+          .eq('user_id', user.id);
 
-        if (memberError) {
-          console.error('❌ useBoards - Error fetching member boards:', memberError);
-          throw memberError;
+        if (membershipError) {
+          console.error('❌ [useBoards] Error fetching memberships:', membershipError);
+          throw membershipError;
         }
 
-        console.log('✅ useBoards - Member boards found:', memberBoards?.length || 0);
+        console.log('✅ [useBoards] Memberships fetched:', memberships?.length || 0);
 
-        // Combinar os resultados
-        const allBoards = [
-          ...(ownedBoards || []),
-          ...(memberBoards?.map(mb => mb.boards).filter(Boolean) || [])
-        ];
+        // Step 3: Fetch member boards by IDs (if any)
+        let memberBoards = [];
+        if (memberships && memberships.length > 0) {
+          const memberBoardIds = memberships.map(m => m.board_id);
+          console.log('📋 [useBoards] Fetching member boards by IDs:', memberBoardIds);
+          
+          const { data: fetchedMemberBoards, error: memberBoardError } = await supabase
+            .from('boards')
+            .select('*')
+            .in('id', memberBoardIds)
+            .order('created_at', { ascending: false });
 
-        // Remover duplicatas
-        const uniqueBoards = allBoards.filter((board, index, self) => 
-          index === self.findIndex(b => b.id === board.id)
-        );
+          if (memberBoardError) {
+            console.error('❌ [useBoards] Error fetching member boards:', memberBoardError);
+            throw memberBoardError;
+          }
 
-        console.log('✅ useBoards - Total unique boards:', uniqueBoards.length);
-        console.log('📋 useBoards - Final board list:', uniqueBoards.map(b => ({
-          id: b.id,
-          title: b.title,
-          owner_id: b.owner_id,
-          lists: b.board_lists?.length || 0
-        })));
+          memberBoards = fetchedMemberBoards || [];
+          console.log('✅ [useBoards] Member boards fetched:', memberBoards.length);
+        }
 
-        return uniqueBoards;
+        // Step 4: Combine all boards and remove duplicates
+        const allBoardsMap = new Map();
+        
+        // Add owned boards
+        (ownedBoards || []).forEach(board => {
+          allBoardsMap.set(board.id, board);
+        });
+        
+        // Add member boards (will not override owned boards due to Map)
+        memberBoards.forEach(board => {
+          if (!allBoardsMap.has(board.id)) {
+            allBoardsMap.set(board.id, board);
+          }
+        });
+
+        const finalBoards = Array.from(allBoardsMap.values());
+        console.log('📊 [useBoards] Total unique boards found:', finalBoards.length);
+        console.log('🎯 [useBoards] Final boards:', finalBoards.map(b => ({ id: b.id, title: b.title })));
+
+        return finalBoards;
       } catch (error) {
-        console.error('💥 useBoards - Critical error in fetch:', error);
+        console.error('💥 [useBoards] Fatal error in queryFn:', error);
         throw error;
       }
     },
-    retry: 3,
+    retry: (failureCount, error) => {
+      console.log(`🔄 [useBoards] Retry attempt ${failureCount} for error:`, error instanceof Error ? error.message : String(error));
+      return failureCount < 2; // Only retry twice
+    },
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     staleTime: 5 * 60 * 1000, // 5 minutes
+    cacheTime: 10 * 60 * 1000, // 10 minutes
   });
 
   const createBoardMutation = useMutation({
