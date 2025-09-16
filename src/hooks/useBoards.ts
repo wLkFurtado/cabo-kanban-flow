@@ -44,49 +44,89 @@ export function useBoards() {
   const { data: boards, isLoading, error } = useQuery({
     queryKey: ['boards'],
     queryFn: async () => {
+      console.log('🔍 useBoards - Starting board fetch...');
+      
       const { data: { session } } = await supabase.auth.getSession();
+      console.log('🔍 useBoards - Current user session:', !!session);
+      console.log('🔍 useBoards - User ID:', session?.user?.id);
       
       if (!session?.user) {
+        console.log('❌ useBoards - No user session found');
         throw new Error('Usuário não autenticado');
       }
-      
-      // Primeiro buscar os boards que o usuário possui
-      const { data: ownedBoards, error: ownedError } = await supabase
-        .from('boards')
-        .select('*')
-        .eq('owner_id', session.user.id);
 
-      if (ownedError) {
-        throw ownedError;
+      try {
+        console.log('🔍 useBoards - Fetching owned boards...');
+        // Primeiro buscar os boards que o usuário possui
+        const { data: ownedBoards, error: ownedError } = await supabase
+          .from('boards')
+          .select(`
+            *,
+            board_lists(*)
+          `)
+          .eq('owner_id', session.user.id);
+
+        if (ownedError) {
+          console.error('❌ useBoards - Error fetching owned boards:', ownedError);
+          throw ownedError;
+        }
+
+        console.log('✅ useBoards - Owned boards found:', ownedBoards?.length || 0);
+        console.log('📋 useBoards - Owned board details:', ownedBoards?.map(b => ({
+          id: b.id,
+          title: b.title,
+          lists: b.board_lists?.length || 0
+        })));
+
+        console.log('🔍 useBoards - Fetching member boards...');
+        // Depois buscar os boards onde o usuário é membro
+        const { data: memberBoards, error: memberError } = await supabase
+          .from('board_members')
+          .select(`
+            board_id,
+            role,
+            boards (
+              *,
+              board_lists(*)
+            )
+          `)
+          .eq('user_id', session.user.id);
+
+        if (memberError) {
+          console.error('❌ useBoards - Error fetching member boards:', memberError);
+          throw memberError;
+        }
+
+        console.log('✅ useBoards - Member boards found:', memberBoards?.length || 0);
+
+        // Combinar os resultados
+        const allBoards = [
+          ...(ownedBoards || []),
+          ...(memberBoards?.map(mb => mb.boards).filter(Boolean) || [])
+        ];
+
+        // Remover duplicatas
+        const uniqueBoards = allBoards.filter((board, index, self) => 
+          index === self.findIndex(b => b.id === board.id)
+        );
+
+        console.log('✅ useBoards - Total unique boards:', uniqueBoards.length);
+        console.log('📋 useBoards - Final board list:', uniqueBoards.map(b => ({
+          id: b.id,
+          title: b.title,
+          owner_id: b.owner_id,
+          lists: b.board_lists?.length || 0
+        })));
+
+        return uniqueBoards;
+      } catch (error) {
+        console.error('💥 useBoards - Critical error in fetch:', error);
+        throw error;
       }
-
-      // Depois buscar os boards onde o usuário é membro
-      const { data: memberBoards, error: memberError } = await supabase
-        .from('board_members')
-        .select(`
-          board_id,
-          role,
-          boards (*)
-        `)
-        .eq('user_id', session.user.id);
-
-      if (memberError) {
-        throw memberError;
-      }
-
-      // Combinar os resultados
-      const allBoards = [
-        ...(ownedBoards || []),
-        ...(memberBoards?.map(mb => mb.boards).filter(Boolean) || [])
-      ];
-
-      // Remover duplicatas
-      const uniqueBoards = allBoards.filter((board, index, self) => 
-        index === self.findIndex(b => b.id === board.id)
-      );
-
-      return uniqueBoards;
     },
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   const createBoardMutation = useMutation({
