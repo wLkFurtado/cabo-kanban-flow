@@ -93,6 +93,8 @@ export type Database = {
       }
       boards: {
         Row: {
+          cover_color: string | null
+          cover_image_url: string | null
           created_at: string | null
           description: string | null
           id: string
@@ -102,6 +104,8 @@ export type Database = {
           visibility: Database["public"]["Enums"]["board_visibility"] | null
         }
         Insert: {
+          cover_color?: string | null
+          cover_image_url?: string | null
           created_at?: string | null
           description?: string | null
           id?: string
@@ -111,6 +115,8 @@ export type Database = {
           visibility?: Database["public"]["Enums"]["board_visibility"] | null
         }
         Update: {
+          cover_color?: string | null
+          cover_image_url?: string | null
           created_at?: string | null
           description?: string | null
           id?: string
@@ -465,6 +471,44 @@ export type Database = {
           },
         ]
       }
+      institutional_contacts: {
+        Row: {
+          id: string
+          instituicao: string
+          responsavel: string
+          telefone: string | null
+          created_by: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          instituicao: string
+          responsavel: string
+          telefone?: string | null
+          created_by?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          instituicao?: string
+          responsavel?: string
+          telefone?: string | null
+          created_by?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "institutional_contacts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       n8n_chat_histories: {
         Row: {
           id: number
@@ -614,6 +658,7 @@ export type Database = {
           email: string | null
           full_name: string | null
           id: string
+          cargo: string | null
           phone: string | null
           role: string | null
           updated_at: string | null
@@ -625,6 +670,7 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id: string
+          cargo?: string | null
           phone?: string | null
           role?: string | null
           updated_at?: string | null
@@ -636,6 +682,7 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id?: string
+          cargo?: string | null
           phone?: string | null
           role?: string | null
           updated_at?: string | null
