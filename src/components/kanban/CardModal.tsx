@@ -1,22 +1,30 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
-import { MessageSquare, Clock, User, Send, Calendar, Tag, Paperclip, ArrowRight, Plus, Image, CalendarDays, Users } from "lucide-react";
+import { MessageSquare, Clock, User, Send, Calendar, Tag, Paperclip, ArrowRight, Plus, Image, CalendarDays, Users, Palette, Check } from "lucide-react";
 
 import { Card as TCard, Label as TLabel, LabelColor, Comment, Member } from "@/state/kanbanTypes";
 import { parseISO, format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useBoardsStore } from "@/state/boardsStore";
+import { useBoardsStore } from "@/state/boards/store";
+import { useBoardDetails } from "@/hooks/useBoards";
+import { useComments } from "@/hooks/useComments";
+import { useActivities } from "@/hooks/useActivities";
+import { supabase } from "@/integrations/supabase/client";
+import { SupabaseClient } from "@supabase/supabase-js";
+import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { MemberSelect } from "./MemberSelect";
+import { useAuth } from "@/hooks/useAuth";
 
 const labelColorClass: Record<LabelColor, string> = {
   green: "bg-[hsl(var(--label-green))] text-white",
@@ -27,6 +35,15 @@ const labelColorClass: Record<LabelColor, string> = {
   blue: "bg-[hsl(var(--label-blue))] text-white",
 };
 
+const labelBgClass: Record<LabelColor, string> = {
+  green: "bg-[hsl(var(--label-green))]",
+  yellow: "bg-[hsl(var(--label-yellow))]",
+  orange: "bg-[hsl(var(--label-orange))]",
+  red: "bg-[hsl(var(--label-red))]",
+  purple: "bg-[hsl(var(--label-purple))]",
+  blue: "bg-[hsl(var(--label-blue))]",
+};
+
 interface CardModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -35,11 +52,31 @@ interface CardModalProps {
 }
 
 export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps) {
-  const updateCard = useBoardsStore((s) => s.updateCard);
+  const { updateCard, deleteCard: deleteCardMutation } = useBoardDetails(boardId);
   const deleteCard = useBoardsStore((s) => s.deleteCard);
   const addComment = useBoardsStore((s) => s.addComment);
+  const addActivity = useBoardsStore((s) => s.addActivity);
   const board = useBoardsStore((s) => s.boards[boardId]);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const sb = supabase as SupabaseClient;
+  
+  // Hook para gerenciar comentários do Supabase
+  const { 
+    comments: supabaseComments, 
+    addComment: addSupabaseComment, 
+    isAddingComment 
+  } = useComments(card.id);
+
+  const errorMessage = (err: unknown) => {
+    try {
+      const anyErr = err as { message?: string; error?: { message?: string } };
+      return anyErr?.message || anyErr?.error?.message || String(err);
+    } catch {
+      return 'Erro desconhecido';
+    }
+  };
 
   // Check if this is the "Solicitação de Arte" board (preserve original layout)
   const isSolicitacaoArte = board?.id === "b_q1lk2c5be4" || board?.isTemplate;
@@ -49,15 +86,19 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
   const [dueDate, setDueDate] = useState<string>(card.dueDate ? format(parseISO(card.dueDate), "yyyy-MM-dd") : "");
   const [labels, setLabels] = useState<TLabel[]>(card.labels || []);
   const [members, setMembers] = useState<Member[]>(card.members || []);
-  const [custom, setCustom] = useState<Record<string, unknown>>((card as any).custom || {});
+  const [custom, setCustom] = useState<Record<string, unknown>>(card.custom || {});
   const [coverImages, setCoverImages] = useState<string[]>(card.coverImages || []);
+  const [coverColor, setCoverColor] = useState<LabelColor | undefined>(card.coverColor);
   const [newComment, setNewComment] = useState("");
   const [newTagName, setNewTagName] = useState("");
   const [selectedTagColor, setSelectedTagColor] = useState<LabelColor>("blue");
   const commentsScrollRef = useRef<HTMLDivElement>(null);
 
+  const isHexColor = (val: string) => /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(val);
+
   // State for expandable sections (clean interface only)
   const [showImages, setShowImages] = useState(false);
+  const [coverDialogOpen, setCoverDialogOpen] = useState(false);
   const [showTags, setShowTags] = useState(false);
   const [showDates, setShowDates] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
@@ -68,8 +109,9 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
       setDueDate(card.dueDate ? format(parseISO(card.dueDate), "yyyy-MM-dd") : "");
       setLabels(card.labels || []);
       setMembers(card.members || []);
-      setCustom((card as any).custom || {});
+      setCustom(card.custom || {});
       setCoverImages(card.coverImages || []);
+      setCoverColor(card.coverColor);
     }
   }, [open, card]);
 
@@ -81,7 +123,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
       .join("")
       .toUpperCase();
 
-  const handleSave = () => {
+  const handleSave = async () => {
     // Validation for all boards - check required custom fields
     const requiredFields = board?.customFields?.filter(f => f.required) || [];
     const requiredMissing = requiredFields.some(field => {
@@ -94,38 +136,115 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
       return;
     }
 
-    updateCard(boardId, card.id, {
-      title: title.trim() || "Sem título",
-      description: description.trim(),
-      dueDate: dueDate ? new Date(`${dueDate}T00:00:00`).toISOString() : undefined,
-      labels,
-      members,
-      custom,
-      coverImages: coverImages.length > 0 ? coverImages : undefined,
+    const previousDue = card.dueDate;
+    const nextDue = dueDate ? new Date(`${dueDate}T00:00:00`).toISOString() : undefined;
+
+    updateCard({
+      cardId: card.id,
+      updates: {
+        title: title.trim() || "Sem título",
+        description: description.trim(),
+        // useBoards.updateCard espera campos snake_case do Card do Supabase
+        due_date: nextDue,
+        cover_color: coverColor,
+        cover_images: coverImages,
+      }
     });
+
+    // Registrar atividade de alteração/definição de prazo
+    try {
+      const authorName = (user?.user_metadata?.full_name as string) || (user?.email as string) || "Usuário";
+      if (nextDue && !previousDue) {
+        const desc = `definiu o prazo para ${format(parseISO(nextDue), "dd/MM/yyyy")}`;
+        addActivity(boardId, card.id, authorName, 'due_date_set', desc);
+        await sb.from('card_activities').insert({
+          board_id: boardId,
+          card_id: card.id,
+          user_id: user?.id,
+          type: 'due_date_set',
+          description: desc,
+        });
+        toast({ title: 'Atividade registrada', description: 'Prazo definido com sucesso.' });
+        // Garantir que a lista de atividades atualize imediatamente
+        queryClient.invalidateQueries({ queryKey: ["card-activities", card.id] });
+      } else if (nextDue && previousDue && nextDue !== previousDue) {
+        const desc = `alterou o prazo para ${format(parseISO(nextDue), "dd/MM/yyyy")}`;
+        addActivity(boardId, card.id, authorName, 'due_date_changed', desc);
+        await sb.from('card_activities').insert({
+          board_id: boardId,
+          card_id: card.id,
+          user_id: user?.id,
+          type: 'due_date_changed',
+          description: desc,
+        });
+        toast({ title: 'Atividade registrada', description: 'Prazo alterado com sucesso.' });
+        // Garantir que a lista de atividades atualize imediatamente
+        queryClient.invalidateQueries({ queryKey: ["card-activities", card.id] });
+      }
+    } catch (activityErr) {
+      console.warn('Falha ao registrar atividade de prazo:', activityErr);
+      toast({ title: 'Falha ao registrar atividade', description: errorMessage(activityErr), variant: 'destructive' });
+    }
     onOpenChange(false);
   };
 
   const handleDelete = () => {
-    deleteCard(boardId, card.listId, card.id);
+    // Usar a mutation que exclui no Supabase e registra atividade
+    deleteCardMutation(card.id);
     onOpenChange(false);
   };
 
-  const addLabel = () => {
+  const addLabel = async () => {
     const name = newTagName.trim();
     if (!name) return;
-    
-    const label: TLabel = { 
-      id: `l_${Math.random().toString(36).slice(2, 8)}`, 
-      name, 
-      color: selectedTagColor 
+
+    // Mapear cores conhecidas para valores CSS consistentes; fallback para o valor selecionado
+    const labelColorValues: Record<string, string> = {
+      green: 'hsl(var(--label-green))',
+      yellow: 'hsl(var(--label-yellow))',
+      orange: 'hsl(var(--label-orange))',
+      red: 'hsl(var(--label-red))',
+      purple: 'hsl(var(--label-purple))',
+      blue: 'hsl(var(--label-blue))',
     };
+    const cssColor = labelColorValues[selectedTagColor as keyof typeof labelColorValues] || selectedTagColor;
+
+    // Persistir no Supabase
+    const { data, error } = await supabase
+      .from('card_labels')
+      .insert({ card_id: card.id, name, color: cssColor })
+      .select()
+      .single();
+
+    if (error) {
+      toast({ title: 'Erro ao adicionar tag', description: error.message, variant: 'destructive' });
+      return;
+    }
+
+    // Atualizar estado local com o ID real do Supabase
+    const label: TLabel = { id: data.id, name: data.name, color: data.color };
     setLabels((prev) => [...prev, label]);
     setNewTagName("");
+
+    // Invalidate/refetch labels para refletir no board
+    queryClient.invalidateQueries({ queryKey: ['card-labels', boardId] });
   };
 
-  const removeLabel = (id: string) => {
+  const removeLabel = async (id: string) => {
+    // Otimista: remover do estado imediatamente
     setLabels((prev) => prev.filter((l) => l.id !== id));
+
+    const { error } = await supabase
+      .from('card_labels')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      toast({ title: 'Erro ao remover tag', description: error.message, variant: 'destructive' });
+    }
+
+    // Invalidate/refetch labels para refletir no board
+    queryClient.invalidateQueries({ queryKey: ['card-labels', boardId] });
   };
 
 
@@ -133,12 +252,12 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
   const handleAddComment = () => {
     const content = newComment.trim();
     if (!content) return;
-    
-    // For now, using a default author - this would come from auth in a real app
-    addComment(boardId, card.id, "Usuário", content, "comment");
+
+    // Usar o hook do Supabase para adicionar comentário
+    addSupabaseComment(content);
     setNewComment("");
-    
-    // Auto-scroll to bottom of comments
+
+    // Auto-scroll para o final dos comentários
     setTimeout(() => {
       if (commentsScrollRef.current) {
         commentsScrollRef.current.scrollTop = commentsScrollRef.current.scrollHeight;
@@ -146,8 +265,14 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
     }, 100);
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleCommentKeyDown = (e: React.KeyboardEvent) => {
+    // Envia com Enter; permite quebra de linha com Shift+Enter
     if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleAddComment();
+    }
+    // Atalho extra: Ctrl/Cmd+Enter também envia
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
       handleAddComment();
     }
@@ -176,6 +301,16 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
     setCoverImages((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const clearCover = () => {
+    setCoverImages([]);
+    setCoverColor(undefined);
+    // Atualizar o card no Supabase (remover capa)
+    updateCard({
+      cardId: card.id,
+      updates: { cover_color: undefined }
+    });
+  };
+
   const formatCommentTime = (timestamp: string) => {
     try {
       return format(parseISO(timestamp), "d 'de' MMMM 'de' yyyy, HH:mm", { locale: ptBR });
@@ -190,18 +325,32 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
         return <Plus className="size-4 text-green-500" />;
       case 'card_moved':
         return <ArrowRight className="size-4 text-blue-500" />;
+      case 'card_completed':
+        return <Check className="size-4 text-green-600" />;
+      case 'card_uncompleted':
+        return <Check className="size-4 text-gray-500" />;
       case 'member_added':
       case 'member_removed':
         return <User className="size-4 text-purple-500" />;
       case 'due_date_set':
       case 'due_date_changed':
         return <Calendar className="size-4 text-orange-500" />;
+      case 'due_date_cleared':
+        return <CalendarDays className="size-4 text-gray-500" />;
       case 'label_added':
       case 'label_removed':
         return <Tag className="size-4 text-indigo-500" />;
+      case 'priority_changed':
+        return <Tag className="size-4 text-pink-500" />;
+      case 'description_updated':
+        return <MessageSquare className="size-4 text-teal-500" />;
       case 'attachment_added':
       case 'attachment_removed':
         return <Paperclip className="size-4 text-gray-500" />;
+      case 'cover_color_set':
+        return <Palette className="size-4 text-violet-500" />;
+      case 'cover_images_updated':
+        return <Image className="size-4 text-blue-500" />;
       default:
         return <div className="size-4 rounded-full bg-gray-300" />;
     }
@@ -212,8 +361,42 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
     return { type, description };
   };
 
-  const comments = card.comments || [];
-  const commentsCount = comments.filter(c => c.type === "comment").length;
+  // Preferir o card do store (reativo) para refletir novos comentários imediatamente
+  const storeCard = React.useMemo(() => {
+    if (!board) return undefined;
+    for (const lid of Object.keys(board.cardsByList)) {
+      const found = (board.cardsByList[lid] || []).find((c) => c.id === card.id);
+      if (found) return found;
+    }
+    return undefined;
+  }, [board, card.id]);
+
+  // Converter comentários do Supabase para o formato local
+  const convertedSupabaseComments: Comment[] = supabaseComments.map(comment => ({
+    id: comment.id,
+    cardId: comment.card_id,
+    author: comment.profiles?.full_name || 'Usuário',
+    content: comment.content,
+    timestamp: comment.created_at || new Date().toISOString(),
+    type: 'comment' as const,
+    avatarUrl: comment.profiles?.avatar_url || undefined,
+  }));
+
+  // Buscar atividades persistidas no Supabase
+  const { activities: supabaseActivities } = useActivities(card.id);
+  // Atividades locais do store (fallback imediato)
+  const localActivities: Comment[] = (storeCard?.comments || []).filter((c) => c.type === 'activity');
+  const supabaseContents = new Set(supabaseActivities.map((a) => a.content));
+  const mergedActivities = [
+    ...supabaseActivities,
+    ...localActivities.filter((c) => !supabaseContents.has(c.content)),
+  ];
+
+  const comments = [
+    ...mergedActivities,
+    ...convertedSupabaseComments,
+  ];
+  const commentsCount = comments.filter((c) => c.type === "comment").length;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -240,7 +423,13 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                 <div className="space-y-4">
                   {/* Cover Images */}
                   <div>
-                    <label className="text-sm text-muted-foreground">Imagens do Card</label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm text-muted-foreground">Imagens do Card</label>
+                      <Button variant="outline" size="sm" type="button" onClick={() => setCoverDialogOpen(true)} className="flex items-center gap-2">
+                        <Palette className="h-4 w-4" />
+                        Capa
+                      </Button>
+                    </div>
                     <div className="mt-2 space-y-4">
                       {/* Upload Button */}
                       <div>
@@ -294,6 +483,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                           ))}
                         </div>
                       )}
+                      {/* Cover color selection moved to dialog */}
                     </div>
                   </div>
 
@@ -433,7 +623,8 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                       {labels.map((l) => (
                         <Badge
                           key={l.id}
-                          className={cn("cursor-pointer", labelColorClass[l.color])}
+                          className={cn("cursor-pointer", labelColorClass[l.color as LabelColor] || "")}
+                          style={labelColorClass[l.color as LabelColor] ? undefined : { backgroundColor: l.color, color: '#fff' }}
                           onClick={() => removeLabel(l.id)}
                           title={`Remover tag ${l.name}`}
                         >
@@ -493,6 +684,20 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                             </SelectItem>
                           </SelectContent>
                         </Select>
+                        {/* Color picker and HEX input for custom colors */}
+                        <input
+                          type="color"
+                          value={isHexColor(selectedTagColor) ? selectedTagColor : '#000000'}
+                          onChange={(e) => setSelectedTagColor(e.target.value)}
+                          className="w-9 h-9 p-0 border rounded"
+                          title="Escolher cor"
+                        />
+                        <Input
+                          placeholder="#HEX"
+                          value={isHexColor(selectedTagColor) ? selectedTagColor : ''}
+                          onChange={(e) => setSelectedTagColor(e.target.value)}
+                          className="w-[100px]"
+                        />
                         <Button size="sm" onClick={addLabel} disabled={!newTagName.trim()}>
                           Adicionar
                         </Button>
@@ -522,6 +727,18 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                         <Badge variant="secondary" className="ml-1">
                           {coverImages.length}
                         </Badge>
+                      )}
+                    </Button>
+                    <Button
+                      variant={(coverImages.length > 0 || coverColor) ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCoverDialogOpen(true)}
+                      className="flex items-center gap-2"
+                    >
+                      <Palette className="h-4 w-4" />
+                      Capa
+                      {(coverImages.length > 0 || coverColor) && (
+                        <Badge variant="secondary" className="ml-1">✓</Badge>
                       )}
                     </Button>
                     <Button
@@ -652,6 +869,8 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                     </div>
                   )}
 
+                  {/* Cover color selection moved to dialog */}
+
                   {/* Tags Section */}
                   {showTags && (
                     <div className="border rounded-lg p-4 space-y-4 animate-fade-in">
@@ -663,7 +882,8 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                         {labels.map((l) => (
                           <Badge
                             key={l.id}
-                            className={cn("cursor-pointer", labelColorClass[l.color])}
+                            className={cn("cursor-pointer", labelColorClass[l.color as LabelColor] || "")}
+                            style={labelColorClass[l.color as LabelColor] ? undefined : { backgroundColor: l.color, color: '#fff' }}
                             onClick={() => removeLabel(l.id)}
                             title={`Remover tag ${l.name}`}
                           >
@@ -691,6 +911,20 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                             <SelectItem value="blue">Azul</SelectItem>
                           </SelectContent>
                         </Select>
+                        {/* Color picker and HEX input for custom colors */}
+                        <input
+                          type="color"
+                          value={isHexColor(selectedTagColor) ? selectedTagColor : '#000000'}
+                          onChange={(e) => setSelectedTagColor(e.target.value)}
+                          className="w-9 h-9 p-0 border rounded"
+                          title="Escolher cor"
+                        />
+                        <Input
+                          placeholder="#HEX"
+                          value={isHexColor(selectedTagColor) ? selectedTagColor : ''}
+                          onChange={(e) => setSelectedTagColor(e.target.value)}
+                          className="w-[100px]"
+                        />
                         <Button size="sm" onClick={addLabel} disabled={!newTagName.trim()}>
                           Adicionar
                         </Button>
@@ -719,6 +953,8 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                       <MemberSelect
                         selectedMembers={members}
                         onMembersChange={setMembers}
+                        cardId={card.id}
+                        boardId={boardId}
                       />
                     </div>
                   )}
@@ -756,8 +992,11 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                           })()
                         ) : (
                           <Avatar className="size-8 border bg-muted">
+                            {comment.avatarUrl && (
+                              <AvatarImage src={comment.avatarUrl} alt={comment.author} />
+                            )}
                             <AvatarFallback className="text-xs">
-                              <User className="h-4 w-4" />
+                              {comment.author.charAt(0).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
                         )}
@@ -805,18 +1044,18 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                     placeholder="Escrever um comentário..."
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
-                    onKeyPress={handleKeyPress}
+                    onKeyDown={handleCommentKeyDown}
                     className="min-h-[80px] resize-none text-sm"
                   />
                   <div className="flex justify-end mt-2">
                     <Button
                       size="sm"
                       onClick={handleAddComment}
-                      disabled={!newComment.trim()}
+                      disabled={!newComment.trim() || isAddingComment}
                       className="flex items-center gap-2"
                     >
                       <Send className="h-3 w-3" />
-                      Comentar
+                      {isAddingComment ? "Comentando..." : "Comentar"}
                     </Button>
                   </div>
                 </div>
@@ -829,14 +1068,68 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button variant="destructive" onClick={handleDelete}>
-            Excluir
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive">
+                Excluir
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Excluir card</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Tem certeza de que deseja excluir este card? Esta ação não pode ser desfeita.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={handleDelete}>
+                  Excluir
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
           <Button onClick={handleSave}>
             Salvar
           </Button>
         </DialogFooter>
       </DialogContent>
+      {/* Cover Color Dialog */}
+      <Dialog open={coverDialogOpen} onOpenChange={setCoverDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Palette className="h-4 w-4" />
+              Capa do Card
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">Escolha uma cor para a capa do cartão.</p>
+            <div className="grid grid-cols-6 gap-2">
+              {(["green","yellow","orange","red","purple","blue"] as LabelColor[]).map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  className={cn("h-10 rounded-md border", labelBgClass[c], coverColor === c && "ring-2 ring-offset-2 ring-primary")}
+                  onClick={() => { 
+                    setCoverColor(c);
+                    updateCard({
+                      cardId: card.id,
+                      updates: { cover_color: c }
+                    });
+                    setCoverDialogOpen(false); 
+                  }}
+                  aria-label={`Selecionar cor ${c}`}
+                />
+              ))}
+            </div>
+            <div className="flex justify-between">
+              <Button variant="outline" size="sm" type="button" onClick={() => { clearCover(); setCoverDialogOpen(false); }}>Remover capa</Button>
+              <Button size="sm" type="button" onClick={() => setCoverDialogOpen(false)}>Fechar</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }

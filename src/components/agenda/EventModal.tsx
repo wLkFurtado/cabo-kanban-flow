@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,17 +7,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Plus, X } from "lucide-react";
+import { CalendarIcon, Trash } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { usePautasStore } from "@/state/pautasStore";
-import { useAuthStore } from "@/state/authStore";
+import { useEvents } from "@/hooks/useEvents";
+import type { AgendaEvent } from "@/hooks/useEvents";
 
 interface EventModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedDate?: Date;
+  eventToEdit?: AgendaEvent | null;
 }
 
 interface EventFormData {
@@ -27,12 +28,6 @@ interface EventFormData {
   data: Date;
   horaInicio: string;
   horaFim: string;
-  equipe: {
-    jornalista: string[];
-    filmmaker: string[];
-    fotografo: string[];
-    rede: string[];
-  };
 }
 
 const secretarias = [
@@ -49,10 +44,8 @@ const secretarias = [
   "Outras"
 ];
 
-export function EventModal({ open, onOpenChange, selectedDate }: EventModalProps) {
-  const { adicionarEvento } = usePautasStore();
-  const { getCurrentUser } = useAuthStore();
-  const currentUser = getCurrentUser();
+export function EventModal({ open, onOpenChange, selectedDate, eventToEdit }: EventModalProps) {
+  const { createEvent, updateEvent, deleteEvent, isCreating, isUpdating } = useEvents();
 
   const [formData, setFormData] = useState<EventFormData>({
     nome: "",
@@ -61,12 +54,6 @@ export function EventModal({ open, onOpenChange, selectedDate }: EventModalProps
     data: selectedDate || new Date(),
     horaInicio: "09:00",
     horaFim: "10:00",
-    equipe: {
-      jornalista: [""],
-      filmmaker: [""],
-      fotografo: [""],
-      rede: [""]
-    }
   });
 
   const [errors, setErrors] = useState<{[key: string]: string}>({});
@@ -78,9 +65,7 @@ export function EventModal({ open, onOpenChange, selectedDate }: EventModalProps
       newErrors.nome = "Nome do evento é obrigatório";
     }
 
-    if (!formData.secretaria) {
-      newErrors.secretaria = "Secretaria responsável é obrigatória";
-    }
+    // Secretaria opcional para edição/uso geral
 
     if (!formData.descricao.trim()) {
       newErrors.descricao = "Descrição do evento é obrigatória";
@@ -115,32 +100,23 @@ export function EventModal({ open, onOpenChange, selectedDate }: EventModalProps
     const dataFim = new Date(formData.data);
     dataFim.setHours(horaFimHour, horaFimMin, 0, 0);
 
-    // Criar lista de participantes da equipe
-    const participantes = Object.values(formData.equipe).flat().filter(Boolean);
-
-    // Criar evento para o sistema de pautas
-    const novoEvento = {
-      titulo: formData.nome,
-      descricao: `${formData.descricao}\n\nSecretaria: ${formData.secretaria}\n\nEquipe:\n- Jornalista: ${formData.equipe.jornalista.length > 0 ? formData.equipe.jornalista.join(', ') : 'Não definido'}\n- Filmmaker: ${formData.equipe.filmmaker.length > 0 ? formData.equipe.filmmaker.join(', ') : 'Não definido'}\n- Fotógrafo: ${formData.equipe.fotografo.length > 0 ? formData.equipe.fotografo.join(', ') : 'Não definido'}\n- Rede: ${formData.equipe.rede.length > 0 ? formData.equipe.rede.join(', ') : 'Não definido'}`,
-      dataInicio,
-      dataFim,
-      tipo: 'evento' as const,
-      prioridade: 'media' as const,
-      status: 'agendado' as const,
-      responsavel: currentUser?.email || '',
-      participantes,
-      local: '',
-      observacoes: `Criado via agenda - Secretaria: ${formData.secretaria}`,
-      recorrencia: 'nenhuma' as const,
-      lembrete: 15,
-      tags: ['agenda', formData.secretaria.toLowerCase().replace(/\s+/g, '-')],
-      anexos: []
+    // Criar evento para salvar no banco (tabela events)
+    const payload = {
+      title: formData.nome,
+      description: `${formData.descricao}\n\nSecretaria: ${formData.secretaria}`,
+      start_date: dataInicio.toISOString(),
+      end_date: dataFim.toISOString(),
+      all_day: false,
+      location: '' as string,
     };
 
-    // Adicionar evento ao sistema de pautas
-    adicionarEvento(novoEvento);
+    if (eventToEdit) {
+      updateEvent({ id: eventToEdit.id, ...payload });
+    } else {
+      createEvent(payload);
+    }
     
-    // Reset form
+    // Reset form (sem equipe)
     setFormData({
       nome: "",
       secretaria: "",
@@ -148,18 +124,12 @@ export function EventModal({ open, onOpenChange, selectedDate }: EventModalProps
       data: selectedDate || new Date(),
       horaInicio: "09:00",
       horaFim: "10:00",
-      equipe: {
-        jornalista: [""],
-        filmmaker: [""],
-        fotografo: [""],
-        rede: [""]
-      }
     });
     setErrors({});
     onOpenChange(false);
   };
 
-  const handleInputChange = (field: keyof EventFormData, value: string | Date | EventFormData['equipe']) => {
+  const handleInputChange = (field: keyof EventFormData, value: string | Date) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     // Clear error when user starts typing
     if (errors[field]) {
@@ -167,11 +137,35 @@ export function EventModal({ open, onOpenChange, selectedDate }: EventModalProps
     }
   };
 
+  // Preencher formulário ao editar evento
+  useEffect(() => {
+    if (eventToEdit) {
+      const start = new Date(eventToEdit.start_date);
+      const end = new Date(eventToEdit.end_date);
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const startTime = `${pad(start.getHours())}:${pad(start.getMinutes())}`;
+      const endTime = `${pad(end.getHours())}:${pad(end.getMinutes())}`;
+
+      setFormData(prev => ({
+        ...prev,
+        nome: eventToEdit.title || "",
+        descricao: eventToEdit.description || "",
+        secretaria: prev.secretaria || "",
+        data: new Date(start.getFullYear(), start.getMonth(), start.getDate()),
+        horaInicio: startTime,
+        horaFim: endTime,
+      }));
+    } else if (selectedDate) {
+      // Ao criar, garantir que a data inicial acompanha selectedDate
+      setFormData(prev => ({ ...prev, data: selectedDate }));
+    }
+  }, [eventToEdit, selectedDate, open]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Criar Novo Evento</DialogTitle>
+          <DialogTitle>{eventToEdit ? "Editar Evento" : "Criar Novo Evento"}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -282,196 +276,40 @@ export function EventModal({ open, onOpenChange, selectedDate }: EventModalProps
             )}
           </div>
 
-          <div className="space-y-4">
-            <Label className="text-base font-semibold">Equipe Responsável</Label>
-            <div className="grid grid-cols-2 gap-4">
-              {/* Jornalista */}
-              <div className="space-y-2">
-                <Label>Jornalista</Label>
-                <div className="space-y-2">
-                  {formData.equipe.jornalista.map((pessoa, index) => (
-                    <div key={index} className="flex gap-2">
-                      <Input
-                        value={pessoa}
-                        onChange={(e) => {
-                          const newJornalistas = [...formData.equipe.jornalista];
-                          newJornalistas[index] = e.target.value;
-                          handleInputChange("equipe", { ...formData.equipe, jornalista: newJornalistas });
-                        }}
-                        placeholder="Nome do jornalista"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const newJornalistas = formData.equipe.jornalista.filter((_, i) => i !== index);
-                          handleInputChange("equipe", { ...formData.equipe, jornalista: newJornalistas });
-                        }}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      handleInputChange("equipe", { ...formData.equipe, jornalista: [...formData.equipe.jornalista, ""] });
-                    }}
-                    className="w-full"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Adicionar Jornalista
-                  </Button>
-                </div>
-              </div>
+          {/* Seção de equipe removida conforme solicitado */}
 
-              {/* Filmmaker */}
-              <div className="space-y-2">
-                <Label>Filmmaker</Label>
-                <div className="space-y-2">
-                  {formData.equipe.filmmaker.map((pessoa, index) => (
-                    <div key={index} className="flex gap-2">
-                      <Input
-                        value={pessoa}
-                        onChange={(e) => {
-                          const newFilmmakers = [...formData.equipe.filmmaker];
-                          newFilmmakers[index] = e.target.value;
-                          handleInputChange("equipe", { ...formData.equipe, filmmaker: newFilmmakers });
-                        }}
-                        placeholder="Nome do filmmaker"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const newFilmmakers = formData.equipe.filmmaker.filter((_, i) => i !== index);
-                          handleInputChange("equipe", { ...formData.equipe, filmmaker: newFilmmakers });
-                        }}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      handleInputChange("equipe", { ...formData.equipe, filmmaker: [...formData.equipe.filmmaker, ""] });
-                    }}
-                    className="w-full"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Adicionar Filmmaker
-                  </Button>
-                </div>
-              </div>
-
-              {/* Fotógrafo */}
-              <div className="space-y-2">
-                <Label>Fotógrafo</Label>
-                <div className="space-y-2">
-                  {formData.equipe.fotografo.map((pessoa, index) => (
-                    <div key={index} className="flex gap-2">
-                      <Input
-                        value={pessoa}
-                        onChange={(e) => {
-                          const newFotografos = [...formData.equipe.fotografo];
-                          newFotografos[index] = e.target.value;
-                          handleInputChange("equipe", { ...formData.equipe, fotografo: newFotografos });
-                        }}
-                        placeholder="Nome do fotógrafo"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const newFotografos = formData.equipe.fotografo.filter((_, i) => i !== index);
-                          handleInputChange("equipe", { ...formData.equipe, fotografo: newFotografos });
-                        }}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      handleInputChange("equipe", { ...formData.equipe, fotografo: [...formData.equipe.fotografo, ""] });
-                    }}
-                    className="w-full"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Adicionar Fotógrafo
-                  </Button>
-                </div>
-              </div>
-
-              {/* Rede */}
-              <div className="space-y-2">
-                <Label>Rede</Label>
-                <div className="space-y-2">
-                  {formData.equipe.rede.map((pessoa, index) => (
-                    <div key={index} className="flex gap-2">
-                      <Input
-                        value={pessoa}
-                        onChange={(e) => {
-                          const newRede = [...formData.equipe.rede];
-                          newRede[index] = e.target.value;
-                          handleInputChange("equipe", { ...formData.equipe, rede: newRede });
-                        }}
-                        placeholder="Responsável pelas redes"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const newRede = formData.equipe.rede.filter((_, i) => i !== index);
-                          handleInputChange("equipe", { ...formData.equipe, rede: newRede });
-                        }}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      handleInputChange("equipe", { ...formData.equipe, rede: [...formData.equipe.rede, ""] });
-                    }}
-                    className="w-full"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Adicionar Responsável
-                  </Button>
-                </div>
-              </div>
+          <div className="flex justify-between items-center pt-4">
+            {eventToEdit && (
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={() => {
+                  if (eventToEdit && window.confirm('Excluir este evento?')) {
+                    deleteEvent(eventToEdit.id);
+                    onOpenChange(false);
+                  }
+                }}
+                className="flex items-center gap-2"
+              >
+                <Trash className="h-4 w-4" />
+                Excluir
+              </Button>
+            )}
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+              >
+                Cancelar
+              </Button>
+              <Button 
+                type="submit"
+                disabled={isCreating || isUpdating}
+              >
+                {eventToEdit ? "Salvar" : "Criar Evento"}
+              </Button>
             </div>
-          </div>
-
-          <div className="flex justify-end space-x-2 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              Cancelar
-            </Button>
-            <Button 
-              type="submit"
-            >
-              Criar Evento
-            </Button>
           </div>
         </form>
       </DialogContent>

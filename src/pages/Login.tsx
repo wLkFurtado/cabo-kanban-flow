@@ -58,7 +58,7 @@ export default function Login() {
       
       toast({ title: "Bem-vindo!", description: "Login realizado com sucesso." });
       navigate("/");
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('Unexpected login error:', e);
       toast({ 
         title: "Erro inesperado", 
@@ -71,7 +71,14 @@ export default function Login() {
   return (
     <main className="container mx-auto max-w-md py-10">
       <Seo title="Entrar | Comunicação Cabo Frio" description="Acesse sua conta com e-mail e senha." />
-      <h1 className="text-2xl font-semibold mb-6">Entrar</h1>
+      <div className="mb-6 flex justify-center">
+        <img
+          src="https://ankliiywmcpncymdlvaa.supabase.co/storage/v1/object/sign/images/marca-horizontal-colorida2.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV80YzhjY2FlYS1lYTVkLTRiMzYtOWJiZS03NmRkYmRkNjhlYTUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJpbWFnZXMvbWFyY2EtaG9yaXpvbnRhbC1jb2xvcmlkYTIucG5nIiwiaWF0IjoxNzYwNjUzNzcyLCJleHAiOjE5MTgzMzM3NzJ9.NzLnTCYxbAqS7H9JOsTaBL6kLME6tRpklss2R5rVuh0"
+          alt="Logo Coordenadoria de Comunicação"
+          className="h-28 sm:h-32 md:h-36 max-w-full object-contain select-none"
+          draggable={false}
+        />
+      </div>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <FormField

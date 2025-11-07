@@ -63,21 +63,83 @@ const estadoInicial: PautasState = {
 };
 
 // Função para converter strings de data em objetos Date
-const deserializeDates = (state: any): PautasState => {
-  if (!state) return estadoInicial;
-  
+const deserializeDates = (state: unknown): PautasState => {
+  if (!state || typeof state !== 'object') return estadoInicial;
+
+  const stateObj = state as Record<string, unknown>;
+
+  // Normaliza eventos convertendo campos de data
+  const eventos: Evento[] = Array.isArray(stateObj.eventos)
+    ? stateObj.eventos.map((evento: unknown): Evento => {
+        if (typeof evento !== 'object' || !evento) return evento as Evento;
+        const eventoObj = evento as Record<string, unknown>;
+        const dataInicioRaw = eventoObj.dataInicio as string | Date | undefined;
+        const dataFimRaw = eventoObj.dataFim as string | Date | undefined;
+        return {
+          ...(eventoObj as unknown as Omit<Evento, 'dataInicio' | 'dataFim'>),
+          dataInicio:
+            typeof dataInicioRaw === 'string'
+              ? new Date(dataInicioRaw)
+              : dataInicioRaw instanceof Date
+              ? dataInicioRaw
+              : new Date(),
+          dataFim:
+            typeof dataFimRaw === 'string'
+              ? new Date(dataFimRaw)
+              : dataFimRaw instanceof Date
+              ? dataFimRaw
+              : new Date(),
+        } as Evento;
+      })
+    : [];
+
+  // Normaliza filtros sem usar any
+  const rawFiltros = stateObj.filtros;
+  let filtros: PautasState['filtros'] = {
+    dataInicio: startOfWeek(new Date()),
+    dataFim: endOfWeek(new Date()),
+    tipos: [],
+    status: [],
+  };
+
+  if (rawFiltros && typeof rawFiltros === 'object') {
+    const rf = rawFiltros as {
+      dataInicio?: string | Date;
+      dataFim?: string | Date;
+      tipos?: unknown;
+      status?: unknown;
+    };
+
+    const di = rf.dataInicio;
+    const df = rf.dataFim;
+    filtros = {
+      ...filtros,
+      dataInicio:
+        typeof di === 'string'
+          ? new Date(di)
+          : di instanceof Date
+          ? di
+          : filtros.dataInicio,
+      dataFim:
+        typeof df === 'string'
+          ? new Date(df)
+          : df instanceof Date
+          ? df
+          : filtros.dataFim,
+      tipos: Array.isArray(rf.tipos)
+        ? (rf.tipos as unknown[]).filter((t): t is string => typeof t === 'string')
+        : [],
+      status: Array.isArray(rf.status)
+        ? (rf.status as unknown[]).filter((s): s is string => typeof s === 'string')
+        : [],
+    };
+  }
+
   return {
-    ...state,
-    eventos: state.eventos?.map((evento: any) => ({
-      ...evento,
-      dataInicio: typeof evento.dataInicio === 'string' ? new Date(evento.dataInicio) : evento.dataInicio,
-      dataFim: typeof evento.dataFim === 'string' ? new Date(evento.dataFim) : evento.dataFim
-    })) || [],
-    filtros: {
-      ...state.filtros,
-      dataInicio: typeof state.filtros?.dataInicio === 'string' ? new Date(state.filtros.dataInicio) : state.filtros?.dataInicio || startOfWeek(new Date()),
-      dataFim: typeof state.filtros?.dataFim === 'string' ? new Date(state.filtros.dataFim) : state.filtros?.dataFim || endOfWeek(new Date())
-    }
+    ...estadoInicial,
+    ...stateObj,
+    eventos,
+    filtros,
   };
 };
 
@@ -120,13 +182,13 @@ export const usePautasStore = create<PautasStore>()(persist(
       duplicarEvento: (id) => {
         const evento = get().eventos.find(e => e.id === id);
         if (evento) {
-          const eventoDuplicado = {
+          const eventoDuplicado: Omit<Evento, 'id'> = {
             ...evento,
             titulo: `${evento.titulo} (Cópia)`,
             dataInicio: addDays(evento.dataInicio, 1),
             dataFim: addDays(evento.dataFim, 1)
           };
-          delete (eventoDuplicado as any).id;
+          delete (eventoDuplicado as Partial<Evento>).id;
           get().adicionarEvento(eventoDuplicado);
         }
       },

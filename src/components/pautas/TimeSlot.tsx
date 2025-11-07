@@ -5,12 +5,14 @@ import { usePautasStore } from '../../state/pautasStore';
 import { Evento } from '../../state/pautasTypes';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 interface TimeSlotProps {
   date: Date;
   hour: number;
   dayIndex: number;
   eventos: Evento[];
+  onEventClick?: (eventId: string) => void;
   className?: string;
 }
 
@@ -19,11 +21,13 @@ export const TimeSlot: React.FC<TimeSlotProps> = ({
   hour,
   dayIndex,
   eventos,
+  onEventClick,
   className
 }) => {
   const { handleDragOver, handleDrop } = useDragAndDrop();
   const { adicionarEvento } = usePautasStore();
   const [isHovered, setIsHovered] = React.useState(false);
+  const [expanded, setExpanded] = React.useState(false);
 
   const dropZone: DropZoneData = {
     dayIndex,
@@ -46,6 +50,11 @@ export const TimeSlot: React.FC<TimeSlotProps> = ({
     
     return eventoHour === hour && eventoDate === slotDate;
   });
+  
+  // Limitar quantidade de eventos visíveis por slot para evitar poluição visual
+  const maxVisible = 2;
+  const visibleEvents = expanded ? eventosNoSlot : eventosNoSlot.slice(0, maxVisible);
+  const hiddenCount = Math.max(0, eventosNoSlot.length - maxVisible);
 
   return (
     <div
@@ -71,30 +80,67 @@ export const TimeSlot: React.FC<TimeSlotProps> = ({
         </div>
       )}
       
-      {/* Eventos no slot */}
-      <div className="p-1 space-y-1">
-        {eventosNoSlot.map((evento) => (
+      {/* Eventos no slot - visual refinado e sem sobreposição */}
+      <div className="p-1 space-y-1" aria-expanded={expanded}>
+        {visibleEvents.map((evento) => (
           <div
             key={evento.id}
-            className="text-xs p-2 rounded border-l-4 bg-white dark:bg-gray-800 shadow-sm"
-            style={{ borderLeftColor: evento.cor }}
+            className="text-[11px] p-2 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm"
+            style={{ borderLeftColor: evento.cor, borderLeftWidth: '4px' }}
+            title={`${evento.titulo} • ${format(evento.dataInicio, 'HH:mm', { locale: ptBR })} - ${format(evento.dataFim, 'HH:mm', { locale: ptBR })}`}
+            onClick={() => onEventClick && onEventClick(evento.id)}
           >
             <div className="font-medium text-gray-900 dark:text-gray-100 truncate">
               {evento.titulo}
             </div>
-            <div className="text-gray-600 dark:text-gray-400 truncate">
+            <div className="text-gray-600 dark:text-gray-400 whitespace-nowrap overflow-hidden text-ellipsis">
               {format(evento.dataInicio, 'HH:mm', { locale: ptBR })} - 
               {format(evento.dataFim, 'HH:mm', { locale: ptBR })}
             </div>
-
+            {(evento.filmmaker || evento.fotografo || evento.rede) && (
+              <div className="text-gray-500 dark:text-gray-400 mt-1 space-y-0.5">
+                {evento.filmmaker && (
+                  <div>Filmmaker: {evento.filmmaker}</div>
+                )}
+                {evento.fotografo && (
+                  <div>Fotógrafo: {evento.fotografo}</div>
+                )}
+                {evento.rede && (
+                  <div>Rede: {evento.rede}</div>
+                )}
+              </div>
+            )}
           </div>
         ))}
+        {hiddenCount > 0 && !expanded && (
+          <div className="flex items-center gap-1 px-2 py-1">
+            <span className="text-[11px] text-gray-600 dark:text-gray-400">+{hiddenCount} eventos</span>
+            <button
+              type="button"
+              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+              aria-label="Expandir"
+              onClick={() => setExpanded(true)}
+            >
+              <ChevronDown className="w-3 h-3" />
+            </button>
+          </div>
+        )}
+        {expanded && eventosNoSlot.length > maxVisible && (
+          <div className="flex items-center gap-1 px-2 py-1">
+            <button
+              type="button"
+              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+              aria-label="Colapsar"
+              onClick={() => setExpanded(false)}
+            >
+              <ChevronUp className="w-3 h-3" />
+            </button>
+          </div>
+        )}
       </div>
       
-      {/* Horário do slot */}
-      <div className="absolute top-1 left-1 text-xs text-gray-500 dark:text-gray-400">
-        {hour.toString().padStart(2, '0')}:00
-      </div>
+      {/* Removido horário dentro do slot para evitar sobreposição com conteúdo.
+          O horário é exibido na primeira coluna da agenda. */}
     </div>
   );
 };

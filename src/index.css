@@ -7,6 +7,20 @@ All colors MUST be HSL.
 */
 
 @layer base {
+  /* Configurações para drag and drop */
+  * {
+    touch-action: manipulation;
+  }
+  
+  [data-rfd-drag-handle-draggable-id] {
+    touch-action: none !important;
+    user-select: none !important;
+  }
+  
+  [data-rfd-draggable-id] {
+    touch-action: none !important;
+  }
+
   :root {
     /* Base surfaces */
     --background: 0 0% 100%;

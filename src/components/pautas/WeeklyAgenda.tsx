@@ -76,7 +76,12 @@ export const WeeklyAgenda: React.FC<WeeklyAgendaProps> = ({
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <Calendar className="w-5 h-5" />
-            Agenda Semanal
+            <div className="flex flex-col">
+              <span>Agenda Semanal</span>
+              <span className="text-sm font-normal text-gray-600 dark:text-gray-400">
+                {format(weekStart, 'MMMM yyyy', { locale: ptBR })}
+              </span>
+            </div>
           </CardTitle>
           
           {/* Navegação da semana */}
@@ -114,7 +119,7 @@ export const WeeklyAgenda: React.FC<WeeklyAgendaProps> = ({
           {/* Grid da agenda */}
           <div className="grid grid-cols-8 min-w-[1000px]">
             {/* Header com dias da semana */}
-            <div className="sticky top-0 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-3 text-sm font-medium text-gray-600 dark:text-gray-400">
+            <div className="sticky top-0 z-20 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-3 text-sm font-medium text-gray-600 dark:text-gray-400 shadow-sm">
               Horário
             </div>
             
@@ -122,7 +127,7 @@ export const WeeklyAgenda: React.FC<WeeklyAgendaProps> = ({
               <div
                 key={day.toISOString()}
                 className={cn(
-                  'sticky top-0 bg-gray-50 dark:bg-gray-800 border-b border-r border-gray-200 dark:border-gray-700 p-3 text-center',
+                  'sticky top-0 z-20 bg-gray-50 dark:bg-gray-800 border-b border-r border-gray-200 dark:border-gray-700 p-3 text-center shadow-sm',
                   isToday(day) && 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700'
                 )}
               >
@@ -162,6 +167,7 @@ export const WeeklyAgenda: React.FC<WeeklyAgendaProps> = ({
                       hour={hour}
                       dayIndex={dayIndex}
                       eventos={dayEvents}
+                      onEventClick={onEventClick}
                       className={cn(
                         'hover:bg-gray-50 dark:hover:bg-gray-750 cursor-pointer',
                         isToday(day) && 'bg-blue-50/30 dark:bg-blue-900/10',

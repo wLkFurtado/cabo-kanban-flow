@@ -60,10 +60,11 @@ export function BoardCreateDialog({ trigger, initialTitle = "", onCreated }: Boa
       // Reset form
       setTitle("");
       setStages(["A fazer", "Fazendo", "Concluído"]);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro ao criar o board. Tente novamente.";
       toast({
         title: "Erro ao criar board",
-        description: error.message || "Ocorreu um erro ao criar o board. Tente novamente.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {

@@ -2,7 +2,11 @@ import { useState, useRef } from 'react';
 
 export interface DragData {
   type: 'event';
-  data: any;
+  data: {
+    id: string;
+    title: string;
+    [key: string]: unknown;
+  };
 }
 
 export interface DropZoneData {

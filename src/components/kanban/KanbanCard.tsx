@@ -1,284 +1,200 @@
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { cn } from "@/lib/utils";
-import { Card as TCard, LabelColor } from "@/state/kanbanTypes";
-import { format, isPast, isWithinInterval, addDays, parseISO } from "date-fns";
-import { useState } from "react";
-import { CardModal } from "./CardModal";
-import { useBoardsStore } from "@/state/boardsStore";
-import { Badge } from "@/components/ui/badge";
+import React, { useState } from 'react';
+import { Draggable } from '@hello-pangea/dnd';
+import { Card, LabelColor } from '../../state/kanbanTypes';
+import { CardModal } from './CardModal';
+import { Calendar, MessageSquare, Tag } from 'lucide-react';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
-const labelColorClass: Record<LabelColor, string> = {
-  green: "bg-[hsl(var(--label-green))] text-white",
-  yellow: "bg-[hsl(var(--label-yellow))] text-black",
-  orange: "bg-[hsl(var(--label-orange))] text-white", 
-  red: "bg-[hsl(var(--label-red))] text-white",
-  purple: "bg-[hsl(var(--label-purple))] text-white",
-  blue: "bg-[hsl(var(--label-blue))] text-white",
+const coverColorClass: Record<LabelColor, string> = {
+  green: 'bg-[hsl(var(--label-green))]',
+  yellow: 'bg-[hsl(var(--label-yellow))]',
+  orange: 'bg-[hsl(var(--label-orange))]',
+  red: 'bg-[hsl(var(--label-red))]',
+  purple: 'bg-[hsl(var(--label-purple))]',
+  blue: 'bg-[hsl(var(--label-blue))]',
 };
 
 interface KanbanCardProps {
-  card: TCard;
+  card: Card;
+  index: number;
   boardId: string;
+  onDeleteCard: (cardId: string) => void;
 }
 
-export function KanbanCard({ card, boardId }: KanbanCardProps) {
-  const due = card.dueDate ? parseISO(card.dueDate) : undefined;
-  const isOverdue = due ? isPast(due) : false;
-  const isSoon =
-    due && !isOverdue
-      ? isWithinInterval(due, { start: new Date(), end: addDays(new Date(), 3) })
-      : false;
+export const KanbanCard: React.FC<KanbanCardProps> = ({
+  card,
+  index,
+  boardId,
+  onDeleteCard,
+}) => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const [open, setOpen] = useState(false);
-  const board = useBoardsStore((s) => s.boards[boardId]);
+  const formatDueDate = (dueDate: string | null) => {
+    if (!dueDate) return null;
+    const date = new Date(dueDate);
+    const now = new Date();
+    const isOverdue = date < now;
+    const isToday = date.toDateString() === now.toDateString();
+    
+    return {
+      text: date.toLocaleDateString('pt-BR', { 
+        day: '2-digit', 
+        month: 'short' 
+      }),
+      isOverdue,
+      isToday
+    };
+  };
 
-  const initials = (name: string) =>
-    name
-      .split(" ")
-      .map((n) => n[0])
-      .slice(0, 2)
-      .join("")
-      .toUpperCase();
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(word => word[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  const dueDateInfo = formatDueDate(card.dueDate);
+  const hasLabels = card.labels && card.labels.length > 0;
+  const hasMembers = card.members && card.members.length > 0;
+  const hasComments = card.comments && card.comments.length > 0;
+  const hasDescription = card.description && card.description.trim() !== '';
+  const labelsCount = card.labels ? card.labels.length : 0;
+  const commentsCount = card.comments ? card.comments.length : 0;
 
   return (
     <>
-      <article className="group rounded-xl bg-card shadow-sm hover:shadow-lg transition-all duration-200 border border-border/50 hover:border-border p-4 cursor-pointer bg-gradient-to-br from-card to-card/80" onClick={() => setOpen(true)}>
-        {/* Card cover image */}
-        <div className="mb-3 aspect-video bg-gradient-to-br from-muted/30 to-muted/10 rounded-lg border overflow-hidden">
-          {card.coverImages && card.coverImages.length > 0 ? (
-            <img
-              src={card.coverImages[0]}
-              alt="Capa do card"
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = 'none';
-                const fallback = (e.target as HTMLImageElement).nextElementSibling as HTMLDivElement;
-                if (fallback) fallback.style.display = 'flex';
-              }}
-            />
-          ) : null}
-          <div className={cn(
-            "w-full h-full flex items-center justify-center",
-            card.coverImages && card.coverImages.length > 0 ? "hidden" : "flex"
-          )}>
-            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-              <span className="text-primary text-lg">📝</span>
-            </div>
-          </div>
-        </div>
+      <Draggable draggableId={card.id} index={index}>
+        {(provided, snapshot) => (
+          <div
+            ref={provided.innerRef}
+            {...provided.draggableProps}
+            {...provided.dragHandleProps}
+            className={`
+              bg-white rounded-lg shadow-sm border border-gray-200 p-3 mb-2 cursor-pointer
+              hover:shadow-md transition-shadow duration-200
+              ${snapshot.isDragging ? 'shadow-lg rotate-2' : ''}
+            `}
+            onClick={() => setIsModalOpen(true)}
+          >
+            {/* Cover Color */}
+            {card.coverColor && (
+              <div 
+                className={`h-8 -m-3 mb-2 rounded-t-lg ${coverColorClass[card.coverColor] || 'bg-gray-200'}`}
+              />
+            )}
 
-        {/* Tags */}
-        {card.labels?.length ? (
-          <div className="mb-3 flex flex-wrap gap-1.5">
-            {card.labels.map((l) => (
-              <Badge
-                key={l.id}
-                className={cn("text-xs px-2.5 py-1 font-medium rounded-full", labelColorClass[l.color])}
-                aria-label={`Tag ${l.name}`}
-              >
-                {l.name}
-              </Badge>
-            ))}
-          </div>
-        ) : null}
-
-        <h3 className="text-sm font-semibold leading-snug mb-2 text-card-foreground">{card.title}</h3>
-
-        {/* Communication-specific fields for template board or dynamic custom fields badges for regular boards */}
-        {board?.isTemplate ? (
-          // Template board - Show fixed communication fields preview
-          (() => {
-            const vals = (card as any).custom || {};
-            
-            // Fixed field keys for communication
-            const tituloEventoVal = vals.tituloEvento;
-            const assuntoPrincipalVal = vals.assuntoPrincipal;
-            const descricaoBreveVal = vals.descricaoBreve;
-            const dataEventoVal = vals.dataEvento;
-            const localVal = vals.local;
-            const classificacaoVal = vals.classificacao;
-            const chamadaAcaoVal = vals.chamadaAcao;
-            const dividirCardsVal = vals.dividirCards;
-            const numeroCardsVal = vals.numeroCards;
-            const observacoesVal = vals.observacoes;
-
-            const hasAnyCustomData = tituloEventoVal || assuntoPrincipalVal || descricaoBreveVal || dataEventoVal || localVal || classificacaoVal || chamadaAcaoVal || dividirCardsVal || observacoesVal;
-            
-            if (!hasAnyCustomData) return null;
-
-            return (
-              <div className="mt-2 space-y-2">
-                {/* Event Title - Main highlight */}
-                {tituloEventoVal && (
-                  <div className="text-[12px] font-medium text-foreground line-clamp-1">
-                    {String(tituloEventoVal)}
-                  </div>
-                )}
-                
-                {/* Subject - Secondary line */}
-                {assuntoPrincipalVal && (
-                  <div className="text-[11px] text-muted-foreground line-clamp-1">
-                    {String(assuntoPrincipalVal)}
-                  </div>
-                )}
-                
-                {/* Brief Description */}
-                {descricaoBreveVal && !assuntoPrincipalVal && (
-                  <div className="text-[11px] text-muted-foreground line-clamp-1">
-                    {String(descricaoBreveVal)}
-                  </div>
-                )}
-                
-                {/* Event Info Section - Date and Location */}
-                {(dataEventoVal || localVal) && (
-                  <div className="flex items-center gap-1 flex-wrap">
-                    {dataEventoVal && (
-                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">
-                        📅 {(() => {
-                          try { 
-                            return format(parseISO(String(dataEventoVal)), "dd/MM"); 
-                          } catch { 
-                            return String(dataEventoVal).slice(0, 10); 
-                          }
-                        })()}
-                      </Badge>
-                    )}
-                    {localVal && (
-                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">
-                        📍 {String(localVal).length > 15 ? `${String(localVal).slice(0, 15)}...` : String(localVal)}
-                      </Badge>
-                    )}
-                  </div>
-                )}
-                
-                {/* Call to Action */}
-                {chamadaAcaoVal && (
-                  <div className="text-[10px] text-muted-foreground line-clamp-1">
-                    💬 {String(chamadaAcaoVal)}
-                  </div>
-                )}
-                
-                {/* Bottom row: Classification and Social Media indicators */}
-                <div className="flex items-center justify-between flex-wrap gap-1">
-                  <div className="flex items-center gap-1">
-                    {classificacaoVal && (
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-amber-50 text-amber-800 border-amber-200">
-                        {String(classificacaoVal)}
-                      </Badge>
-                    )}
-                  </div>
-                  
-                  <div className="flex items-center gap-1">
-                    {dividirCardsVal && (
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-800 border-blue-200">
-                        📱 {numeroCardsVal ? `${numeroCardsVal} cards` : "Redes Sociais"}
-                      </Badge>
-                    )}
-                    {observacoesVal && (
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-orange-50 text-orange-800 border-orange-200">
-                        ⚠️ Obs
-                      </Badge>
-                    )}
-                  </div>
-                </div>
+            {/* Cover Image */}
+            {card.coverImages && card.coverImages.length > 0 && (
+              <div className="h-32 -m-3 mb-2 rounded-t-lg overflow-hidden">
+                <img 
+                  src={card.coverImages[0]} 
+                  alt="Card cover" 
+                  className="w-full h-full object-cover"
+                />
               </div>
-            );
-          })()
-        ) : (
-          // Regular board - Show badges for custom fields marked as showOnCard
-          board?.customFields?.some(field => field.showOnCard && (card as any).custom?.[field.id]) && (
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {board.customFields
-                .filter(field => field.showOnCard && (card as any).custom?.[field.id])
-                .map(field => {
-                  const value = (card as any).custom[field.id];
-                  if (!value) return null;
-                  
-                  let displayValue = String(value);
-                  if (field.type === "date") {
-                    try {
-                      displayValue = format(parseISO(String(value)), "dd/MM");
-                    } catch {
-                      displayValue = String(value).slice(0, 10);
-                    }
-                  } else if (field.type === "checkbox") {
-                    displayValue = value ? "Sim" : "Não";
-                  } else if (Array.isArray(value)) {
-                    displayValue = value.join(", ");
-                  }
-                  
-                  return (
-                    <Badge 
-                      key={field.id} 
-                      variant="secondary" 
-                      className="text-[10px] px-1.5 py-0.5"
-                    >
-                      {field.name}: {displayValue.length > 20 ? `${displayValue.slice(0, 20)}...` : displayValue}
-                    </Badge>
-                  );
-                })}
-            </div>
-          )
-        )}
+            )}
 
-        {/* Bottom section */}
-        <div className="mt-4 flex items-center justify-between">
-          <div className="flex -space-x-1">
-            {/* Members */}
-            {card.members && card.members.length > 0 && (
-              <>
-                {card.members.slice(0, 3).map((member, index) => (
-                  <Avatar 
-                    key={member.id} 
-                    className="h-6 w-6 border-2 border-background"
-                    style={{ marginLeft: index > 0 ? '-4px' : '0' }}
-                  >
-                    <AvatarImage src={member.avatar} />
-                    <AvatarFallback className="text-[10px] bg-primary text-primary-foreground">
-                      {member.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
+            {/* Labels */}
+            {hasLabels && (
+              <div className="flex flex-wrap gap-1 mb-2">
+                {card.labels.map((label, index) => (
+                  <div
+                    key={index}
+                    className="h-2 w-10 rounded-full"
+                    style={{ backgroundColor: label.color }}
+                    title={label.name}
+                  />
                 ))}
-                {card.members.length > 3 && (
-                  <div className="h-6 w-6 rounded-full bg-muted border-2 border-background flex items-center justify-center text-[10px] font-medium text-muted-foreground">
-                    +{card.members.length - 3}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2">
-            {/* Comments indicator */}
-            {card.comments && card.comments.length > 0 && (
-              <div className="flex items-center gap-1 text-muted-foreground">
-                <span className="text-xs">💬</span>
-                <span className="text-xs font-medium">{card.comments.length}</span>
               </div>
             )}
-            
-            {/* Due date */}
-            {due ? (
-              <time
-                dateTime={card.dueDate}
-                className={cn(
-                  "text-xs px-2.5 py-1 rounded-full border font-medium",
-                  isOverdue
-                    ? "text-destructive border-destructive/20 bg-destructive/5"
-                    : isSoon
-                    ? "text-warning border-warning/20 bg-warning/5"
-                    : "text-muted-foreground border-border bg-muted/30"
+
+            {/* Card Title */}
+            <h3 className="text-sm font-normal text-gray-800 leading-5 mb-1">
+              {card.title}
+            </h3>
+
+            {/* Card Metadata */}
+            <div className="flex items-center justify-between mt-2">
+              <div className="flex items-center gap-3">
+                {/* Labels (Tags) Count - always visible */}
+              <div className="flex items-center gap-1 text-gray-500">
+                <Tag size={12} />
+                {/* Mostrar até 3 pontos coloridos das labels */}
+                <div className="flex items-center gap-0.5">
+                  {card.labels.slice(0, 3).map((label, i) => (
+                    <span
+                      key={i}
+                      className="inline-block w-2 h-2 rounded-full"
+                      style={{ backgroundColor: label.color }}
+                    />
+                  ))}
+                </div>
+                <span className="text-xs">{labelsCount}</span>
+              </div>
+
+                {/* Comments Count - always visible */}
+                <div className="flex items-center gap-1 text-gray-500">
+                  <MessageSquare size={12} />
+                  <span className="text-xs">{commentsCount}</span>
+                </div>
+
+                {/* Due Date - show date when available, otherwise muted icon */}
+                {dueDateInfo ? (
+                  <div className={`
+                    flex items-center gap-1 px-1.5 py-0.5 rounded text-xs
+                    ${dueDateInfo.isOverdue 
+                      ? 'bg-red-100 text-red-700' 
+                      : dueDateInfo.isToday 
+                        ? 'bg-yellow-100 text-yellow-700'
+                        : 'bg-gray-100 text-gray-600'
+                    }
+                  `}>
+                    <Calendar size={10} />
+                    <span>{dueDateInfo.text}</span>
+                  </div>
+                ) : (
+                  <div className="text-gray-400">
+                    <Calendar size={12} />
+                  </div>
                 )}
-                aria-label="Data de vencimento"
-                title={format(due, "dd/MM/yyyy")}
-              >
-                {format(due, "dd MMM")}
-              </time>
-            ) : null}
+              </div>
+
+              {/* Member Avatars */}
+              {hasMembers && (
+                <div className="flex -space-x-1">
+                  {card.members.slice(0, 3).map((member, index) => (
+                    <Avatar key={index} className="w-6 h-6 border-2 border-white" title={member.name}>
+                      {member.avatar ? (
+                        <AvatarImage src={member.avatar} alt={member.name} />
+                      ) : (
+                        <AvatarFallback className="bg-blue-500 text-white text-[10px]">
+                          {getInitials(member.name)}
+                        </AvatarFallback>
+                      )}
+                    </Avatar>
+                  ))}
+                  {card.members.length > 3 && (
+                    <div className="w-6 h-6 rounded-full bg-gray-400 text-white text-xs flex items-center justify-center border-2 border-white">
+                      +{card.members.length - 3}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      </article>
-      <CardModal open={open} onOpenChange={setOpen} boardId={boardId} card={card} />
+        )}
+      </Draggable>
+
+      {isModalOpen && (
+        <CardModal
+          card={card}
+          open={isModalOpen}
+          onOpenChange={setIsModalOpen}
+          boardId={boardId}
+        />
+      )}
     </>
   );
-}
+};

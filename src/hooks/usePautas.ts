@@ -77,7 +77,7 @@ export function usePautas() {
         description: 'O evento foi criado com sucesso!',
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: 'Erro ao criar evento',
         description: error.message,
@@ -105,7 +105,7 @@ export function usePautas() {
         description: 'O evento foi atualizado com sucesso!',
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: 'Erro ao atualizar evento',
         description: error.message,
@@ -130,7 +130,7 @@ export function usePautas() {
         description: 'O evento foi excluído com sucesso.',
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: 'Erro ao excluir evento',
         description: error.message,

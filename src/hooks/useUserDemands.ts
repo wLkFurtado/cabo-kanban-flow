@@ -1,10 +1,10 @@
 import { useMemo } from "react";
-import { useBoardsStore } from "@/state/boardsStore";
+import { useBoardsStore } from "@/state/boards/store";
 import { useAuthStore } from "@/state/authStore";
 import { Card } from "@/state/kanbanTypes";
 import { format, isBefore, isAfter, addDays } from "date-fns";
 
-interface UserDemandWithBoard {
+export interface UserDemandWithBoard {
   card: Card;
   boardId: string;
   boardTitle: string;
@@ -44,7 +44,7 @@ export function useUserDemands() {
     return demands;
   }, [boards, currentUser]);
 
-  const getDemandsByDate = (date: string) => {
+  const getDemandsByDate = (date: string): UserDemandWithBoard[] => {
     return userDemands.filter(demand => {
       if (!demand.card.dueDate) return false;
       const cardDate = format(new Date(demand.card.dueDate), 'yyyy-MM-dd');

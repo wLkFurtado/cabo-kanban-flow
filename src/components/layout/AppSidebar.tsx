@@ -6,14 +6,17 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
-} from "@/components/ui/sidebar";
-import { Building2, LayoutDashboard, Calendar, FileText, PenTool } from "lucide-react";
+} from "../ui/sidebar";
+import { LayoutDashboard, Calendar, FileText, PenTool, Users } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
-
+import { useAdminRole } from "../../hooks/useAdminRole";
 const menuItems = [
   { title: "Boards", url: "/", icon: LayoutDashboard },
   { title: "Agenda", url: "/agenda", icon: Calendar },
+  { title: "Agenda Institucional", url: "/agenda-institucional", icon: Calendar },
   { title: "Pautas", url: "/pautas", icon: FileText },
+  { title: "Escala FDS", url: "/escala-fds", icon: Calendar },
+  { title: "Contatos", url: "/contatos", icon: Users },
   { title: "Gerador de texto", url: "/gerador-texto", icon: PenTool },
 ];
 
@@ -22,24 +25,31 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const location = useLocation();
   const currentPath = location.pathname;
+  const { isAdmin } = useAdminRole();
+
+  const itemsToRender = isAdmin
+    ? menuItems
+    : menuItems.filter((item) => item.url !== "/contatos");
 
   return (
     <Sidebar className={collapsed ? "w-14" : "w-64"} collapsible="icon" variant="sidebar">
-      <SidebarHeader className="border-b border-border">
-        <div className="flex items-center gap-2 p-4">
-          <Building2 className="h-6 w-6 text-primary" />
-          {!collapsed && (
-            <div className="flex flex-col">
-              <span className="font-semibold text-sm">Comunicação</span>
-              <span className="font-semibold text-sm">Cabo Frio</span>
-            </div>
-          )}
+      <SidebarHeader className="border-b border-border h-16">
+        <div className="flex items-center gap-2 px-4 h-full">
+          <img
+            src="https://ankliiywmcpncymdlvaa.supabase.co/storage/v1/object/sign/images/marca-horizontal-colorida.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV80YzhjY2FlYS1lYTVkLTRiMzYtOWJiZS03NmRkYmRkNjhlYTUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJpbWFnZXMvbWFyY2EtaG9yaXpvbnRhbC1jb2xvcmlkYS5wbmciLCJpYXQiOjE3NjA2NTMwMzcsImV4cCI6MTg4Njc5NzAzN30.z64jgDXzJIaXWUpdmL_lbDE69CPWXjbUVDaT8lW1p9k"
+            alt="Coordenadoria de Comunicação"
+            className={collapsed ? "h-9 w-9 object-contain" : "h-14 object-contain"}
+            onError={(e) => {
+              const img = e.currentTarget as HTMLImageElement;
+              img.src = "/placeholder.svg";
+            }}
+          />
         </div>
       </SidebarHeader>
 
       <SidebarContent>
         <SidebarMenu className="px-2 py-4">
-          {menuItems.map((item) => (
+          {itemsToRender.map((item) => (
             <SidebarMenuItem key={item.title}>
               <SidebarMenuButton asChild>
                 <NavLink 

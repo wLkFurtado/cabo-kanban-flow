@@ -47,7 +47,8 @@ export default function Register() {
       const { error } = await signUp(values.email, values.password, {
         full_name: values.name,
         phone: values.phone,
-        role: values.role,
+        cargo: values.role, // Passando o cargo preenchido pelo usuário
+        role: 'user', // Role padrão para novos usuários
       });
       
       if (error) {
@@ -59,10 +60,11 @@ export default function Register() {
         description: "Sua conta foi criada com sucesso. Verifique seu email para confirmar." 
       });
       navigate("/login");
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : "Erro interno. Tente novamente.";
       toast({ 
         title: "Erro ao cadastrar", 
-        description: e.message || "Erro interno. Tente novamente.", 
+        description: errorMessage, 
         variant: "destructive" 
       });
     }

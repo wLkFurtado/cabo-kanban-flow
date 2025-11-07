@@ -3,8 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { useBoardsStore } from "@/state/boardsStore";
-import type { CustomField } from "@/state/kanbanTypes";
+import { useBoardsStore } from "@/state/boards/store";
+import type { CustomField, CustomFieldType } from "@/state/kanbanTypes";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { X, ArrowUp, ArrowDown, Plus } from "lucide-react";
 
@@ -59,7 +59,7 @@ export function CustomFieldsManager({ boardId }: Props) {
           </div>
           <div className="col-span-3">
             <Label className="text-xs">Tipo</Label>
-            <Select value={f.type} onValueChange={(v) => updateCustomField(boardId, f.id, { type: v as any, options: (v.includes("select") ? (opts.length?opts:["Opção 1"]) : undefined) })} disabled={isTemplate}>
+            <Select value={f.type} onValueChange={(v) => updateCustomField(boardId, f.id, { type: v as CustomFieldType, options: (v.includes("select") ? (opts.length?opts:["Opção 1"]) : undefined) })} disabled={isTemplate}>
               <SelectTrigger>
                 <SelectValue placeholder="Tipo" />
               </SelectTrigger>

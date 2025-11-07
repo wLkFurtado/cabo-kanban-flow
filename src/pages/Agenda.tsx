@@ -1,17 +1,21 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar, AlertTriangle, Clock, Plus } from "lucide-react";
+import { Calendar, AlertTriangle, Clock, Plus, Pencil, Trash } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { useUserDemands } from "@/hooks/useUserDemands";
-import { useBoardsStore } from "@/state/boardsStore";
+import { useBoardsStore } from "@/state/boards/store";
 import { AgendaCalendar } from "@/components/agenda/AgendaCalendar";
 import { DemandCard } from "@/components/agenda/DemandCard";
 import { EventModal } from "@/components/agenda/EventModal";
 import { CardModal } from "@/components/kanban/CardModal";
 import { Card } from "@/state/kanbanTypes";
 import { Seo } from "@/components/seo/Seo";
+// Removido o toggle de visualização (Semana)
+import { useEvents } from "@/hooks/useEvents";
+import { cn } from "@/lib/utils";
+
 
 export default function Agenda() {
   const [selectedDate, setSelectedDate] = useState<Date>();
@@ -19,15 +23,24 @@ export default function Agenda() {
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
+  const [eventBeingEdited, setEventBeingEdited] = useState<import("@/hooks/useEvents").AgendaEvent | null>(null);
 
-  const { getDemandsByDate, getUpcomingDemands, getOverdueDemands, getDueSoonDemands } = useUserDemands();
+  const { getDemandsByDate, getOverdueDemands, getDueSoonDemands } = useUserDemands();
   const { boards } = useBoardsStore();
+  const { events, deleteEvent } = useEvents();
 
   const selectedDateStr = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : '';
   const dayDemands = selectedDateStr ? getDemandsByDate(selectedDateStr) : [];
-  const upcomingDemands = getUpcomingDemands(5);
+  const dayEvents = selectedDateStr
+    ? (events || []).filter((ev) => {
+        const startStr = format(new Date(ev.start_date), 'yyyy-MM-dd');
+        const endStr = format(new Date(ev.end_date), 'yyyy-MM-dd');
+        return startStr <= selectedDateStr && selectedDateStr <= endStr;
+      })
+    : [];
   const overdueDemands = getOverdueDemands();
   const dueSoonDemands = getDueSoonDemands();
+  const hasSidebar = overdueDemands.length > 0 || dueSoonDemands.length > 0;
 
   const [lastClickTime, setLastClickTime] = useState<number>(0);
   const [lastClickedDate, setLastClickedDate] = useState<Date | null>(null);
@@ -64,6 +77,16 @@ export default function Agenda() {
     setSelectedBoardId("");
   };
 
+  const handleEventModalOpenChange = (open: boolean) => {
+    setIsEventModalOpen(open);
+    if (!open) {
+      setEventBeingEdited(null);
+    }
+    if (open) {
+      setIsSheetOpen(false);
+    }
+  };
+
   const formatSelectedDate = (date: Date) => {
     return format(date, "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR });
   };
@@ -85,7 +108,10 @@ export default function Agenda() {
               </p>
             </div>
             <Button
-              onClick={() => setIsEventModalOpen(true)}
+              onClick={() => {
+                setIsEventModalOpen(true);
+                setIsSheetOpen(false);
+              }}
               className="flex items-center gap-2"
             >
               <Plus className="h-4 w-4" />
@@ -96,8 +122,8 @@ export default function Agenda() {
 
         <main className="container mx-auto p-6">
           <div className="grid grid-cols-1 lg:grid-cols-6 gap-6">
-            <div className="lg:col-span-5">
-              <div className="bg-card rounded-lg border p-8">
+            <div className={cn(hasSidebar ? "lg:col-span-5" : "lg:col-span-6") }>
+              <div className="bg-card rounded-lg border p-8 min-h-[70vh]">
                 <div className="flex items-center gap-2 mb-6">
                   <Calendar className="h-6 w-6" />
                   <h2 className="text-xl font-semibold">Calendário de Demandas</h2>
@@ -105,10 +131,11 @@ export default function Agenda() {
                 <AgendaCalendar
                   selectedDate={selectedDate}
                   onDateSelect={handleDateSelect}
+                  events={events || []}
                 />
               </div>
             </div>
-
+            {hasSidebar && (
             <div className="space-y-3">
               {overdueDemands.length > 0 && (
                 <div className="bg-card rounded-lg border border-destructive p-4">
@@ -148,26 +175,9 @@ export default function Agenda() {
                 </div>
               )}
 
-              <div className="bg-card rounded-lg border p-4">
-                <h3 className="text-lg font-semibold mb-3">Próximas Demandas</h3>
-                {upcomingDemands.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    Nenhuma demanda com prazo definido.
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {upcomingDemands.map((demand) => (
-                      <DemandCard
-                        key={demand.card.id}
-                        card={demand.card}
-                        boardTitle={demand.boardTitle}
-                        onClick={() => handleDemandClick(demand.card, demand.boardId)}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
+              {/* Seção de Próximas Demandas removida */}
             </div>
+            )}
           </div>
         </main>
 
@@ -180,18 +190,63 @@ export default function Agenda() {
             </SheetHeader>
 
             <div className="mt-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-medium">
-                  Demandas ({dayDemands.length})
-                </h3>
+              {/* Eventos do dia */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-medium">Eventos ({dayEvents.length})</h3>
+                </div>
+                {dayEvents.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Nenhum evento para este dia.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {dayEvents.map((ev) => (
+                      <div key={ev.id} className="flex items-center justify-between gap-2 border rounded-md p-2">
+                        <div className="text-sm min-w-0">
+                          <div className="font-medium truncate">{ev.title}</div>
+                          <div className="text-muted-foreground truncate">
+                            {format(new Date(ev.start_date), 'HH:mm', { locale: ptBR })} - {format(new Date(ev.end_date), 'HH:mm', { locale: ptBR })}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setEventBeingEdited(ev);
+                              setIsEventModalOpen(true);
+                              setIsSheetOpen(false);
+                            }}
+                            aria-label="Editar evento"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              if (window.confirm('Excluir este evento?')) {
+                                deleteEvent(ev.id);
+                              }
+                            }}
+                            aria-label="Excluir evento"
+                          >
+                            <Trash className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
+              {/* Demandas do dia */}
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-medium">Demandas ({dayDemands.length})</h3>
+              </div>
               {dayDemands.length === 0 ? (
                 <div className="text-center py-8">
                   <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground mb-4">
-                    Nenhuma demanda para este dia.
-                  </p>
+                  <p className="text-muted-foreground mb-4">Nenhuma demanda para este dia.</p>
                   <Button
                     onClick={() => {
                       setIsEventModalOpen(true);
@@ -238,8 +293,9 @@ export default function Agenda() {
 
         <EventModal
           open={isEventModalOpen}
-          onOpenChange={setIsEventModalOpen}
+          onOpenChange={handleEventModalOpenChange}
           selectedDate={selectedDate}
+          eventToEdit={eventBeingEdited}
         />
       </div>
     </>

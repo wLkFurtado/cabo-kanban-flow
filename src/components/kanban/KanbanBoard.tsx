@@ -1,80 +1,166 @@
 import React, { useState } from "react";
-import { DragDropContext, DropResult, Droppable, Draggable } from "@hello-pangea/dnd";
+import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { KanbanList } from "./KanbanList";
+import { Card, List } from "@/state/kanbanTypes";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import type { Card, List } from "@/state/kanbanTypes";
+import { Plus, X } from "lucide-react";
 
 interface KanbanBoardProps {
+  lists: List[];
+  cards: Record<string, Card[]>;
   boardId: string;
-  listsOrder: string[];
-  lists: Record<string, List>;
-  cardsByList: Record<string, Card[]>;
-  onMoveCard: (
-    fromListId: string,
-    toListId: string,
-    fromIndex: number,
-    toIndex: number
-  ) => void;
-  onMoveList: (fromIndex: number, toIndex: number) => void;
+  onMoveCard: (cardId: string, sourceListId: string, destinationListId: string, destinationIndex: number) => void;
+  onMoveList: (listId: string, destinationIndex: number) => void;
   onAddList: (title: string) => void;
+  onAddCard: (listId: string, title: string) => void;
+  onDeleteCard: (cardId: string) => void;
 }
 
-export function KanbanBoard({ boardId, listsOrder, lists, cardsByList, onMoveCard, onMoveList, onAddList }: KanbanBoardProps) {
-  const [adding, setAdding] = useState(false);
-  const [newList, setNewList] = useState("");
+export const KanbanBoard: React.FC<KanbanBoardProps> = ({
+  lists,
+  cards,
+  boardId,
+  onMoveCard,
+  onMoveList,
+  onAddList,
+  onAddCard,
+  onDeleteCard,
+}) => {
+  const [isAddingList, setIsAddingList] = useState(false);
+  const [newListTitle, setNewListTitle] = useState("");
 
   const onDragEnd = (result: DropResult) => {
     const { destination, source, type } = result;
-    if (!destination) return;
-    if (destination.droppableId === source.droppableId && destination.index === source.index) return;
 
-    if (type === "LIST") {
-      onMoveList(source.index, destination.index);
+    if (!destination) return;
+
+    if (
+      destination.droppableId === source.droppableId &&
+      destination.index === source.index
+    ) {
       return;
     }
 
-    onMoveCard(source.droppableId, destination.droppableId, source.index, destination.index);
+    if (type === "list") {
+      onMoveList(result.draggableId, destination.index);
+      return;
+    }
+
+    if (type === "card") {
+      onMoveCard(
+        result.draggableId,
+        source.droppableId,
+        destination.droppableId,
+        destination.index
+      );
+    }
+  };
+
+  const handleAddList = () => {
+    if (newListTitle.trim()) {
+      onAddList(newListTitle.trim());
+      setNewListTitle("");
+      setIsAddingList(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleAddList();
+    } else if (e.key === 'Escape') {
+      setIsAddingList(false);
+      setNewListTitle("");
+    }
   };
 
   return (
-    <DragDropContext onDragEnd={onDragEnd}>
-      <Droppable droppableId={`board-${boardId}-lists`} direction="horizontal" type="LIST">
-        {(provided) => (
-          <div ref={provided.innerRef} {...provided.droppableProps} className="flex gap-4 overflow-x-auto pb-4 pr-4">
-            {listsOrder.map((listId, index) => (
-              <Draggable key={listId} draggableId={listId} index={index}>
-                {(dragProvided) => (
-                  <div ref={dragProvided.innerRef} {...dragProvided.draggableProps}>
-                    <KanbanList 
-                      list={lists[listId]} 
-                      cards={cardsByList[listId] || []} 
-                      boardId={boardId}
-                      dragHandleProps={dragProvided.dragHandleProps}
-                    />
-                  </div>
-                )}
-              </Draggable>
-            ))}
+    <div className="h-full bg-gray-50 p-4 overflow-hidden">
+      <DragDropContext onDragEnd={onDragEnd}>
+        <div className="h-full overflow-x-auto overflow-y-hidden">
+          <div className="flex gap-3 h-full pb-4">
+            <Droppable droppableId="board" type="list" direction="horizontal">
+              {(provided) => (
+                <div
+                  ref={provided.innerRef}
+                  {...provided.droppableProps}
+                  className="flex gap-3 h-full"
+                >
+                  {lists.map((list, index) => (
+                    <Draggable key={list.id} draggableId={list.id} index={index}>
+                      {(provided, snapshot) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          className={`
+                            transition-transform duration-200
+                            ${snapshot.isDragging ? 'rotate-2 scale-105' : ''}
+                          `}
+                        >
+                          <KanbanList
+                            list={list}
+                            cards={cards[list.id] || []}
+                            boardId={boardId}
+                            dragHandleProps={provided.dragHandleProps}
+                            onAddCard={onAddCard}
+                            onDeleteCard={onDeleteCard}
+                          />
+                        </div>
+                      )}
+                    </Draggable>
+                  ))}
+                  {provided.placeholder}
+                </div>
+              )}
+            </Droppable>
 
-            {/* Add List composer */}
+            {/* Add List Section */}
             <div className="w-72 shrink-0">
-              {adding ? (
-                <div className="rounded-lg bg-secondary/40 border p-2">
+              {isAddingList ? (
+                <div className="bg-gray-100 rounded-lg p-2">
+                  <Input
+                    value={newListTitle}
+                    onChange={(e) => setNewListTitle(e.target.value)}
+                    onKeyDown={handleKeyPress}
+                    placeholder="Insira o título da lista..."
+                    className="mb-2 text-sm bg-white border-gray-300 focus:border-blue-500"
+                    autoFocus
+                  />
                   <div className="flex gap-2">
-                    <Input value={newList} onChange={(e) => setNewList(e.target.value)} placeholder="Título da lista" />
-                    <Button size="sm" onClick={() => { const t = newList.trim(); if (t) { onAddList(t); setNewList(""); setAdding(false);} }}>Adicionar</Button>
-                    <Button size="sm" variant="ghost" onClick={() => { setAdding(false); setNewList(""); }}>Cancelar</Button>
+                    <Button
+                      onClick={handleAddList}
+                      size="sm"
+                      className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1 h-8"
+                    >
+                      Adicionar lista
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setIsAddingList(false);
+                        setNewListTitle("");
+                      }}
+                      variant="ghost"
+                      size="sm"
+                      className="text-gray-600 hover:text-gray-800 text-xs px-2 py-1 h-8"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
                   </div>
                 </div>
               ) : (
-                <Button variant="ghost" size="sm" className="w-72 justify-start" onClick={() => setAdding(true)}>+ Adicionar lista</Button>
+                <Button
+                  onClick={() => setIsAddingList(true)}
+                  variant="ghost"
+                  className="w-full justify-start bg-gray-200 hover:bg-gray-300 text-gray-700 border-none text-sm font-normal p-3 h-auto rounded-lg"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Adicionar uma lista
+                </Button>
               )}
             </div>
-            {provided.placeholder}
           </div>
-        )}
-      </Droppable>
-    </DragDropContext>
+        </div>
+      </DragDropContext>
+    </div>
   );
-}
+};

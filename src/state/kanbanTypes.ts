@@ -1,4 +1,4 @@
-export type LabelColor = "green" | "yellow" | "orange" | "red" | "purple" | "blue";
+export type LabelColor = string;
 
 export interface Label {
   id: string;
@@ -35,11 +35,12 @@ export interface Comment {
   content: string;
   timestamp: string; // ISO string
   type: CommentType;
+  avatarUrl?: string;
 }
 
 export interface Card {
   id: string;
-  listId: string;
+  list_id: string;
   title: string;
   description?: string;
   position: number;
@@ -50,6 +51,7 @@ export interface Card {
   custom?: Record<string, unknown>;
   comments?: Comment[];
   coverImages?: string[]; // Array de imagens em base64
+  coverColor?: LabelColor; // Cor da capa quando não houver imagem
 }
 
 export interface List {
@@ -71,4 +73,6 @@ export interface Board {
   color?: string; // Ex.: hsl(...) ou #hex
   customFields?: CustomField[];
   isTemplate?: boolean; // Indica se é um board template/fixo
+  coverImageUrl?: string; // URL da imagem de capa do board
+  coverColor?: string; // Cor da capa quando não houver imagem (hex, hsl, ou LabelColor)
 }

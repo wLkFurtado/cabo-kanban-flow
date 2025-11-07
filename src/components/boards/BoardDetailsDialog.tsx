@@ -3,10 +3,12 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useBoardsStore } from "@/state/boardsStore";
+import { useBoardsStore } from "@/state/boards/store";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CustomFieldsManager } from "@/components/boards/CustomFieldsManager";
+import { supabase } from "@/integrations/supabase/client";
+import { Upload, X, Image } from "lucide-react";
 
 interface BoardDetailsDialogProps {
   boardId: string;
@@ -23,6 +25,9 @@ export function BoardDetailsDialog({ boardId, open, onOpenChange }: BoardDetails
   const [icon, setIcon] = useState("");
   const [description, setDescription] = useState("");
   const [color, setColor] = useState<string>("");
+  const [coverImageUrl, setCoverImageUrl] = useState<string>("");
+  const [coverColor, setCoverColor] = useState<string>("");
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     if (open && board) {
@@ -30,10 +35,58 @@ export function BoardDetailsDialog({ boardId, open, onOpenChange }: BoardDetails
       setIcon(board.icon || "");
       setDescription(board.description || "");
       setColor(board.color || "");
+      setCoverImageUrl(board.coverImageUrl || "");
+      setCoverColor(board.coverColor || "");
     }
-  }, [open, boardId]);
+  }, [open, boardId, board]);
 
   if (!board) return null;
+
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({ title: "Erro", description: "Por favor, selecione apenas arquivos de imagem.", variant: "destructive" });
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "Erro", description: "A imagem deve ter no máximo 5MB.", variant: "destructive" });
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${boardId}-${Date.now()}.${fileExt}`;
+      
+      const { data, error } = await supabase.storage
+        .from('board-covers')
+        .upload(fileName, file);
+
+      if (error) throw error;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('board-covers')
+        .getPublicUrl(fileName);
+
+      setCoverImageUrl(publicUrl);
+      setCoverColor(""); // Clear color when image is set
+      toast({ title: "Imagem carregada com sucesso!" });
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      toast({ title: "Erro", description: "Falha ao carregar a imagem.", variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const removeCoverImage = () => {
+    setCoverImageUrl("");
+  };
 
   const onSave = () => {
     const trimmed = title.trim();
@@ -43,6 +96,8 @@ export function BoardDetailsDialog({ boardId, open, onOpenChange }: BoardDetails
       icon: icon?.trim() || undefined,
       description: description?.trim() || undefined,
       color: color || undefined,
+      coverImageUrl: coverImageUrl || undefined,
+      coverColor: coverColor || undefined,
     });
     toast({ title: "Detalhes atualizados" });
     onOpenChange(false);
@@ -115,7 +170,76 @@ export function BoardDetailsDialog({ boardId, open, onOpenChange }: BoardDetails
                 />
               </div>
             </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">Capa do Board</label>
+              <div className="space-y-3">
+                {/* Cover Image Upload */}
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-2">Imagem de Capa</label>
+                  {coverImageUrl ? (
+                    <div className="relative">
+                      <img
+                        src={coverImageUrl}
+                        alt="Capa do board"
+                        className="w-full h-32 object-cover rounded-md border"
+                      />
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={removeCoverImage}
+                        className="absolute top-2 right-2"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="border-2 border-dashed border-muted-foreground/25 rounded-md p-6 text-center">
+                      <Image className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground mb-2">Nenhuma imagem selecionada</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => document.getElementById('cover-upload')?.click()}
+                        disabled={isUploading}
+                      >
+                        <Upload className="h-4 w-4 mr-2" />
+                        {isUploading ? 'Enviando...' : 'Escolher Imagem'}
+                      </Button>
+                      <input
+                        id="cover-upload"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        className="hidden"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Cover Color */}
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-2">Cor de Fundo (quando não há imagem)</label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      aria-label="Cor da capa"
+                      type="color"
+                      value={coverColor || "#7c3aed"}
+                      onChange={(e) => setCoverColor(e.target.value)}
+                      className="h-9 w-12 rounded-md border border-input bg-background p-1"
+                    />
+                    <Input
+                      aria-label="Cor da capa em texto"
+                      placeholder="#7c3aed ou hsl(262, 83%, 58%)"
+                      value={coverColor}
+                      onChange={(e) => setCoverColor(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
           </TabsContent>
+
 
           <TabsContent value="fields">
             <CustomFieldsManager boardId={boardId} />
