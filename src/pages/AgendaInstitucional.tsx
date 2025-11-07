@@ -108,16 +108,16 @@ export default function AgendaInstitucional() {
     <div className="space-y-4">
       <Seo title="Agenda Institucional" description="Lista institucional simples de contatos" />
       <Card className="w-full">
-        <CardHeader className="pb-4 flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
+        <CardHeader className="px-6 pb-4 flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2 text-left">
             <Calendar className="w-5 h-5" />
             <span>Agenda Institucional</span>
           </CardTitle>
           {isAdmin && (
-            <Button onClick={openAddDialog}>Adicionar contato</Button>
+            <Button className="ml-auto" onClick={openAddDialog}>Adicionar contato</Button>
           )}
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-6">
           <div className="rounded-md border">
             <Table>
               <TableHeader>

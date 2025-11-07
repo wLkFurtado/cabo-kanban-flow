@@ -1,25 +1,29 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Button } from "../ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { Badge } from "../ui/badge";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
-import { getInitials } from "@/state/authStore";
-import { Member } from "@/state/kanbanTypes";
-import { User, UserPlus, X } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { useProfiles } from "@/hooks/useProfiles";
-import { supabase } from "@/integrations/supabase/client";
+} from "../ui/popover";
+import { getInitials } from "../../state/authStore";
+import { Member } from "../../state/kanbanTypes";
+import { UserPlus, X } from "lucide-react";
+import { cn } from "../../lib/utils";
+import { useProfiles } from "../../hooks/useProfiles";
+import type { Profile } from "../../hooks/useProfiles";
+import { supabase } from "../../integrations/supabase/client";
 import { SupabaseClient } from "@supabase/supabase-js";
 import { useQueryClient } from "@tanstack/react-query";
-import { useBoardsStore } from "@/state/boards/store";
-import { useAuth } from "@/hooks/useAuth";
-import { useToast } from "@/hooks/use-toast";
+import { useBoardsStore } from "../../state/boards/store";
+import type { BoardsStore } from "../../state/boards/types";
+import { useAuth } from "../../hooks/useAuth";
+import { useToast } from "../../hooks/use-toast";
+import { postWebhook } from "../../lib/webhook";
+import type { ChangeEvent } from "react";
 
 interface MemberSelectProps {
   selectedMembers: Member[];
@@ -34,7 +38,7 @@ export function MemberSelect({ selectedMembers, onMembersChange, className, card
   const [searchTerm, setSearchTerm] = useState("");
   const queryClient = useQueryClient();
   const { profiles } = useProfiles();
-  const addActivity = useBoardsStore((s) => s.addActivity);
+  const addActivity = useBoardsStore((s: BoardsStore) => s.addActivity);
   const { user } = useAuth();
   const sb = supabase as SupabaseClient;
   const authorName = (user?.user_metadata?.full_name as string) || (user?.email as string) || "Usuário";
@@ -50,11 +54,11 @@ export function MemberSelect({ selectedMembers, onMembersChange, className, card
   };
   
   // Filter users based on search term and exclude already selected members
-  const filteredUsers = (profiles || []).filter(user => {
-    const name = (user.full_name || user.display_name || '').toLowerCase();
-    const email = (user.email || '').toLowerCase();
+  const filteredUsers = (profiles || []).filter((u: Profile) => {
+    const name = (u.full_name || u.display_name || '').toLowerCase();
+    const email = (u.email || '').toLowerCase();
     const matchesSearch = name.includes(searchTerm.toLowerCase()) || email.includes(searchTerm.toLowerCase());
-    const notSelected = !selectedMembers.some(member => member.id === user.id);
+    const notSelected = !selectedMembers.some(member => member.id === u.id);
     return matchesSearch && notSelected;
   });
 
@@ -94,6 +98,24 @@ export function MemberSelect({ selectedMembers, onMembersChange, className, card
       console.warn('Falha ao registrar atividade de adição de membro:', activityErr);
       toast({ title: 'Falha ao registrar atividade', description: errorMessage(activityErr), variant: 'destructive' });
     }
+    // Webhook: membro adicionado
+    try {
+      const profile = profiles.find((p: Profile) => p.id === user.id);
+      await postWebhook({
+        event: 'member_added',
+        boardId,
+        cardId,
+        member: {
+          id: user.id,
+          name: newMember.name,
+          avatar: newMember.avatar,
+          phone: profile?.phone ?? null,
+        },
+        members: [...selectedMembers, newMember].map(m => ({ id: m.id, name: m.name, avatar: m.avatar })),
+      });
+    } catch (e) {
+      console.warn('[Webhook] erro ao enviar member_added:', e);
+    }
     setSearchTerm("");
   };
 
@@ -129,6 +151,19 @@ export function MemberSelect({ selectedMembers, onMembersChange, className, card
     } catch (activityErr) {
       console.warn('Falha ao registrar atividade de remoção de membro:', activityErr);
       toast({ title: 'Falha ao registrar atividade', description: errorMessage(activityErr), variant: 'destructive' });
+    }
+    // Webhook: membro removido
+    try {
+      const profile = profiles.find((p: Profile) => p.id === memberId);
+      await postWebhook({
+        event: 'member_removed',
+        boardId,
+        cardId,
+        member: removedMember ? { id: removedMember.id, name: removedMember.name, avatar: removedMember.avatar, phone: profile?.phone ?? null } : { id: memberId, name: 'Usuário', phone: profile?.phone ?? null },
+        members: selectedMembers.filter(m => m.id !== memberId).map(m => ({ id: m.id, name: m.name, avatar: m.avatar })),
+      });
+    } catch (e) {
+      console.warn('[Webhook] erro ao enviar member_removed:', e);
     }
   };
 
@@ -177,7 +212,7 @@ export function MemberSelect({ selectedMembers, onMembersChange, className, card
                 id="member-search"
                 placeholder="Nome ou email..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
                 className="mt-1"
               />
             </div>
@@ -188,25 +223,25 @@ export function MemberSelect({ selectedMembers, onMembersChange, className, card
                   {searchTerm ? "Nenhum usuário encontrado" : "Todos os usuários já foram adicionados"}
                 </div>
               ) : (
-                filteredUsers.map((user) => (
+                filteredUsers.map((u: Profile) => (
                   <Button
-                    key={user.id}
+                    key={u.id}
                     variant="ghost"
                     className="w-full justify-start gap-3 h-auto p-3"
                     onClick={() => {
-                      addMember(user);
+                      addMember({ id: u.id, full_name: u.full_name || undefined, display_name: u.display_name || undefined, avatar_url: u.avatar_url || undefined });
                       setOpen(false);
                     }}
                   >
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={user.avatar_url || undefined} />
+                      <AvatarImage src={u.avatar_url || undefined} />
                       <AvatarFallback className="text-xs">
-                        {getInitials(user.full_name || user.display_name || 'Usuário')}
+                        {getInitials(u.full_name || u.display_name || 'Usuário')}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex flex-col items-start">
-                      <span className="text-sm font-medium">{user.full_name || user.display_name || 'Usuário'}</span>
-                      <span className="text-xs text-muted-foreground">{user.email || ''}</span>
+                      <span className="text-sm font-medium">{u.full_name || u.display_name || 'Usuário'}</span>
+                      <span className="text-xs text-muted-foreground">{u.email || ''}</span>
                     </div>
                   </Button>
                 ))

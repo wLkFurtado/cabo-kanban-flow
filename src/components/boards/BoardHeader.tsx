@@ -1,17 +1,17 @@
 import { Star, Users } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Progress } from "@/components/ui/progress";
-import { EditableText } from "@/components/editable/EditableText";
-import { BoardActions } from "@/components/boards/BoardActions";
-import { Board } from "@/state/kanbanTypes";
-import { useBoardsStore } from "@/state/boards/store";
-import { useEffect, useRef, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
+import { Button } from "../ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { Progress } from "../ui/progress";
+import { EditableText } from "../editable/EditableText";
+import { BoardActions } from "./BoardActions";
+import type { Board, Card } from "../../state/kanbanTypes";
+import { useBoardsStore } from "../../state/boards/store";
+import { useEffect, useRef, useState, ChangeEvent } from "react";
+import { supabase } from "../../integrations/supabase/client";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+import { useToast } from "../../hooks/use-toast";
 
 interface BoardHeaderProps {
   board: Board;
@@ -32,7 +32,7 @@ function getErrorMessage(err: unknown): string {
 }
 
 export function BoardHeader({ board, onDeleted }: BoardHeaderProps) {
-  const updateBoardTitle = useBoardsStore((s) => s.updateBoardTitle);
+  const updateBoardTitle = useBoardsStore((s: { updateBoardTitle: (id: string, title: string) => void }) => s.updateBoardTitle);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const { toast } = useToast();
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -44,10 +44,9 @@ export function BoardHeader({ board, onDeleted }: BoardHeaderProps) {
   const isSolicitacaoArte = board.id === "b_q1lk2c5be4" || board.isTemplate;
   
   // Calculate progress based on completed cards
-  const totalCards = Object.values(board.cardsByList).flat().length;
-  const completedCards = Object.values(board.cardsByList)
-    .flat()
-    .filter(card => card.dueDate && new Date(card.dueDate) < new Date()).length;
+  const allCards: Card[] = Object.values(board.cardsByList).reduce<Card[]>((acc, arr) => acc.concat(arr), [] as Card[]);
+  const totalCards = allCards.length;
+  const completedCards = allCards.filter((card: Card) => card.dueDate && new Date(card.dueDate) < new Date()).length;
   const progress = totalCards > 0 ? Math.round((completedCards / totalCards) * 100) : 0;
 
   // Load real board members from Supabase
@@ -88,11 +87,11 @@ export function BoardHeader({ board, onDeleted }: BoardHeaderProps) {
           .select('id, full_name, email, avatar_url')
           .order('full_name', { ascending: true });
         if (error) throw error;
-        const mapped = (data ?? []).map((p) => ({
-          id: p.id as string,
-          name: (p.full_name as string | null) ?? 'Usuário',
-          email: (p.email as string | null) ?? null,
-          avatar: (p.avatar_url as string | null) ?? null,
+        const mapped = (data ?? []).map((p: { id: string; full_name: string | null; email: string | null; avatar_url: string | null }) => ({
+          id: p.id,
+          name: p.full_name ?? 'Usuário',
+          email: p.email ?? null,
+          avatar: p.avatar_url ?? null,
         }));
         setAllUsers(mapped);
       } catch (err) {
@@ -113,9 +112,6 @@ export function BoardHeader({ board, onDeleted }: BoardHeaderProps) {
       {/* First row: Title, favorite, members, actions */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0 flex-1">
-          {board.icon && (
-            <span className="text-3xl leading-none">{board.icon}</span>
-          )}
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <h1 ref={titleRef} className="text-2xl font-bold tracking-tight">
@@ -124,7 +120,7 @@ export function BoardHeader({ board, onDeleted }: BoardHeaderProps) {
                 ) : (
                   <EditableText 
                     value={board.title} 
-                    onSubmit={(v) => updateBoardTitle(board.id, v)} 
+                    onSubmit={(v: string) => updateBoardTitle(board.id, v)} 
                   />
                 )}
               </h1>
@@ -132,11 +128,6 @@ export function BoardHeader({ board, onDeleted }: BoardHeaderProps) {
                 <Star size={16} />
               </Button>
             </div>
-            {board.description && (
-              <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                {board.description}
-              </p>
-            )}
           </div>
         </div>
 
@@ -186,7 +177,7 @@ export function BoardHeader({ board, onDeleted }: BoardHeaderProps) {
                 id="user-search"
                 placeholder="Nome ou e-mail..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
                 className="mt-1"
               />
             </div>

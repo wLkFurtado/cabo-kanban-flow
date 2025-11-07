@@ -12,6 +12,8 @@ import EscalaFDS from "./pages/EscalaFDS";
 import Contacts from "./pages/Contacts";
 import AdminContacts from "./pages/AdminContacts";
 import AgendaInstitucional from "./pages/AgendaInstitucional";
+import Roadmap from "./pages/Roadmap";
+import Melhorias from "./pages/Melhorias";
 import RootLayout from "./components/layout/RootLayout";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -19,7 +21,30 @@ import { ProtectedRoute } from "./components/layout/ProtectedRoute";
 import { AdminRoute } from "./components/layout/AdminRoute";
 
 // Create QueryClient outside component to prevent recreation
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  logger: {
+    log: (...args) => console.log(...args),
+    warn: (...args) => console.warn(...args),
+    error: (...args) => {
+      const first = args?.[0];
+      const msg = typeof first === "string" ? first : (first?.message ?? "");
+      // Suppress transient network resolution noise in dev preview
+      if (typeof msg === "string" && (msg.includes("Failed to fetch") || msg.includes("ERR_NAME_NOT_RESOLVED"))) {
+        return;
+      }
+      console.error(...args);
+    },
+  },
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+    mutations: {
+      retry: 1,
+    },
+  },
+});
 
 const App = () => (
   <BrowserRouter>
@@ -39,6 +64,8 @@ const App = () => (
             <Route path="/pautas" element={<Pautas />} />
             <Route path="/escala-fds" element={<EscalaFDS />} />
             <Route path="/agenda-institucional" element={<AgendaInstitucional />} />
+            <Route path="/melhorias" element={<Melhorias />} />
+            <Route path="/roadmap" element={<Roadmap />} />
             <Route
               path="/contatos"
               element={

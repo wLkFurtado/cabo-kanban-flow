@@ -6,6 +6,7 @@ import { useAdminRole } from './useAdminRole';
 import { useToast } from '../components/ui/use-toast';
 import { useBoardsStore } from '../state/boards/store';
 import { SupabaseClient } from '@supabase/supabase-js';
+import { postWebhook } from '../lib/webhook';
 
 // Cliente leve para operações fora do escopo do tipo Database
 const sb = supabase as SupabaseClient;
@@ -202,7 +203,7 @@ export function useBoards() {
   });
 
   const createBoardMutation = useMutation({
-    mutationFn: async (board: { title: string; description?: string; visibility?: 'private' | 'team' | 'public' }) => {
+    mutationFn: async (board: { title: string; description?: string; visibility?: 'private' | 'team' | 'public'; initialStages?: string[] }) => {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session?.user) throw new Error('User not authenticated');
@@ -237,26 +238,43 @@ export function useBoards() {
           console.warn('Aviso: exceção ao inserir membro do board (criador):', memberEx);
         }
 
-        // Create default lists
-        const defaultLists = [
-          { title: 'A Fazer', position: 0, color: '#ef4444' },
-          { title: 'Em Progresso', position: 1, color: '#f59e0b' },
-          { title: 'Concluído', position: 2, color: '#10b981' },
-        ];
+        // Create initial lists from provided stages or fallback to defaults
+        const cleanStages = (board.initialStages || [])
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0);
+
+        const palette = ['#ef4444','#f59e0b','#10b981','#3b82f6','#8b5cf6','#ec4899','#14b8a6','#f97316'];
+        const listsToCreate = (cleanStages.length > 0 ? cleanStages : ['A fazer','Fazendo','Concluído']).map((title, idx) => ({
+          title,
+          position: idx,
+          color: palette[idx % palette.length],
+        }));
 
         await Promise.all(
-          defaultLists.map(async (list: { title: string; position: number; color: string }) => {
+          listsToCreate.map(async (list: { title: string; position: number; color: string }) => {
             const listResult = await supabase
               .from('board_lists')
               .insert({ ...list, board_id: data.id });
-            
             if (listResult.error) {
               console.error('Erro ao criar lista:', listResult.error.message);
             }
           })
         );
 
-        return data;
+        // Normalize Supabase row to local Board type to avoid null/union mismatches
+        const normalized: Board = {
+          id: data.id,
+          title: data.title,
+          description: (data as BoardRowExtras).description ?? undefined,
+          visibility: (data.visibility as 'private' | 'team' | 'public') ?? 'private',
+          owner_id: data.owner_id,
+          created_at: data.created_at ?? new Date().toISOString(),
+          updated_at: data.updated_at ?? new Date().toISOString(),
+          cover_image_url: (data as BoardRowExtras).cover_image_url ?? undefined,
+          cover_color: (data as BoardRowExtras).cover_color ?? undefined,
+        };
+
+        return normalized;
 
       } catch (error) {
         console.error('Erro fatal ao criar board:', error);
@@ -392,10 +410,10 @@ export function useBoards() {
     },
   });
 
-  const createBoard = async (board: { title: string; description?: string; visibility?: 'private' | 'team' | 'public' }) => {
+  const createBoard = async (board: { title: string; description?: string; visibility?: 'private' | 'team' | 'public'; initialStages?: string[] }) => {
     return new Promise<Board>((resolve, reject) => {
       createBoardMutation.mutate(board, {
-        onSuccess: (data) => resolve(data),
+        onSuccess: (data) => resolve(data as Board),
         onError: (error) => reject(error)
       });
     });
@@ -640,6 +658,7 @@ export function useBoardDetails(boardId: string) {
     profiles: {
       full_name?: string | null;
       avatar_url?: string | null;
+      phone?: string | null;
     } | null;
   };
 
@@ -654,25 +673,55 @@ export function useBoardDetails(boardId: string) {
         .select(`
           card_id,
           user_id,
-          profiles:user_id (full_name, avatar_url)
+          profiles:user_id (full_name, avatar_url, phone)
         `)
         .in('card_id', cardIds);
 
       if (error) throw error;
 
-      const grouped: Record<string, { id: string; name: string; avatar?: string }[]> = {};
+      const grouped: Record<string, { id: string; name: string; avatar?: string; phone?: string | null }[]> = {};
       cardIds.forEach((id) => { grouped[id] = []; });
       const rows = (data || []) as CardMemberRow[];
       rows.forEach((row) => {
         const name = row.profiles?.full_name || 'Usuário';
         const avatar = row.profiles?.avatar_url || undefined;
-        const member = { id: row.user_id, name, avatar };
+        const phone = row.profiles?.phone ?? null;
+        const member = { id: row.user_id, name, avatar, phone };
         if (!grouped[row.card_id]) grouped[row.card_id] = [];
         grouped[row.card_id].push(member);
       });
       return grouped;
     },
   });
+
+  // Helper para montar snapshot completo de card para o webhook
+  const buildCardSnapshot = (cardLike: Partial<CardRow> | Partial<Card>) => {
+    const cardId = String(cardLike.id);
+    const listId = String(cardLike.list_id);
+    const list = (listsQuery.data || []).find((l) => String(l.id) === listId);
+    const labels = (cardLabelsQuery.data || {})[cardId] || [];
+    const members = (cardMembersQuery.data || {})[cardId] || [];
+    return {
+      boardId,
+      list: {
+        id: list?.id || listId,
+        title: list?.title || null,
+      },
+      card: {
+        id: cardId,
+        title: (cardLike as any).title ?? null,
+        description: (cardLike as any).description ?? null,
+        priority: (cardLike as any).priority ?? null,
+        due_date: (cardLike as any).due_date ?? null,
+        completed: Boolean((cardLike as any).completed ?? false),
+        position: (cardLike as any).position ?? null,
+        cover_color: (cardLike as any).cover_color ?? null,
+        cover_images: (cardLike as any).cover_images ?? null,
+      },
+      labels,
+      members,
+    };
+  };
 
   const addListMutation = useMutation({
     mutationFn: async (title: string) => {
@@ -728,6 +777,11 @@ export function useBoardDetails(boardId: string) {
       queryClient.invalidateQueries({ queryKey: ['board-cards', boardId] });
       if (card?.id) {
         await logActivity(card.id as string, 'card_created', 'criou este cartão');
+        // Webhook: criação de card
+        await postWebhook({
+          event: 'card_created',
+          ...buildCardSnapshot(card as CardRow),
+        });
       }
       toast({
         title: 'Card criado',
@@ -962,6 +1016,18 @@ export function useBoardDetails(boardId: string) {
         });
         // Atualizar imediatamente atividades do card movido
         queryClient.invalidateQueries({ queryKey: ['card-activities', data.cardId] });
+        // Webhook: movimentação de card
+        const movedCard = (cardsQuery.data || []).find(c => c.id === data.cardId) || { id: data.cardId, list_id: data.destinationListId, position: data.newPosition };
+        await postWebhook({
+          event: 'card_moved',
+          movement: {
+            from_list_id: data.sourceListId,
+            to_list_id: data.destinationListId,
+            to_position: data.newPosition,
+            to_list_title: destinationTitle,
+          },
+          ...buildCardSnapshot(movedCard as Partial<CardRow>),
+        });
       } catch (activityError) {
         console.warn('⚠️ Falha ao registrar atividade de movimentação:', activityError);
       }
@@ -978,17 +1044,28 @@ export function useBoardDetails(boardId: string) {
       if (!isOnline) {
         throw new Error('Sem conexão. Tente novamente quando estiver online.');
       }
+      // Obter snapshot antes da exclusão para enviar ao webhook
+      const { data: prevCard } = await supabase
+        .from('cards')
+        .select('*')
+        .eq('id', cardId)
+        .maybeSingle();
       const { error } = await supabase
         .from('cards')
         .delete()
         .eq('id', cardId);
 
       if (error) throw error;
-      return cardId;
+      return { cardId, prevCard };
     },
-    onSuccess: async (cardId) => {
+    onSuccess: async ({ cardId, prevCard }) => {
       queryClient.invalidateQueries({ queryKey: ['board-cards', boardId] });
       await logActivity(cardId as string, 'card_deleted', 'excluiu este cartão');
+      // Webhook: exclusão de card
+      await postWebhook({
+        event: 'card_deleted',
+        ...buildCardSnapshot((prevCard || { id: cardId, list_id: (cardsQuery.data || [])[0]?.list_id }) as Partial<CardRow>),
+      });
       toast({
         title: 'Card excluído',
         description: 'O card foi excluído com sucesso.',
@@ -1121,6 +1198,16 @@ export function useBoardDetails(boardId: string) {
         description: error.message,
         variant: 'destructive',
       });
+    },
+    onSettled: async (data, error, variables) => {
+      if (data && !error) {
+        // Webhook: atualização de card
+        await postWebhook({
+          event: 'card_updated',
+          updates: variables?.updates || {},
+          ...buildCardSnapshot(data as CardRow),
+        });
+      }
     },
   });
 

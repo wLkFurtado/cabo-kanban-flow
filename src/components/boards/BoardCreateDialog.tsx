@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
+import type { ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useBoards } from "@/hooks/useBoards";
-import { useToast } from "@/components/ui/use-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "../ui/dialog";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+import { useBoards } from "../../hooks/useBoards";
+import { useToast } from "../ui/use-toast";
 
 interface BoardCreateDialogProps {
   trigger: React.ReactNode;
@@ -45,7 +46,8 @@ export function BoardCreateDialog({ trigger, initialTitle = "", onCreated }: Boa
       const board = await createBoard({
         title: name,
         description: `Board criado com as etapas: ${cleanStages.join(", ")}`,
-        visibility: 'private'
+        visibility: 'private',
+        initialStages: cleanStages,
       });
 
       toast({
@@ -84,7 +86,7 @@ export function BoardCreateDialog({ trigger, initialTitle = "", onCreated }: Boa
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="board-title">Nome do board</Label>
-            <Input id="board-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex.: Planejamento de conteúdo" />
+            <Input id="board-title" value={title} onChange={(e: ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)} placeholder="Ex.: Planejamento de conteúdo" />
           </div>
 
           <div className="space-y-2">
@@ -95,7 +97,7 @@ export function BoardCreateDialog({ trigger, initialTitle = "", onCreated }: Boa
                   <Input
                     placeholder={`Etapa ${idx + 1}`}
                     value={stage}
-                    onChange={(e) => changeStage(idx, e.target.value)}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => changeStage(idx, e.target.value)}
                   />
                   <Button variant="outline" type="button" onClick={() => removeStage(idx)} aria-label="Remover etapa">
                     Remover

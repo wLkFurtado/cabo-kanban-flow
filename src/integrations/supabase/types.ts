@@ -509,6 +509,59 @@ export type Database = {
           },
         ]
       }
+      roadmap_suggestions: {
+        Row: {
+          id: string
+          title: string
+          description: string | null
+          user_id: string
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          title: string
+          description?: string | null
+          user_id: string
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          title?: string
+          description?: string | null
+          user_id?: string
+          created_at?: string | null
+        }
+        Relationships: []
+      }
+      roadmap_votes: {
+        Row: {
+          suggestion_id: string
+          user_id: string
+          created_at: string | null
+          vote: number
+        }
+        Insert: {
+          suggestion_id: string
+          user_id: string
+          created_at?: string | null
+          vote?: number
+        }
+        Update: {
+          suggestion_id?: string
+          user_id?: string
+          created_at?: string | null
+          vote?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roadmap_votes_suggestion_id_fkey"
+            columns: ["suggestion_id"]
+            isOneToOne: false
+            referencedRelation: "roadmap_suggestions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       n8n_chat_histories: {
         Row: {
           id: number

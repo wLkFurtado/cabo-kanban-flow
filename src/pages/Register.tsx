@@ -1,14 +1,16 @@
 import { useForm } from "react-hook-form";
+import type { ControllerRenderProps } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { useToast } from "@/components/ui/use-toast";
-import { useAuth } from "@/hooks/useAuth";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
+import { useToast } from "../components/ui/use-toast";
+import { useAuth } from "../hooks/useAuth";
 import { useNavigate, Link } from "react-router-dom";
 import { useEffect } from "react";
-import { Seo } from "@/components/seo/Seo";
+import { Seo } from "../components/seo/Seo";
 
 const schema = z
   .object({
@@ -27,6 +29,14 @@ const schema = z
 type FormValues = z.infer<typeof schema>;
 
 export default function Register() {
+  const CARGOS = [
+    "Filmmaker / Editor",
+    "Fotógrafo",
+    "Jornalista",
+    "Rede",
+    "Administrativo",
+    "Coordenador",
+  ] as const;
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { name: "", email: "", phone: "", role: "", password: "", confirmPassword: "" },
@@ -79,7 +89,7 @@ export default function Register() {
           <FormField
             control={form.control}
             name="name"
-            render={({ field }) => (
+            render={({ field }: { field: ControllerRenderProps<FormValues, "name"> }) => (
               <FormItem>
                 <FormLabel>Nome</FormLabel>
                 <FormControl>
@@ -92,7 +102,7 @@ export default function Register() {
           <FormField
             control={form.control}
             name="email"
-            render={({ field }) => (
+            render={({ field }: { field: ControllerRenderProps<FormValues, "email"> }) => (
               <FormItem>
                 <FormLabel>E-mail</FormLabel>
                 <FormControl>
@@ -105,12 +115,23 @@ export default function Register() {
           <FormField
             control={form.control}
             name="role"
-            render={({ field }) => (
+            render={({ field }: { field: ControllerRenderProps<FormValues, "role"> }) => (
               <FormItem>
                 <FormLabel>Cargo</FormLabel>
-                <FormControl>
-                  <Input placeholder="Ex.: Analista de Comunicação" {...field} />
-                </FormControl>
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione seu cargo" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {CARGOS.map((cargo) => (
+                      <SelectItem key={cargo} value={cargo}>
+                        {cargo}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
@@ -118,7 +139,7 @@ export default function Register() {
           <FormField
             control={form.control}
             name="phone"
-            render={({ field }) => (
+            render={({ field }: { field: ControllerRenderProps<FormValues, "phone"> }) => (
               <FormItem>
                 <FormLabel>Telefone</FormLabel>
                 <FormControl>
@@ -131,7 +152,7 @@ export default function Register() {
           <FormField
             control={form.control}
             name="password"
-            render={({ field }) => (
+            render={({ field }: { field: ControllerRenderProps<FormValues, "password"> }) => (
               <FormItem>
                 <FormLabel>Senha</FormLabel>
                 <FormControl>
@@ -144,7 +165,7 @@ export default function Register() {
           <FormField
             control={form.control}
             name="confirmPassword"
-            render={({ field }) => (
+            render={({ field }: { field: ControllerRenderProps<FormValues, "confirmPassword"> }) => (
               <FormItem>
                 <FormLabel>Confirmar senha</FormLabel>
                 <FormControl>

@@ -7,17 +7,18 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "../ui/sidebar";
-import { LayoutDashboard, Calendar, FileText, PenTool, Users } from "lucide-react";
+import { LayoutDashboard, Calendar, FileText, PenTool, Users, Milestone } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAdminRole } from "../../hooks/useAdminRole";
 const menuItems = [
   { title: "Boards", url: "/", icon: LayoutDashboard },
   { title: "Agenda", url: "/agenda", icon: Calendar },
-  { title: "Agenda Institucional", url: "/agenda-institucional", icon: Calendar },
   { title: "Pautas", url: "/pautas", icon: FileText },
   { title: "Escala FDS", url: "/escala-fds", icon: Calendar },
   { title: "Contatos", url: "/contatos", icon: Users },
+  { title: "Agenda Institucional", url: "/agenda-institucional", icon: Calendar },
   { title: "Gerador de texto", url: "/gerador-texto", icon: PenTool },
+  { title: "Sugestões de melhoria", url: "/melhorias", icon: Milestone },
 ];
 
 export function AppSidebar() {

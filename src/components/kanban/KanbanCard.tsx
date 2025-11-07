@@ -3,7 +3,8 @@ import { Draggable } from '@hello-pangea/dnd';
 import { Card, LabelColor } from '../../state/kanbanTypes';
 import { CardModal } from './CardModal';
 import { Calendar, MessageSquare, Tag } from 'lucide-react';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar';
+import { ImageViewerDialog } from './ImageViewerDialog';
 
 const coverColorClass: Record<LabelColor, string> = {
   green: 'bg-[hsl(var(--label-green))]',
@@ -28,8 +29,10 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
   onDeleteCard,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerSrc, setViewerSrc] = useState<string | null>(null);
 
-  const formatDueDate = (dueDate: string | null) => {
+  const formatDueDate = (dueDate: string | null | undefined) => {
     if (!dueDate) return null;
     const date = new Date(dueDate);
     const now = new Date();
@@ -55,7 +58,7 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
       .slice(0, 2);
   };
 
-  const dueDateInfo = formatDueDate(card.dueDate);
+  const dueDateInfo = formatDueDate(card.dueDate ?? null);
   const hasLabels = card.labels && card.labels.length > 0;
   const hasMembers = card.members && card.members.length > 0;
   const hasComments = card.comments && card.comments.length > 0;
@@ -87,11 +90,19 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
 
             {/* Cover Image */}
             {card.coverImages && card.coverImages.length > 0 && (
-              <div className="h-32 -m-3 mb-2 rounded-t-lg overflow-hidden">
-                <img 
-                  src={card.coverImages[0]} 
-                  alt="Card cover" 
-                  className="w-full h-full object-cover"
+              <div className="h-32 -m-3 mb-2 rounded-t-lg overflow-hidden bg-muted">
+                <img
+                  src={card.coverImages[0]}
+                  alt="Card cover"
+                  className="w-full h-full object-contain cursor-zoom-in"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const firstCover = card.coverImages && card.coverImages.length > 0 
+                      ? (card.coverImages[0] ?? null)
+                      : null;
+                    setViewerSrc(firstCover);
+                    setViewerOpen(true);
+                  }}
                 />
               </div>
             )}
@@ -186,6 +197,16 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
           </div>
         )}
       </Draggable>
+
+      {/* Image Viewer for cover image */}
+      <ImageViewerDialog
+        open={viewerOpen}
+        src={viewerSrc}
+        onOpenChange={(open) => {
+          setViewerOpen(open);
+          if (!open) setViewerSrc(null);
+        }}
+      />
 
       {isModalOpen && (
         <CardModal

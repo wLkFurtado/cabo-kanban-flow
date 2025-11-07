@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { useBoardsStore } from "@/state/boards/store";
-import { useToast } from "@/hooks/use-toast";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CustomFieldsManager } from "@/components/boards/CustomFieldsManager";
-import { supabase } from "@/integrations/supabase/client";
-import { Upload, X, Image } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Textarea } from "../ui/textarea";
+import { useBoardsStore } from "../../state/boards/store";
+import { useToast } from "../../components/ui/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import { CustomFieldsManager } from "./CustomFieldsManager";
+import { supabase } from "../../integrations/supabase/client";
+import { Upload, X, Image, Download } from "lucide-react";
 
 interface BoardDetailsDialogProps {
   boardId: string;
@@ -88,6 +88,28 @@ export function BoardDetailsDialog({ boardId, open, onOpenChange }: BoardDetails
     setCoverImageUrl("");
   };
 
+  const handleDownloadCover = async () => {
+    try {
+      if (!coverImageUrl) return;
+      const res = await fetch(coverImageUrl);
+      if (!res.ok) throw new Error("Falha ao baixar a imagem");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const fileFromUrl = coverImageUrl.split("/").pop()?.split("?")[0];
+      const filename = fileFromUrl || `board-cover-${boardId}.png`;
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Erro ao baixar a imagem:", error);
+      toast({ title: "Erro", description: "Não foi possível baixar a imagem.", variant: "destructive" });
+    }
+  };
+
   const onSave = () => {
     const trimmed = title.trim();
     if (!trimmed) return;
@@ -126,7 +148,7 @@ export function BoardDetailsDialog({ boardId, open, onOpenChange }: BoardDetails
                   placeholder="😀"
                   value={icon}
                   maxLength={2}
-                  onChange={(e) => setIcon(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setIcon(e.target.value)}
                 />
               </div>
               <div className="col-span-4">
@@ -135,8 +157,8 @@ export function BoardDetailsDialog({ boardId, open, onOpenChange }: BoardDetails
                   aria-label="Título do board"
                   placeholder="Nome do board"
                   value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && onSave()}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
+                  onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === "Enter" && onSave()}
                 />
               </div>
             </div>
@@ -147,7 +169,7 @@ export function BoardDetailsDialog({ boardId, open, onOpenChange }: BoardDetails
                 aria-label="Descrição do board"
                 placeholder="Sobre o que é este board?"
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)}
                 className="min-h-[100px]"
               />
             </div>
@@ -159,14 +181,14 @@ export function BoardDetailsDialog({ boardId, open, onOpenChange }: BoardDetails
                   aria-label="Cor do board"
                   type="color"
                   value={color || "#7c3aed"}
-                  onChange={(e) => setColor(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setColor(e.target.value)}
                   className="h-9 w-12 rounded-md border border-input bg-background p-1"
                 />
                 <Input
                   aria-label="Cor em texto"
                   placeholder="#7c3aed ou hsl(262, 83%, 58%)"
                   value={color}
-                  onChange={(e) => setColor(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setColor(e.target.value)}
                 />
               </div>
             </div>
@@ -184,6 +206,16 @@ export function BoardDetailsDialog({ boardId, open, onOpenChange }: BoardDetails
                         alt="Capa do board"
                         className="w-full h-32 object-cover rounded-md border"
                       />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleDownloadCover}
+                        className="absolute top-2 right-16"
+                        aria-label="Baixar imagem de capa"
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        Baixar
+                      </Button>
                       <Button
                         variant="destructive"
                         size="sm"

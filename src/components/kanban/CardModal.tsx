@@ -1,30 +1,32 @@
 import React, { useEffect, useState, useRef } from "react";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { cn } from "@/lib/utils";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "../ui/alert-dialog";
+import { Input } from "../ui/input";
+import { Textarea } from "../ui/textarea";
+import { Button } from "../ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { Badge } from "../ui/badge";
+import { ScrollArea } from "../ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { Checkbox } from "../ui/checkbox";
+import { cn } from "../../lib/utils";
 import { MessageSquare, Clock, User, Send, Calendar, Tag, Paperclip, ArrowRight, Plus, Image, CalendarDays, Users, Palette, Check } from "lucide-react";
 
-import { Card as TCard, Label as TLabel, LabelColor, Comment, Member } from "@/state/kanbanTypes";
+import { Card as TCard, Label as TLabel, LabelColor, Comment, Member } from "../../state/kanbanTypes";
 import { parseISO, format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useBoardsStore } from "@/state/boards/store";
-import { useBoardDetails } from "@/hooks/useBoards";
-import { useComments } from "@/hooks/useComments";
-import { useActivities } from "@/hooks/useActivities";
-import { supabase } from "@/integrations/supabase/client";
+import { useBoardsStore } from "../../state/boards/store";
+import { useBoardDetails } from "../../hooks/useBoards";
+import { useComments } from "../../hooks/useComments";
+import { useActivities } from "../../hooks/useActivities";
+import { supabase } from "../../integrations/supabase/client";
 import { SupabaseClient } from "@supabase/supabase-js";
 import { useQueryClient } from "@tanstack/react-query";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "../../hooks/use-toast";
 import { MemberSelect } from "./MemberSelect";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "../../hooks/useAuth";
+import { ImageViewerDialog } from "./ImageViewerDialog";
+import { postWebhook } from "../../lib/webhook";
 
 const labelColorClass: Record<LabelColor, string> = {
   green: "bg-[hsl(var(--label-green))] text-white",
@@ -58,6 +60,8 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
   const addActivity = useBoardsStore((s) => s.addActivity);
   const board = useBoardsStore((s) => s.boards[boardId]);
   const { toast } = useToast();
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerSrc, setViewerSrc] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const sb = supabase as SupabaseClient;
@@ -228,6 +232,18 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
 
     // Invalidate/refetch labels para refletir no board
     queryClient.invalidateQueries({ queryKey: ['card-labels', boardId] });
+
+    // Webhook: label adicionada ao card
+    try {
+      await postWebhook({
+        event: 'label_added',
+        boardId,
+        cardId: card.id,
+        label,
+      });
+    } catch (e) {
+      console.warn('[Webhook] erro ao enviar label_added:', e);
+    }
   };
 
   const removeLabel = async (id: string) => {
@@ -245,6 +261,18 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
 
     // Invalidate/refetch labels para refletir no board
     queryClient.invalidateQueries({ queryKey: ['card-labels', boardId] });
+
+    // Webhook: label removida do card
+    try {
+      await postWebhook({
+        event: 'label_removed',
+        boardId,
+        cardId: card.id,
+        labelId: id,
+      });
+    } catch (e) {
+      console.warn('[Webhook] erro ao enviar label_removed:', e);
+    }
   };
 
 
@@ -461,7 +489,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                                 <img
                                   src={image}
                                   alt={`Imagem ${index + 1}`}
-                                  className="w-full h-full object-cover"
+                                  className="w-full h-full object-contain bg-muted"
                                 />
                               </div>
                               <Button
@@ -638,7 +666,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                         <Input
                           placeholder="Nome da tag"
                           value={newTagName}
-                          onChange={(e) => setNewTagName(e.target.value)}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewTagName(e.target.value)}
                           className="flex-1"
                         />
                         <Select value={selectedTagColor} onValueChange={(value: LabelColor) => setSelectedTagColor(value)}>
@@ -688,7 +716,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                         <input
                           type="color"
                           value={isHexColor(selectedTagColor) ? selectedTagColor : '#000000'}
-                          onChange={(e) => setSelectedTagColor(e.target.value)}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSelectedTagColor(e.target.value)}
                           className="w-9 h-9 p-0 border rounded"
                           title="Escolher cor"
                         />
@@ -791,7 +819,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                     <label className="text-sm text-muted-foreground">Título *</label>
                     <Input
                       value={title}
-                      onChange={(e) => setTitle(e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
                       placeholder="Título do cartão"
                       className="text-lg font-medium"
                     />
@@ -802,7 +830,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                     <label className="text-sm text-muted-foreground">Descrição</label>
                     <Textarea
                       value={description}
-                      onChange={(e) => setDescription(e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)}
                       placeholder="Adicionar uma descrição mais detalhada..."
                       className="min-h-[120px] resize-none"
                     />
@@ -844,7 +872,11 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                                 <img
                                   src={image}
                                   alt={`Imagem ${index + 1}`}
-                                  className="w-full h-full object-cover"
+                                  className="w-full h-full object-contain bg-muted cursor-zoom-in"
+                                  onClick={() => {
+                                    setViewerSrc(image);
+                                    setViewerOpen(true);
+                                  }}
                                 />
                               </div>
                               <Button
@@ -868,6 +900,16 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                       )}
                     </div>
                   )}
+
+                  {/* Modal de visualização de imagem */}
+                  <ImageViewerDialog
+                    open={viewerOpen}
+                    src={viewerSrc}
+                    onOpenChange={(o) => {
+                      setViewerOpen(o);
+                      if (!o) setViewerSrc(null);
+                    }}
+                  />
 
                   {/* Cover color selection moved to dialog */}
 
@@ -895,7 +937,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                         <Input
                           placeholder="Nome da tag"
                           value={newTagName}
-                          onChange={(e) => setNewTagName(e.target.value)}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewTagName(e.target.value)}
                           className="flex-1"
                         />
                         <Select value={selectedTagColor} onValueChange={(value: LabelColor) => setSelectedTagColor(value)}>
@@ -915,7 +957,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                         <input
                           type="color"
                           value={isHexColor(selectedTagColor) ? selectedTagColor : '#000000'}
-                          onChange={(e) => setSelectedTagColor(e.target.value)}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSelectedTagColor(e.target.value)}
                           className="w-9 h-9 p-0 border rounded"
                           title="Escolher cor"
                         />
@@ -939,7 +981,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                         <CalendarDays className="h-4 w-4" />
                         Data de Vencimento
                       </h3>
-                      <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+                    <Input type="date" value={dueDate} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDueDate(e.target.value)} />
                     </div>
                   )}
 
@@ -1043,7 +1085,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                   <Textarea
                     placeholder="Escrever um comentário..."
                     value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNewComment(e.target.value)}
                     onKeyDown={handleCommentKeyDown}
                     className="min-h-[80px] resize-none text-sm"
                   />

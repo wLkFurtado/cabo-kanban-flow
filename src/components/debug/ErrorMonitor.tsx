@@ -12,6 +12,16 @@ export function ErrorMonitor() {
   const [errors, setErrors] = useState<ErrorLog[]>([]);
   const [isVisible, setIsVisible] = useState(false);
 
+  // Safe accessor for window properties to avoid TS index signature errors
+  const getWinProp = (key: string): unknown => {
+    try {
+      const w = window as unknown as Record<string, unknown>;
+      return w[key];
+    } catch {
+      return undefined;
+    }
+  };
+
   useEffect(() => {
     const errorLogs: ErrorLog[] = [];
 
@@ -82,9 +92,9 @@ export function ErrorMonitor() {
     // Verificar extensões do navegador
     const checkBrowserExtensions = () => {
       const extensionChecks = [
-        { name: 'Chrome Runtime', check: () => typeof (window as Record<string, unknown>).chrome !== 'undefined' && Boolean((window as Record<string, unknown>).chrome && (window as Record<string, unknown>).chrome as unknown) },
-        { name: 'React DevTools', check: () => Boolean((window as Record<string, unknown>).__REACT_DEVTOOLS_GLOBAL_HOOK__) },
-        { name: 'Redux DevTools', check: () => Boolean((window as Record<string, unknown>).__REDUX_DEVTOOLS_EXTENSION__) },
+        { name: 'Chrome Runtime', check: () => typeof getWinProp('chrome') !== 'undefined' && Boolean(getWinProp('chrome')) },
+        { name: 'React DevTools', check: () => Boolean(getWinProp('__REACT_DEVTOOLS_GLOBAL_HOOK__')) },
+        { name: 'Redux DevTools', check: () => Boolean(getWinProp('__REDUX_DEVTOOLS_EXTENSION__')) },
       ];
 
       extensionChecks.forEach(({ name, check }) => {

@@ -52,7 +52,7 @@ export const createCardsSlice: StateCreator<
       const listCards = Array.from(board.cardsByList[listId] || []);
       const newCard: Card = {
         id,
-        listId,
+        list_id: listId,
         title,
         description: "",
         position: listCards.length,
@@ -86,7 +86,7 @@ export const createCardsSlice: StateCreator<
       if (!located) return state;
       const { listId, index } = located;
       const existing = board.cardsByList[listId][index];
-      const { listId: _ignoreList, position: _ignorePos, ...rest } = patch as Partial<Card>;
+      const { list_id: _ignoreList, position: _ignorePos, ...rest } = patch as Partial<Card>;
       const updatedCard: Card = { ...existing, ...rest };
       const updatedList = board.cardsByList[listId].slice();
       updatedList[index] = updatedCard;
@@ -127,7 +127,7 @@ export const createCardsSlice: StateCreator<
         return { boards: { ...state.boards, [boardId]: updated } } as BoardsStore;
       }
       const [moved] = source.splice(fromIndex, 1);
-      const movedCard: Card = { ...moved, listId: toListId };
+      const movedCard: Card = { ...moved, list_id: toListId };
       destination.splice(toIndex, 0, movedCard);
       const updated: Board = {
         ...board,
