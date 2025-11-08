@@ -5,6 +5,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarRail,
   useSidebar,
 } from "../ui/sidebar";
 import { LayoutDashboard, Calendar, FileText, PenTool, Users, Milestone } from "lucide-react";
@@ -33,13 +34,13 @@ export function AppSidebar() {
     : menuItems.filter((item) => item.url !== "/contatos");
 
   return (
-    <Sidebar className={collapsed ? "w-14" : "w-64"} collapsible="icon" variant="sidebar">
+    <Sidebar collapsible="icon" variant="sidebar">
       <SidebarHeader className="border-b border-border h-16">
         <div className="flex items-center gap-2 px-4 h-full">
           <img
             src="https://ankliiywmcpncymdlvaa.supabase.co/storage/v1/object/sign/images/marca-horizontal-colorida.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV80YzhjY2FlYS1lYTVkLTRiMzYtOWJiZS03NmRkYmRkNjhlYTUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJpbWFnZXMvbWFyY2EtaG9yaXpvbnRhbC1jb2xvcmlkYS5wbmciLCJpYXQiOjE3NjA2NTMwMzcsImV4cCI6MTg4Njc5NzAzN30.z64jgDXzJIaXWUpdmL_lbDE69CPWXjbUVDaT8lW1p9k"
             alt="Coordenadoria de Comunicação"
-            className={collapsed ? "h-9 w-9 object-contain" : "h-14 object-contain"}
+            className={collapsed ? "h-9 w-9 object-contain relative z-[70]" : "h-14 object-contain relative z-[70]"}
             onError={(e) => {
               const img = e.currentTarget as HTMLImageElement;
               img.src = "/placeholder.svg";
@@ -71,6 +72,8 @@ export function AppSidebar() {
           ))}
         </SidebarMenu>
       </SidebarContent>
+      {/* Enable desktop toggling via rail */}
+      <SidebarRail />
     </Sidebar>
   );
 }
