@@ -1,5 +1,5 @@
 export const KANBAN_WEBHOOK_URL =
-  (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_KANBAN_WEBHOOK_URL) ||
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_KANBAN_WEBHOOK_URL) ||
   'https://webhooks.growave.com.br/webhook/Kanban';
 
 export async function postWebhook(payload: unknown, url: string = KANBAN_WEBHOOK_URL): Promise<void> {
@@ -29,3 +29,11 @@ export type WebhookLabel = {
   name: string;
   color: string;
 };
+declare global {
+  interface ImportMetaEnv {
+    readonly VITE_KANBAN_WEBHOOK_URL?: string;
+  }
+  interface ImportMeta {
+    readonly env: ImportMetaEnv;
+  }
+}

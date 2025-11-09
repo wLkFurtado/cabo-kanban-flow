@@ -1,13 +1,14 @@
 import { useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { useFdsStore, weekendKeyFromDate, WeekendTeam } from "@/state/fdsStore";
-import { RoleUserSelect } from "@/components/pautas/RoleUserSelect";
-import { RoleUsersMultiSelect } from "@/components/fds/RoleUsersMultiSelect";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Separator } from "../ui/separator";
+import { Textarea } from "../ui/textarea";
+import { Label } from "../ui/label";
+import { useFdsStore, weekendKeyFromDate, WeekendTeam, type FdsState } from "../../state/fdsStore";
+import { RoleUserSelect } from "../pautas/RoleUserSelect";
+import { RoleUsersMultiSelect } from "./RoleUsersMultiSelect";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useAdminRole } from "../../hooks/useAdminRole";
 
 interface WeekendTeamFormProps {
   weekendDate?: Date;
@@ -15,8 +16,10 @@ interface WeekendTeamFormProps {
 
 export function WeekendTeamForm({ weekendDate }: WeekendTeamFormProps) {
   const key = useMemo(() => (weekendDate ? weekendKeyFromDate(weekendDate) : undefined), [weekendDate]);
-  const team = useFdsStore((s) => (key ? s.getTeam(key) : undefined));
-  const updateRole = useFdsStore((s) => s.updateRole);
+  const team = useFdsStore((s: FdsState) => (key ? s.getTeam(key) : undefined));
+  const updateRole = useFdsStore((s: FdsState) => s.updateRole);
+  const { isAdmin, hasScope } = useAdminRole();
+  const canEdit = isAdmin || hasScope("escala_fds_admin");
 
   if (!weekendDate || !key) {
     return (
@@ -52,18 +55,26 @@ export function WeekendTeamForm({ weekendDate }: WeekendTeamFormProps) {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {!canEdit && (
+          <div className="text-sm text-muted-foreground">
+            Edição restrita a administradores da Escala FDS.
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <RoleUserSelect
             label="Chefe de Plantão"
             cargo="chefe"
+            cargoFilter={["chefe", "jornalista", "repórter"]}
             value={team?.chefe}
-            onChange={(id) => handleSingle("chefe", id || undefined)}
+            onChange={(id: string | undefined) => handleSingle("chefe", id || undefined)}
+            disabled={!canEdit}
           />
           <RoleUsersMultiSelect
             label="Jornalistas"
             cargoFilter={["jornalista", "repórter"]}
             selectedIds={team?.jornalistas || []}
-            onChange={(ids) => handleMulti("jornalistas", ids)}
+            onChange={(ids: string[]) => handleMulti("jornalistas", ids)}
+            disabled={!canEdit}
           />
         </div>
 
@@ -74,13 +85,15 @@ export function WeekendTeamForm({ weekendDate }: WeekendTeamFormProps) {
             label="Rede"
             cargo="rede"
             value={team?.rede}
-            onChange={(id) => handleSingle("rede", id || undefined)}
+            onChange={(id: string | undefined) => handleSingle("rede", id || undefined)}
+            disabled={!canEdit}
           />
           <RoleUserSelect
             label="Fotógrafo"
             cargo="fotografo"
             value={team?.fotografo}
-            onChange={(id) => handleSingle("fotografo", id || undefined)}
+            onChange={(id: string | undefined) => handleSingle("fotografo", id || undefined)}
+            disabled={!canEdit}
           />
         </div>
 
@@ -89,13 +102,15 @@ export function WeekendTeamForm({ weekendDate }: WeekendTeamFormProps) {
             label="Filmmaker"
             cargo="filmmaker"
             value={team?.filmmaker}
-            onChange={(id) => handleSingle("filmmaker", id || undefined)}
+            onChange={(id: string | undefined) => handleSingle("filmmaker", id || undefined)}
+            disabled={!canEdit}
           />
           <RoleUserSelect
             label="Edição"
             cargo="edicao"
             value={team?.edicao}
-            onChange={(id) => handleSingle("edicao", id || undefined)}
+            onChange={(id: string | undefined) => handleSingle("edicao", id || undefined)}
+            disabled={!canEdit}
           />
         </div>
 
@@ -104,13 +119,15 @@ export function WeekendTeamForm({ weekendDate }: WeekendTeamFormProps) {
             label="Designer"
             cargo="designer"
             value={team?.designer}
-            onChange={(id) => handleSingle("designer", id || undefined)}
+            onChange={(id: string | undefined) => handleSingle("designer", id || undefined)}
+            disabled={!canEdit}
           />
           <RoleUsersMultiSelect
             label="Tamoios"
-            cargoFilter={["tamoio", "apoio", "estagi"]}
+            cargoFilter={["tamoio", "apoio", "estagi", "rede"]}
             selectedIds={team?.tamoios || []}
-            onChange={(ids) => handleMulti("tamoios", ids)}
+            onChange={(ids: string[]) => handleMulti("tamoios", ids)}
+            disabled={!canEdit}
           />
         </div>
 
@@ -119,7 +136,8 @@ export function WeekendTeamForm({ weekendDate }: WeekendTeamFormProps) {
           <Textarea
             placeholder="Notas gerais para a equipe do final de semana"
             value={team?.notes || ""}
-            onChange={(e) => updateRole(weekendKey, "notes", e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => updateRole(weekendKey, "notes", e.target.value)}
+            disabled={!canEdit}
           />
         </div>
       </CardContent>

@@ -1,18 +1,18 @@
 import { useEffect, useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+import { Textarea } from "../ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { Calendar } from "../ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { CalendarIcon, Trash } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { cn } from "@/lib/utils";
-import { useEvents } from "@/hooks/useEvents";
-import type { AgendaEvent } from "@/hooks/useEvents";
+import { cn } from "../../lib/utils";
+import { useEvents } from "../../hooks/useEvents";
+import type { AgendaEvent } from "../../hooks/useEvents";
 
 interface EventModalProps {
   open: boolean;
@@ -131,9 +131,14 @@ export function EventModal({ open, onOpenChange, selectedDate, eventToEdit }: Ev
 
   const handleInputChange = (field: keyof EventFormData, value: string | Date) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    // Clear error when user starts typing
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: undefined }));
+    // Limpa erro ao digitar, removendo a chave do objeto
+    const key = field as string;
+    if (errors[key]) {
+      setErrors(prev => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
     }
   };
 
@@ -171,13 +176,13 @@ export function EventModal({ open, onOpenChange, selectedDate, eventToEdit }: Ev
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="nome">Nome do Evento *</Label>
-            <Input
-              id="nome"
-              value={formData.nome}
-              onChange={(e) => handleInputChange("nome", e.target.value)}
-              placeholder="Digite o nome do evento"
-              className={errors.nome ? "border-red-500" : ""}
-            />
+              <Input
+                id="nome"
+                value={formData.nome}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("nome", e.target.value)}
+                placeholder="Digite o nome do evento"
+                className={errors.nome ? "border-red-500" : ""}
+              />
             {errors.nome && (
               <p className="text-sm text-red-500">{errors.nome}</p>
             )}
@@ -187,7 +192,7 @@ export function EventModal({ open, onOpenChange, selectedDate, eventToEdit }: Ev
             <Label htmlFor="secretaria">Secretaria Responsável *</Label>
             <Select
               value={formData.secretaria}
-              onValueChange={(value) => handleInputChange("secretaria", value)}
+              onValueChange={(value: string) => handleInputChange("secretaria", value)}
             >
               <SelectTrigger className={errors.secretaria ? "border-red-500" : ""}>
                 <SelectValue placeholder="Selecione a secretaria" />
@@ -229,7 +234,7 @@ export function EventModal({ open, onOpenChange, selectedDate, eventToEdit }: Ev
                 <Calendar
                   mode="single"
                   selected={formData.data}
-                  onSelect={(date) => handleInputChange("data", date)}
+                  onSelect={(date?: Date) => date && handleInputChange("data", date)}
                   locale={ptBR}
                   initialFocus
                 />
@@ -247,7 +252,7 @@ export function EventModal({ open, onOpenChange, selectedDate, eventToEdit }: Ev
                 id="horaInicio"
                 type="time"
                 value={formData.horaInicio}
-                onChange={(e) => handleInputChange("horaInicio", e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("horaInicio", e.target.value)}
               />
             </div>
             <div className="space-y-2">
@@ -256,7 +261,7 @@ export function EventModal({ open, onOpenChange, selectedDate, eventToEdit }: Ev
                 id="horaFim"
                 type="time"
                 value={formData.horaFim}
-                onChange={(e) => handleInputChange("horaFim", e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("horaFim", e.target.value)}
               />
             </div>
           </div>
@@ -266,7 +271,7 @@ export function EventModal({ open, onOpenChange, selectedDate, eventToEdit }: Ev
             <Textarea
               id="descricao"
               value={formData.descricao}
-              onChange={(e) => handleInputChange("descricao", e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange("descricao", e.target.value)}
               placeholder="Descreva o evento..."
               rows={4}
               className={errors.descricao ? "border-red-500" : ""}

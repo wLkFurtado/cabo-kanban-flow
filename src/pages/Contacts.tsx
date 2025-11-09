@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { ChangeEvent } from "react";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
+import { Badge } from "../components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import {
   Table,
   TableBody,
@@ -11,7 +12,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "../components/ui/table";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,14 +23,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+} from "../components/ui/alert-dialog";
 import { Search, Users, Edit, Trash2, Plus, Mail, Phone, Briefcase } from "lucide-react";
-import { useProfiles, type Profile } from "@/hooks/useProfiles";
-import { EditContactDialog } from "@/components/admin/EditContactDialog";
-import { AddContactDialog } from "@/components/admin/AddContactDialog";
-import { useAdminRole } from "@/hooks/useAdminRole";
-import { getInitials } from "@/state/authStore";
-import { Seo } from "@/components/seo/Seo";
+import { useProfiles, type Profile } from "../hooks/useProfiles";
+import { EditContactDialog } from "../components/admin/EditContactDialog";
+import { AddContactDialog } from "../components/admin/AddContactDialog";
+import { useAdminRole } from "../hooks/useAdminRole";
+import { getInitials } from "../state/authStore";
+import { Seo } from "../components/seo/Seo";
+import { formatPhoneBR } from "../lib/utils";
 
 export default function Contacts() {
   const { profiles, loading, deleteProfile } = useProfiles();
@@ -39,7 +41,7 @@ export default function Contacts() {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const { isAdmin } = useAdminRole();
 
-  const filteredProfiles = profiles.filter(profile => {
+  const filteredProfiles = profiles.filter((profile: Profile) => {
     const searchLower = searchTerm.toLowerCase();
     return (
       profile.full_name?.toLowerCase().includes(searchLower) ||
@@ -132,7 +134,7 @@ export default function Contacts() {
               <Input
                 placeholder="Buscar por nome, email, telefone ou cargo..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
                 className="pl-10"
               />
             </div>
@@ -164,7 +166,7 @@ export default function Contacts() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredProfiles.map((profile) => (
+                    filteredProfiles.map((profile: Profile) => (
                       <TableRow key={profile.id}>
                         <TableCell>
                           <div className="flex items-center gap-3">
@@ -187,7 +189,7 @@ export default function Contacts() {
                         <TableCell>
                           <div className="text-sm">
                             {profile.phone && (
-                              <div>{profile.phone}</div>
+                              <div>{formatPhoneBR(profile.phone) || profile.phone}</div>
                             )}
                             {profile.display_name && profile.display_name !== profile.full_name && (
                               <div className="text-muted-foreground">

@@ -7,6 +7,7 @@ import type { BoardsStore } from "../../state/boards/types";
 import { BoardActions } from "./BoardActions";
 import { supabase } from "../../integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { AnimatedTooltip } from "../ui/animated-tooltip";
 
 interface BoardCardProps {
   board: Board;
@@ -48,7 +49,7 @@ export function BoardCard({ board }: BoardCardProps) {
       tabIndex={0}
       onClick={() => navigate(`/board/${board.id}`)}
       onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && navigate(`/board/${board.id}`)}
-      className="rounded-lg border bg-card hover:bg-muted/40 hover:shadow-md transition-colors transition-shadow cursor-pointer overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+      className="rounded-lg border bg-card hover:bg-muted/40 hover:shadow-md transition-colors cursor-pointer overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
       aria-label={`Abrir board ${board.title}`}
     >
       {/* Cover Section */}
@@ -94,17 +95,19 @@ export function BoardCard({ board }: BoardCardProps) {
           </div>
         </div>
         {members.length > 0 && (
-          <div className="mt-3 flex -space-x-2">
-            {members.slice(0, 5).map((m) => (
-              <Avatar key={m.id} className="border bg-muted h-7 w-7">
-                <AvatarImage src={m.avatar ?? undefined} alt={m.name} />
-                <AvatarFallback className="text-[11px]">
-                  {m.name ? m.name.charAt(0).toUpperCase() : 'U'}
-                </AvatarFallback>
-              </Avatar>
-            ))}
+          <div className="mt-3">
+            <AnimatedTooltip
+              className="flex -space-x-2"
+              imageClassName="h-7 w-7 border bg-muted"
+              items={members.slice(0, 5).map((m, idx) => ({
+                id: idx,
+                name: m.name,
+                designation: "Membro",
+                image: m.avatar ?? "/placeholder.svg",
+              }))}
+            />
             {members.length > 5 && (
-              <div className="ml-2 text-xs text-muted-foreground">+{members.length - 5}</div>
+              <div className="ml-2 text-xs text-muted-foreground inline-block align-middle">+{members.length - 5}</div>
             )}
           </div>
         )}

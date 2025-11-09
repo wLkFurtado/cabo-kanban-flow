@@ -143,7 +143,7 @@ export default function Register() {
               <FormItem>
                 <FormLabel>Telefone</FormLabel>
                 <FormControl>
-                  <Input placeholder="(22) 99999-9999" {...field} />
+                  <Input type="tel" placeholder="(22) 99999-9999" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>

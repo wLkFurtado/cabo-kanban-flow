@@ -63,7 +63,17 @@ export function BoardCreateDialog({ trigger, initialTitle = "", onCreated }: Boa
       setTitle("");
       setStages(["A fazer", "Fazendo", "Concluído"]);
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro ao criar o board. Tente novamente.";
+      // Melhorar a mensagem exibida ao usuário a partir do formato do Supabase
+      let errorMessage = "Ocorreu um erro ao criar o board. Tente novamente.";
+      if (error && typeof error === 'object') {
+        const errObj = error as { message?: string; details?: string; hint?: string; code?: string };
+        if (errObj.message) {
+          const extra = [errObj.details, errObj.hint].filter(Boolean).join(' — ');
+          errorMessage = extra ? `${errObj.message} (${extra})` : errObj.message;
+        }
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
       toast({
         title: "Erro ao criar board",
         description: errorMessage,

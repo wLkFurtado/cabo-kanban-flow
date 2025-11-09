@@ -1,20 +1,20 @@
 import { Outlet } from "react-router-dom";
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/layout/AppSidebar";
-import { MainHeader } from "@/components/layout/MainHeader";
+import { Sidebar } from "../ui/sidebar";
+import { AppSidebar } from "./AppSidebar";
+import { MainHeader } from "./MainHeader";
 
 export default function RootLayout() {
   return (
-    <SidebarProvider>
+    <Sidebar>
       <div className="min-h-screen flex w-full">
         <AppSidebar />
-        <SidebarInset>
+        <div className="flex-1">
           <MainHeader />
           <main className="p-4 md:p-6">
             <Outlet />
           </main>
-        </SidebarInset>
+        </div>
       </div>
-    </SidebarProvider>
+    </Sidebar>
   );
 }

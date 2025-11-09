@@ -25,7 +25,7 @@ export default function Melhorias() {
   const queryClient = useQueryClient();
   const { isAdmin } = useAdminRole();
   // Relaxar os genéricos do cliente Supabase para evitar instância de tipos profunda
-  const sb = supabase as unknown as SupabaseClient<any, any, any>;
+  const sb = supabase as unknown as SupabaseClient<Database>;
 
   type Suggestion = {
     id: string;
@@ -181,7 +181,6 @@ export default function Melhorias() {
       const raw = err as { message?: string } | undefined;
       const msg = raw?.message || (err instanceof Error ? err.message : "Falha desconhecida");
       toast({ title: "Erro ao votar", description: msg, variant: "destructive" });
-      // eslint-disable-next-line no-console
       console.error("Vote error:", err);
     },
   });

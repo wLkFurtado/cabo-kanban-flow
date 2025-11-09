@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import type { Tables, TablesUpdate, TablesInsert } from '@/integrations/supabase/types';
-import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { supabase } from '../integrations/supabase/client';
+import { useToast } from './use-toast';
+import type { Tables, TablesUpdate, TablesInsert } from '../integrations/supabase/types';
+import { useOnlineStatus } from './useOnlineStatus';
 
 export type Profile = Tables<'profiles'>;
 export type ProfileInsert = TablesInsert<'profiles'>;
@@ -200,7 +200,7 @@ export function useProfiles() {
       });
 
       let profileCreated = false;
-      let profileResult = null;
+      let profileResult: Profile | null = null;
 
       if (!loginError) {
         // Se login funcionou, criar perfil
@@ -221,7 +221,7 @@ export function useProfiles() {
 
         if (!error) {
           profileCreated = true;
-          profileResult = data;
+          profileResult = data as Profile;
         }
 
         // Fazer logout após criar o perfil
@@ -242,19 +242,19 @@ export function useProfiles() {
           avatar_url: userData.avatar_url,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
-        };
+        } as Profile;
       }
 
       // Update local state with created profile
-      setProfiles(prev => [profileResult, ...prev]);
+      setProfiles(prev => [profileResult!, ...prev]);
       
       const statusMessage = profileCreated 
         ? "Usuário criado com sucesso!" 
         : "Usuário criado! O perfil será sincronizado no primeiro login.";
       
       const detailMessage = profileCreated
-        ? `${profileResult.full_name} foi adicionado ao sistema. Senha: ${password}`
-        : `${profileResult.full_name} foi criado. Email precisa ser confirmado. Senha: ${password}`;
+        ? `${profileResult?.full_name ?? ''} foi adicionado ao sistema. Senha: ${password}`
+        : `${profileResult?.full_name ?? ''} foi criado. Email precisa ser confirmado. Senha: ${password}`;
 
       toast({
         title: statusMessage,
@@ -280,10 +280,12 @@ export function useProfiles() {
         toast({ title: 'Sem conexão', description: 'Tente novamente quando estiver online.' });
         return { success: false, error: new Error('Offline') } as { success: false; error: unknown };
       }
-      const { error } = await supabase
+      // Solicita retorno do registro excluído para confirmar que a operação ocorreu
+      const { data, error } = await supabase
         .from('profiles')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .select('id');
 
       if (error) {
         console.error('Error deleting profile:', error);
@@ -293,6 +295,17 @@ export function useProfiles() {
           variant: "destructive",
         });
         return { success: false, error };
+      }
+
+      // Se não houve erro mas também não houve registros retornados,
+      // muito provavelmente a operação foi bloqueada por RLS/permissão
+      if (!data || data.length === 0) {
+        toast({
+          title: 'Sem permissão',
+          description: 'Você precisa ser admin ou o dono do perfil para excluir.',
+          variant: 'destructive',
+        });
+        return { success: false, error: new Error('Permission denied or no rows deleted') } as { success: false; error: unknown };
       }
 
       // Update local state

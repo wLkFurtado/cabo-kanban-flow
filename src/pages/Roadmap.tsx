@@ -38,7 +38,7 @@ export default function Roadmap({ allowSubmit = false, allowVoting = false }: Ro
   const { toast } = useToast();
   const queryClient = useQueryClient();
   // Cast Supabase client to a relaxed generic to avoid deep type instantiation issues
-  const sb = supabase as unknown as SupabaseClient<any, any, any>;
+  const sb = supabase as unknown as SupabaseClient<Database>;
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -223,7 +223,6 @@ export default function Roadmap({ allowSubmit = false, allowVoting = false }: Ro
       const msg = raw?.message || (err instanceof Error ? err.message : "Falha desconhecida");
       toast({ title: "Erro ao votar", description: msg, variant: "destructive" });
       // Log para inspeção de erros não padronizados
-      // eslint-disable-next-line no-console
       console.error("Vote error:", err);
     },
   });

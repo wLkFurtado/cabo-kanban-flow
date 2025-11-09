@@ -1,12 +1,15 @@
 import { useEffect, useState } from "react";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useProfiles, type Profile } from "@/hooks/useProfiles";
-import { getInitials } from "@/state/authStore";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { useProfiles, type Profile } from "../../hooks/useProfiles";
+import { useAdminRole } from "../../hooks/useAdminRole";
+import { usePermissions } from "../../hooks/usePermissions";
+import { Checkbox } from "../ui/checkbox";
+import { getInitials } from "../../state/authStore";
 
 interface EditContactDialogProps {
   open: boolean;
@@ -16,6 +19,8 @@ interface EditContactDialogProps {
 
 export function EditContactDialog({ open, onOpenChange, contact }: EditContactDialogProps) {
   const { updateProfile } = useProfiles();
+  const { isAdmin } = useAdminRole();
+  const { role, scopes, loading: permLoading, updateScopes } = usePermissions(contact?.id || "");
   const [formData, setFormData] = useState({
     full_name: "",
     email: "",
@@ -34,12 +39,12 @@ export function EditContactDialog({ open, onOpenChange, contact }: EditContactDi
         email: contact.email || "",
         phone: contact.phone || "",
         cargo: contact.cargo || "",
-        role: contact.role || "",
+        role: contact.role || role || "",
         display_name: contact.display_name || "",
         avatar_url: contact.avatar_url || "",
       });
     }
-  }, [contact]);
+  }, [contact, role]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,7 +93,7 @@ export function EditContactDialog({ open, onOpenChange, contact }: EditContactDi
               <Input
                 id="avatar_url"
                 value={formData.avatar_url}
-                onChange={(e) => handleInputChange("avatar_url", e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("avatar_url", e.target.value)}
                 placeholder="https://exemplo.com/avatar.jpg"
               />
             </div>
@@ -100,7 +105,7 @@ export function EditContactDialog({ open, onOpenChange, contact }: EditContactDi
               <Input
                 id="full_name"
                 value={formData.full_name}
-                onChange={(e) => handleInputChange("full_name", e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("full_name", e.target.value)}
                 placeholder="Nome completo"
               />
             </div>
@@ -109,7 +114,7 @@ export function EditContactDialog({ open, onOpenChange, contact }: EditContactDi
               <Input
                 id="display_name"
                 value={formData.display_name}
-                onChange={(e) => handleInputChange("display_name", e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("display_name", e.target.value)}
                 placeholder="Nome de exibição"
               />
             </div>
@@ -121,7 +126,7 @@ export function EditContactDialog({ open, onOpenChange, contact }: EditContactDi
               id="email"
               type="email"
               value={formData.email}
-              onChange={(e) => handleInputChange("email", e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("email", e.target.value)}
               placeholder="email@exemplo.com"
             />
           </div>
@@ -132,7 +137,7 @@ export function EditContactDialog({ open, onOpenChange, contact }: EditContactDi
               <Input
                 id="phone"
                 value={formData.phone}
-                onChange={(e) => handleInputChange("phone", e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("phone", e.target.value)}
                 placeholder="(11) 99999-9999"
               />
             </div>
@@ -141,7 +146,7 @@ export function EditContactDialog({ open, onOpenChange, contact }: EditContactDi
               <Input
                 id="cargo"
                 value={formData.cargo}
-                onChange={(e) => handleInputChange("cargo", e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("cargo", e.target.value)}
                 placeholder="Cargo/Função"
               />
             </div>
@@ -149,7 +154,7 @@ export function EditContactDialog({ open, onOpenChange, contact }: EditContactDi
 
           <div>
             <Label htmlFor="role">Função no Sistema</Label>
-            <Select value={formData.role} onValueChange={(value) => handleInputChange("role", value)}>
+            <Select value={formData.role} onValueChange={(value: string) => handleInputChange("role", value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione a função" />
               </SelectTrigger>
@@ -160,6 +165,45 @@ export function EditContactDialog({ open, onOpenChange, contact }: EditContactDi
               </SelectContent>
             </Select>
           </div>
+
+          {isAdmin && contact && (
+            <div className="space-y-2 border rounded-md p-3">
+              <Label>Permissões (Escopos)</Label>
+              <p className="text-xs text-muted-foreground">Controle de acesso granular além da função.</p>
+              <div className="flex flex-col gap-2">
+                <label className="flex items-center gap-2">
+                  <Checkbox
+                    checked={Array.isArray(scopes) && scopes.includes('pautas_admin')}
+                    onCheckedChange={(checked: boolean | 'indeterminate') => {
+                      const current = Array.isArray(scopes) ? scopes : [];
+                      const isOn = checked === true;
+                      const next = isOn
+                        ? Array.from(new Set([...current, 'pautas_admin']))
+                        : current.filter(s => s !== 'pautas_admin');
+                      updateScopes(contact.id, next);
+                    }}
+                    disabled={permLoading}
+                  />
+                  <span className="text-sm">pautas_admin</span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <Checkbox
+                    checked={Array.isArray(scopes) && scopes.includes('escala_fds_admin')}
+                    onCheckedChange={(checked: boolean | 'indeterminate') => {
+                      const current = Array.isArray(scopes) ? scopes : [];
+                      const isOn = checked === true;
+                      const next = isOn
+                        ? Array.from(new Set([...current, 'escala_fds_admin']))
+                        : current.filter(s => s !== 'escala_fds_admin');
+                      updateScopes(contact.id, next);
+                    }}
+                    disabled={permLoading}
+                  />
+                  <span className="text-sm">escala_fds_admin</span>
+                </label>
+              </div>
+            </div>
+          )}
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

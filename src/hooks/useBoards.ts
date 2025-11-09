@@ -208,6 +208,53 @@ export function useBoards() {
       
       if (!session?.user) throw new Error('User not authenticated');
 
+      // Ensure the authenticated user has a corresponding row in public.profiles
+      // This avoids foreign key violations when inserting boards and memberships.
+      try {
+        const { data: existingProfile, error: profileFetchError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', session.user.id)
+          .maybeSingle();
+
+        if (profileFetchError) {
+          console.warn('[Boards] Profile fetch error before board creation:', profileFetchError);
+        }
+
+        if (!existingProfile) {
+          const md = session.user.user_metadata || {};
+          const getStr = (k: string) => {
+            const v = (md as Record<string, unknown>)[k];
+            return typeof v === 'string' ? v : undefined;
+          };
+
+          const nameFromGivenFamily = [getStr('given_name') ?? getStr('first_name'), getStr('family_name') ?? getStr('last_name')]
+            .filter(Boolean)
+            .join(' ')
+            .trim();
+          const fullName = getStr('full_name') || getStr('name') || nameFromGivenFamily || (session.user.email ? String(session.user.email).split('@')[0] : undefined);
+
+          const { error: profileInsertError } = await supabase
+            .from('profiles')
+            .upsert({
+              id: session.user.id,
+              email: session.user.email ?? null,
+              full_name: fullName ?? null,
+              cargo: getStr('cargo') ?? null,
+              role: (getStr('role') ?? 'user') as string,
+              avatar_url: getStr('avatar_url') ?? null,
+              display_name: getStr('display_name') ?? fullName ?? null,
+            })
+            .select();
+
+          if (profileInsertError) {
+            console.warn('[Boards] Profile upsert error before board creation:', profileInsertError);
+          }
+        }
+      } catch (e) {
+        console.warn('[Boards] Exception ensuring profile before board creation:', e);
+      }
+
       const boardData = {
         ...board,
         owner_id: session.user.id,
@@ -221,16 +268,47 @@ export function useBoards() {
           .select()
           .single();
 
-        if (error) {
-          console.error('Erro ao criar board:', error.message);
-          throw error;
+        let createdBoard = data as (Board & BoardRowExtras) | null;
+        let usedRpcFallback = false;
+        if (error || !createdBoard) {
+          // Fallback via RPC em caso de RLS/FK issues
+          console.warn('Tentando fallback RPC create_board_safe devido a erro no insert direto:', error);
+          // Chamada RPC com tipagem relaxada para evitar 'never' quando a função não está nos tipos gerados
+          const rpcFnName = 'create_board_safe';
+          const rpcParams = {
+            board_title: boardData.title,
+            board_description: board.description || '',
+            board_visibility: boardData.visibility,
+            board_owner_id: session.user.id,
+          } as Record<string, unknown>;
+          const rpcRes = await (supabase.rpc as unknown as (fn: string, params: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string; details?: string; hint?: string } | null }>) (rpcFnName, rpcParams);
+          if (rpcRes.error || !rpcRes.data) {
+            console.error('Falha no RPC create_board_safe:', rpcRes.error);
+            const e = rpcRes.error || error;
+            const details = e ? [e.details, e.hint].filter(Boolean).join(' — ') : '';
+            throw new Error(e ? (details ? `${e.message} (${details})` : e.message) : 'Falha ao criar board');
+          }
+          // RPC retorna uma linha
+          const r = Array.isArray(rpcRes.data) ? rpcRes.data[0] : rpcRes.data;
+          createdBoard = {
+            id: r.id,
+            title: r.title,
+            description: r.description,
+            visibility: r.visibility,
+            owner_id: r.owner_id,
+            created_at: r.created_at,
+            updated_at: r.updated_at,
+            cover_image_url: null,
+            cover_color: null,
+          } as unknown as Board & BoardRowExtras;
+          usedRpcFallback = true;
         }
 
         // Garantir que o criador esteja na lista de membros do board para evitar bloqueios de RLS
         try {
           const { error: memberError } = await supabase
             .from('board_members')
-            .insert({ board_id: data.id, user_id: session.user.id });
+            .insert({ board_id: createdBoard!.id, user_id: session.user.id });
           if (memberError) {
             console.warn('Aviso: falha ao inserir membro do board (criador):', memberError.message);
           }
@@ -238,7 +316,7 @@ export function useBoards() {
           console.warn('Aviso: exceção ao inserir membro do board (criador):', memberEx);
         }
 
-        // Create initial lists from provided stages or fallback to defaults
+        // Create initial lists from provided stages ou ajustar listas do fallback RPC
         const cleanStages = (board.initialStages || [])
           .map((s) => s.trim())
           .filter((s) => s.length > 0);
@@ -250,28 +328,37 @@ export function useBoards() {
           color: palette[idx % palette.length],
         }));
 
+        if (usedRpcFallback && cleanStages.length > 0) {
+          // O RPC já criou listas padrão; substituí-las pelas desejadas
+          try {
+            await supabase.from('board_lists').delete().eq('board_id', createdBoard!.id);
+          } catch (delErr) {
+            console.warn('Falha ao remover listas padrão após RPC:', delErr);
+          }
+        }
+
         await Promise.all(
           listsToCreate.map(async (list: { title: string; position: number; color: string }) => {
             const listResult = await supabase
               .from('board_lists')
-              .insert({ ...list, board_id: data.id });
+              .insert({ ...list, board_id: createdBoard!.id });
             if (listResult.error) {
-              console.error('Erro ao criar lista:', listResult.error.message);
+              console.error('Erro ao criar lista:', listResult.error);
             }
           })
         );
 
         // Normalize Supabase row to local Board type to avoid null/union mismatches
         const normalized: Board = {
-          id: data.id,
-          title: data.title,
-          description: (data as BoardRowExtras).description ?? undefined,
-          visibility: (data.visibility as 'private' | 'team' | 'public') ?? 'private',
-          owner_id: data.owner_id,
-          created_at: data.created_at ?? new Date().toISOString(),
-          updated_at: data.updated_at ?? new Date().toISOString(),
-          cover_image_url: (data as BoardRowExtras).cover_image_url ?? undefined,
-          cover_color: (data as BoardRowExtras).cover_color ?? undefined,
+          id: createdBoard!.id,
+          title: createdBoard!.title,
+          description: (createdBoard as BoardRowExtras).description ?? undefined,
+          visibility: (createdBoard!.visibility as 'private' | 'team' | 'public') ?? 'private',
+          owner_id: createdBoard!.owner_id,
+          created_at: createdBoard!.created_at ?? new Date().toISOString(),
+          updated_at: createdBoard!.updated_at ?? new Date().toISOString(),
+          cover_image_url: (createdBoard as BoardRowExtras).cover_image_url ?? undefined,
+          cover_color: (createdBoard as BoardRowExtras).cover_color ?? undefined,
         };
 
         return normalized;
@@ -701,6 +788,10 @@ export function useBoardDetails(boardId: string) {
     const list = (listsQuery.data || []).find((l) => String(l.id) === listId);
     const labels = (cardLabelsQuery.data || {})[cardId] || [];
     const members = (cardMembersQuery.data || {})[cardId] || [];
+
+    // Usa interseção de tipos para acessar campos comuns sem recorrer a `any`
+    const c = cardLike as Partial<CardRow & Card>;
+
     return {
       boardId,
       list: {
@@ -709,14 +800,14 @@ export function useBoardDetails(boardId: string) {
       },
       card: {
         id: cardId,
-        title: (cardLike as any).title ?? null,
-        description: (cardLike as any).description ?? null,
-        priority: (cardLike as any).priority ?? null,
-        due_date: (cardLike as any).due_date ?? null,
-        completed: Boolean((cardLike as any).completed ?? false),
-        position: (cardLike as any).position ?? null,
-        cover_color: (cardLike as any).cover_color ?? null,
-        cover_images: (cardLike as any).cover_images ?? null,
+        title: c.title ?? null,
+        description: c.description ?? null,
+        priority: c.priority ?? null,
+        due_date: c.due_date ?? null,
+        completed: Boolean(c.completed ?? false),
+        position: c.position ?? null,
+        cover_color: c.cover_color ?? null,
+        cover_images: c.cover_images ?? null,
       },
       labels,
       members,

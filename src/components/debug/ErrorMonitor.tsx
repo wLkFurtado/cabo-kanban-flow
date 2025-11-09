@@ -182,14 +182,14 @@ export function ErrorMonitor() {
                 <span className="text-gray-500">{error.timestamp}</span>
               </div>
               <div className="text-white">{error.message}</div>
-              {error.details && (
+              {error.details != null ? (
                 <details className="text-gray-400 mt-1">
                   <summary className="cursor-pointer">Detalhes</summary>
                   <pre className="mt-1 text-xs overflow-auto">
-                    {JSON.stringify(error.details, null, 2)}
+                    {JSON.stringify(error.details as unknown, null, 2)}
                   </pre>
                 </details>
-              )}
+              ) : null}
             </div>
           ))}
         </div>

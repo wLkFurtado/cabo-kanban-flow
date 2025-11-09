@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import type { TablesInsert } from '@/integrations/supabase/types';
+import { supabase } from '../integrations/supabase/client';
+import { useToast } from './use-toast';
+import type { TablesInsert } from '../integrations/supabase/types';
 
 export interface UserData {
   full_name?: string;
@@ -69,7 +69,7 @@ export function useAuth(): AuthState & AuthActions {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      (event: string, session: Session | null) => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -134,7 +134,7 @@ export function useAuth(): AuthState & AuthActions {
         // Check existing profile in DB
         const { data: profile, error: profileFetchError } = await supabase
           .from('profiles')
-          .select('id, email, full_name, cargo, role, avatar_url')
+          .select('id, email, full_name, cargo, role, avatar_url, phone, display_name')
           .eq('id', user.id)
           .maybeSingle();
 
@@ -150,8 +150,23 @@ export function useAuth(): AuthState & AuthActions {
           if (!nextAvatar && profile.avatar_url) nextAvatar = profile.avatar_url;
         }
 
+        // Phone resolution
+        let nextPhone: string | undefined = (getStr('phone')?.trim()) ? getStr('phone') : undefined;
+        // Display name resolution
+        let nextDisplayName: string | undefined = (getStr('display_name')?.trim()) ? getStr('display_name') : (nextFullName || undefined);
+
+        // Prefer DB values if present
+        if (profile) {
+          if (!nextFullName && profile.full_name) nextFullName = profile.full_name;
+          if (!nextCargo && profile.cargo) nextCargo = profile.cargo;
+          if (!nextCargo && profile.role && profile.role !== 'user') nextCargo = profile.role;
+          if (!nextAvatar && profile.avatar_url) nextAvatar = profile.avatar_url;
+          if (!nextPhone && profile.phone) nextPhone = profile.phone;
+          if (!nextDisplayName && profile.display_name) nextDisplayName = profile.display_name;
+        }
+
         // Upsert profile if missing or incomplete (only patch missing fields)
-        const needsProfileUpdate = !profile || !profile.full_name || !profile.cargo || !profile.avatar_url;
+        const needsProfileUpdate = !profile || !profile.full_name || !profile.cargo || !profile.avatar_url || !profile?.phone || !profile?.display_name;
         if (needsProfileUpdate) {
           const patch: TablesInsert<'profiles'> = {
             id: user.id,
@@ -159,6 +174,8 @@ export function useAuth(): AuthState & AuthActions {
             ...( (!profile || !profile.full_name) ? { full_name: nextFullName ?? null } : {} ),
             ...( (!profile || !profile.cargo) ? { cargo: nextCargo ?? null } : {} ),
             ...( (!profile || !profile.avatar_url) ? { avatar_url: nextAvatar ?? null } : {} ),
+            ...( (!profile || !profile.phone) ? { phone: nextPhone ?? null } : {} ),
+            ...( (!profile || !profile.display_name) ? { display_name: nextDisplayName ?? nextFullName ?? null } : {} ),
           };
 
           const { error: upsertError } = await supabase
@@ -171,12 +188,14 @@ export function useAuth(): AuthState & AuthActions {
         }
 
         // Update auth metadata if missing
-        const needsMetadataUpdate = !(md.full_name) || !(md.cargo || md.role);
+        const needsMetadataUpdate = !(md.full_name) || !(md.cargo || md.role) || !(md.phone) || !(md.display_name);
         if (needsMetadataUpdate) {
           const { error: updateUserError } = await supabase.auth.updateUser({
             data: {
               full_name: nextFullName,
               cargo: nextCargo,
+              phone: nextPhone,
+              display_name: nextDisplayName,
             },
           });
           if (updateUserError) {

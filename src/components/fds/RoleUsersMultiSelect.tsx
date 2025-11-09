@@ -14,9 +14,10 @@ interface RoleUsersMultiSelectProps {
   cargoFilter?: string | string[];
   selectedIds: string[];
   onChange: (ids: string[]) => void;
+  disabled?: boolean;
 }
 
-export function RoleUsersMultiSelect({ label, cargoFilter, selectedIds, onChange }: RoleUsersMultiSelectProps) {
+export function RoleUsersMultiSelect({ label, cargoFilter, selectedIds, onChange, disabled }: RoleUsersMultiSelectProps) {
   const { profiles } = useProfiles();
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
@@ -35,12 +36,14 @@ export function RoleUsersMultiSelect({ label, cargoFilter, selectedIds, onChange
   }, [profiles, search, cargoFilter, selectedIds]);
 
   const addId = (id: string) => {
+    if (disabled) return;
     onChange([...selectedIds, id]);
     setSearch("");
     setOpen(false);
   };
 
   const removeId = (id: string) => {
+    if (disabled) return;
     onChange(selectedIds.filter((x: string) => x !== id));
   };
 
@@ -59,7 +62,7 @@ export function RoleUsersMultiSelect({ label, cargoFilter, selectedIds, onChange
                   <AvatarFallback className="text-xs">{getInitials(name)}</AvatarFallback>
                 </Avatar>
                 <span className="text-xs">{name}</span>
-                <Button variant="ghost" size="sm" className="h-4 w-4 p-0" onClick={() => removeId(id)}>
+                <Button variant="ghost" size="sm" className="h-4 w-4 p-0" onClick={() => removeId(id)} disabled={disabled}>
                   <X className="h-3 w-3" />
                 </Button>
               </Badge>
@@ -68,9 +71,9 @@ export function RoleUsersMultiSelect({ label, cargoFilter, selectedIds, onChange
         </div>
       )}
 
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={disabled ? false : open} onOpenChange={(o) => !disabled && setOpen(o)}>
         <PopoverTrigger asChild>
-          <Button variant="outline" size="sm" className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="flex items-center gap-2" disabled={disabled}>
             <UserPlus className="h-4 w-4" /> Adicionar
           </Button>
         </PopoverTrigger>
@@ -78,14 +81,14 @@ export function RoleUsersMultiSelect({ label, cargoFilter, selectedIds, onChange
           <div className="space-y-3">
             <div>
               <Label htmlFor={`${label}-search`}>Buscar</Label>
-              <Input id={`${label}-search`} value={search} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)} placeholder="Nome, email..." className="mt-1" />
+              <Input id={`${label}-search`} value={search} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)} placeholder="Nome, email..." className="mt-1" disabled={disabled} />
             </div>
             <div className="max-h-48 overflow-y-auto space-y-1">
               {candidates.length === 0 ? (
                 <div className="text-sm text-muted-foreground text-center py-4">Nenhum usuário encontrado</div>
               ) : (
                 candidates.map((p: Profile) => (
-                  <Button key={p.id} variant="ghost" className="w-full justify-start gap-3 h-auto p-3" onClick={() => addId(p.id)}>
+                  <Button key={p.id} variant="ghost" className="w-full justify-start gap-3 h-auto p-3" onClick={() => addId(p.id)} disabled={disabled}>
                     <Avatar className="h-8 w-8">
                       <AvatarImage src={p.avatar_url || undefined} />
                       <AvatarFallback className="text-xs">{getInitials(p.full_name || p.display_name || "Usuário")}</AvatarFallback>

@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Evento } from '../../state/pautasTypes';
 import { usePautas } from '../../hooks/usePautas';
 import { RoleUserSelect } from './RoleUserSelect';
+import { useAdminRole } from '../../hooks/useAdminRole';
 
 interface EventModalProps {
   isOpen: boolean;
@@ -25,6 +26,8 @@ export const EventModal: React.FC<EventModalProps> = ({
   initialHour
 }) => {
   const { createEvent, updateEvent, deleteEvent, isCreating, isUpdating, isDeleting } = usePautas();
+  const { isAdmin, hasScope, loading: adminLoading } = useAdminRole();
+  const canEdit = isAdmin || hasScope('pautas_admin');
   const [formData, setFormData] = useState({
     dataInicio: '',
     horaInicio: '',
@@ -121,6 +124,7 @@ export const EventModal: React.FC<EventModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canEdit) return;
     
     if (!validateForm()) return;
     
@@ -153,6 +157,7 @@ export const EventModal: React.FC<EventModalProps> = ({
 
   const handleDelete = () => {
     if (!evento) return;
+    if (!canEdit) return;
     const confirmed = window.confirm('Tem certeza que deseja excluir esta pauta? Esta ação não pode ser desfeita.');
     if (!confirmed) return;
     deleteEvent(evento.id);
@@ -182,8 +187,9 @@ export const EventModal: React.FC<EventModalProps> = ({
                 id="dataInicio"
                 type="date"
                 value={formData.dataInicio}
-                onChange={(e) => setFormData(prev => ({ ...prev, dataInicio: e.target.value }))}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ ...prev, dataInicio: e.target.value }))}
                 className={errors.dataInicio ? 'border-red-500' : ''}
+                disabled={!canEdit}
               />
               {errors.dataInicio && (
                 <p className="text-sm text-red-600">{errors.dataInicio}</p>
@@ -196,8 +202,9 @@ export const EventModal: React.FC<EventModalProps> = ({
                 id="horaInicio"
                 type="time"
                 value={formData.horaInicio}
-                onChange={(e) => setFormData(prev => ({ ...prev, horaInicio: e.target.value }))}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ ...prev, horaInicio: e.target.value }))}
                 className={errors.horaInicio ? 'border-red-500' : ''}
+                disabled={!canEdit}
               />
               {errors.horaInicio && (
                 <p className="text-sm text-red-600">{errors.horaInicio}</p>
@@ -210,8 +217,9 @@ export const EventModal: React.FC<EventModalProps> = ({
                 id="dataFim"
                 type="date"
                 value={formData.dataFim}
-                onChange={(e) => setFormData(prev => ({ ...prev, dataFim: e.target.value }))}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ ...prev, dataFim: e.target.value }))}
                 className={errors.dataFim ? 'border-red-500' : ''}
+                disabled={!canEdit}
               />
               {errors.dataFim && (
                 <p className="text-sm text-red-600">{errors.dataFim}</p>
@@ -224,8 +232,9 @@ export const EventModal: React.FC<EventModalProps> = ({
                 id="horaFim"
                 type="time"
                 value={formData.horaFim}
-                onChange={(e) => setFormData(prev => ({ ...prev, horaFim: e.target.value }))}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ ...prev, horaFim: e.target.value }))}
                 className={errors.horaFim ? 'border-red-500' : ''}
+                disabled={!canEdit}
               />
               {errors.horaFim && (
                 <p className="text-sm text-red-600">{errors.horaFim}</p>
@@ -239,31 +248,42 @@ export const EventModal: React.FC<EventModalProps> = ({
               label="Filmmaker"
               cargo="filmmaker"
               value={formData.filmmaker || undefined}
-              onChange={(userId) => setFormData(prev => ({ ...prev, filmmaker: userId || '' }))}
+              onChange={(userId?: string) => setFormData(prev => ({ ...prev, filmmaker: userId || '' }))}
               placeholder="Selecionar filmmaker"
+              disabled={!canEdit}
             />
             <RoleUserSelect
               label="Fotógrafo"
               cargo="fotografo"
               value={formData.fotografo || undefined}
-              onChange={(userId) => setFormData(prev => ({ ...prev, fotografo: userId || '' }))}
+              onChange={(userId?: string) => setFormData(prev => ({ ...prev, fotografo: userId || '' }))}
               placeholder="Selecionar fotógrafo"
+              disabled={!canEdit}
             />
             <RoleUserSelect
               label="Jornalista"
               cargo="jornalista"
               value={formData.jornalista || undefined}
-              onChange={(userId) => setFormData(prev => ({ ...prev, jornalista: userId || '' }))}
+              onChange={(userId?: string) => setFormData(prev => ({ ...prev, jornalista: userId || '' }))}
               placeholder="Selecionar jornalista"
+              disabled={!canEdit}
             />
             <RoleUserSelect
               label="Rede"
               cargo="rede"
               value={formData.rede || undefined}
-              onChange={(userId) => setFormData(prev => ({ ...prev, rede: userId || '' }))}
+              onChange={(userId?: string) => setFormData(prev => ({ ...prev, rede: userId || '' }))}
               placeholder="Selecionar responsável de redes"
+              disabled={!canEdit}
             />
           </div>
+          
+          {/* Aviso de permissões */}
+          {!adminLoading && !canEdit && (
+            <div className="rounded-md bg-yellow-50 border border-yellow-200 text-yellow-800 px-3 py-2 text-sm">
+              Edição restrita: apenas administradores ou usuários com escopo "pautas_admin" podem editar.
+            </div>
+          )}
           
           {/* Campos adicionais removidos para simplificação conforme solicitado */}
 
@@ -272,7 +292,7 @@ export const EventModal: React.FC<EventModalProps> = ({
           <div className="flex justify-between gap-3 pt-4 border-t">
             <div>
               {evento && (
-                <Button type="button" variant="destructive" onClick={handleDelete} disabled={isDeleting}>
+                <Button type="button" variant="destructive" onClick={handleDelete} disabled={isDeleting || !canEdit}>
                   <Trash2 className="w-4 h-4 mr-2" />
                   Excluir Pauta
                 </Button>
@@ -282,7 +302,7 @@ export const EventModal: React.FC<EventModalProps> = ({
               <Button type="button" variant="outline" onClick={onClose}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isCreating || isUpdating}>
+              <Button type="submit" disabled={isCreating || isUpdating || !canEdit}>
                 <Save className="w-4 h-4 mr-2" />
                 {evento ? 'Atualizar' : 'Criar'} Evento
               </Button>

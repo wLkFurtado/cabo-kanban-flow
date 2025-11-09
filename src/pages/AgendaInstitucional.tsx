@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Calendar } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Seo } from "../components/seo/Seo";
+import { formatPhoneBR } from "../lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Button } from "../components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../components/ui/dialog";
@@ -142,7 +143,7 @@ export default function AgendaInstitucional() {
                     <TableRow key={idx}>
                       <TableCell>{item.instituicao || "—"}</TableCell>
                       <TableCell>{item.responsavel || "—"}</TableCell>
-                      <TableCell>{item.telefone || "—"}</TableCell>
+                      <TableCell>{formatPhoneBR(item.telefone) || "—"}</TableCell>
                       {isAdmin && (
                         <TableCell>
                           <Button variant="outline" size="sm" onClick={() => openEditDialog(idx)}>Editar</Button>
