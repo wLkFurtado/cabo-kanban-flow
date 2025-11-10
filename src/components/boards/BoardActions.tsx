@@ -15,18 +15,22 @@ interface BoardActionsProps {
 }
 
 export function BoardActions({ boardId, onRename, onDeleted }: BoardActionsProps) {
-  const { deleteBoard } = useBoards();
+  const { deleteBoardAsync } = useBoards();
   const { toast } = useToast();
   const [detailsOpen, setDetailsOpen] = React.useState(false);
+  const [isDeleting, setIsDeleting] = React.useState(false);
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     try {
-      deleteBoard(boardId);
-      toast({ title: "Board apagado", description: "O board foi excluído com sucesso." });
+      setIsDeleting(true);
+      await deleteBoardAsync(boardId);
+      // Sucesso: o hook já exibe toast em onSuccess
       onDeleted?.();
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       toast({ title: "Erro ao apagar board", description: message, variant: "destructive" });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -81,7 +85,9 @@ export function BoardActions({ boardId, onRename, onDeleted }: BoardActionsProps
         </AlertDialogDescription>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancelar</AlertDialogCancel>
-          <AlertDialogAction onClick={handleDelete}>Apagar</AlertDialogAction>
+          <AlertDialogAction onClick={handleDelete} disabled={isDeleting}>
+            {isDeleting ? "Apagando..." : "Apagar"}
+          </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
 

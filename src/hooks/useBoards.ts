@@ -513,6 +513,8 @@ export function useBoards() {
     createBoard,
     updateBoard: updateBoardMutation.mutate,
     deleteBoard: deleteBoardMutation.mutate,
+    // Expor também a versão assíncrona para permitir await no UI
+    deleteBoardAsync: deleteBoardMutation.mutateAsync,
     isCreating: createBoardMutation.isPending,
     isUpdating: updateBoardMutation.isPending,
     isDeleting: deleteBoardMutation.isPending,
@@ -1316,6 +1318,8 @@ export function useBoardDetails(boardId: string) {
     addCard: addCardMutation.mutate,
     moveCard: moveCardMutation.mutate,
     deleteCard: deleteCardMutation.mutate,
+    // Expor também a versão assíncrona para permitir await em fluxos de UI
+    deleteCardAsync: deleteCardMutation.mutateAsync,
     updateCard: updateCardMutation.mutate,
   };
 }

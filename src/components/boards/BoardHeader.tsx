@@ -215,7 +215,20 @@ export function BoardHeader({ board, onDeleted }: BoardHeaderProps) {
                         setMembers((prev) => [...prev, { id: u.id, name: u.name, avatar: u.avatar }]);
                       } catch (err) {
                         console.error('Erro ao adicionar membro:', err);
-                        toast({ title: 'Erro ao adicionar', description: getErrorMessage(err), variant: 'destructive' });
+                        const msg = getErrorMessage(err);
+                        // Type guard para erros do Supabase/PostgREST
+                        type SupabaseError = { code?: string; message?: string };
+                        const isSupabaseError = (e: unknown): e is SupabaseError =>
+                          typeof e === 'object' && e !== null && 'code' in (e as Record<string, unknown>);
+                        // RLS negado (42501) -> apenas dono/admin podem adicionar
+                        const isRlsDenied = isSupabaseError(err) && err.code === '42501';
+                        toast({
+                          title: 'Erro ao adicionar',
+                          description: isRlsDenied
+                            ? 'Permissão negada pela política de segurança. Apenas o dono do board ou um admin pode adicionar membros.'
+                            : msg,
+                          variant: 'destructive'
+                        });
                       }
                     }}
                   >

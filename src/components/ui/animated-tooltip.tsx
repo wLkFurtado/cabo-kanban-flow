@@ -39,7 +39,7 @@ export const AnimatedTooltip = ({
   ) => {
     const target = event.currentTarget;
     const halfWidth = target.offsetWidth / 2;
-    const offsetX = event.nativeEvent.offsetX;
+    const offsetX = event.nativeEvent.offsetX; 
     x.set(offsetX - halfWidth);
   };
 

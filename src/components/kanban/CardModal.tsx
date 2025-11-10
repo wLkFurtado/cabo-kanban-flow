@@ -54,7 +54,7 @@ interface CardModalProps {
 }
 
 export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps) {
-  const { updateCard, deleteCard: deleteCardMutation } = useBoardDetails(boardId);
+  const { updateCard, deleteCard: deleteCardMutation, deleteCardAsync } = useBoardDetails(boardId);
   const deleteCard = useBoardsStore((s) => s.deleteCard);
   const addComment = useBoardsStore((s) => s.addComment);
   const addActivity = useBoardsStore((s) => s.addActivity);
@@ -62,6 +62,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
   const { toast } = useToast();
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerSrc, setViewerSrc] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const sb = supabase as SupabaseClient;
@@ -192,10 +193,69 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
     onOpenChange(false);
   };
 
-  const handleDelete = () => {
-    // Usar a mutation que exclui no Supabase e registra atividade
-    deleteCardMutation(card.id);
-    onOpenChange(false);
+  const handleDelete = async () => {
+    // Sinaliza início para depuração visual
+    toast({ title: 'Iniciando exclusão...', description: 'Processando remoção do card.' });
+    // Executar exclusão diretamente via Supabase para garantir ação imediata
+    try {
+      setIsDeleting(true);
+      console.log('[CardModal] Iniciando exclusão do card', card.id);
+      const { data, error } = await supabase
+        .from('cards')
+        .delete()
+        .eq('id', card.id)
+        .select('id');
+
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        // Diagnóstico adicional para entender o bloqueio (RLS ou inconsistência)
+        try {
+          // Tentar obter o board_id da lista do card
+          const { data: listRow } = await supabase
+            .from('board_lists')
+            .select('id, board_id')
+            .eq('id', card.list_id)
+            .maybeSingle();
+
+          // Tentar verificar se o usuário é membro do board
+          let isMember = false;
+          if (listRow?.board_id && user?.id) {
+            const { data: membership } = await supabase
+              .from('board_members')
+              .select('user_id')
+              .eq('board_id', listRow.board_id)
+              .eq('user_id', user.id);
+            isMember = !!(membership && membership.length > 0);
+          }
+
+          console.warn('[CardModal] Exclusão não afetou nenhuma linha. Possível RLS ou card inexistente.', {
+            cardId: card.id,
+            listId: card.list_id,
+            boardId: listRow?.board_id,
+            isMember,
+          });
+        } catch (diagErr) {
+          console.warn('[CardModal] Falha na coleta de diagnóstico pós-exclusão:', diagErr);
+        }
+
+        toast({
+          title: 'Não foi possível excluir',
+          description: 'Verifique seu acesso ao board ou tente novamente.',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      // Invalida cache dos cards do board para refletir a remoção
+      queryClient.invalidateQueries({ queryKey: ['board-cards', boardId] });
+
+      toast({ title: 'Card excluído', description: 'O card foi excluído com sucesso.' });
+      onOpenChange(false);
+    } catch (err) {
+      toast({ title: 'Erro ao excluir card', description: errorMessage(err), variant: 'destructive' });
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const addLabel = async () => {
@@ -1125,8 +1185,12 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={handleDelete}>
-                  Excluir
+                <AlertDialogAction
+                  className="bg-red-600 hover:bg-red-700"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete(); }}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? 'Excluindo...' : 'Excluir'}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

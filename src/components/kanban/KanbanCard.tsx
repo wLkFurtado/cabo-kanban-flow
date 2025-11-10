@@ -5,6 +5,7 @@ import { CardModal } from './CardModal';
 import { Calendar, MessageSquare, Tag } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar';
 import { ImageViewerDialog } from './ImageViewerDialog';
+ 
 
 const coverColorClass: Record<LabelColor, string> = {
   green: 'bg-[hsl(var(--label-green))]',
@@ -31,6 +32,7 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerSrc, setViewerSrc] = useState<string | null>(null);
+  
 
   const formatDueDate = (dueDate: string | null | undefined) => {
     if (!dueDate) return null;
@@ -74,13 +76,15 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
             ref={provided.innerRef}
             {...provided.draggableProps}
             {...provided.dragHandleProps}
-            className={`
-              bg-white rounded-lg shadow-sm border border-gray-200 p-3 mb-2 cursor-pointer
+          className={`
+              bg-white rounded-lg shadow-sm border border-gray-200 p-3 mb-2 cursor-pointer relative
               hover:shadow-md transition-shadow duration-200
               ${snapshot.isDragging ? 'shadow-lg rotate-2' : ''}
             `}
             onClick={() => setIsModalOpen(true)}
           >
+            
+
             {/* Cover Color */}
             {card.coverColor && (
               <div 
@@ -90,11 +94,11 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
 
             {/* Cover Image */}
             {card.coverImages && card.coverImages.length > 0 && (
-              <div className="h-32 -m-3 mb-2 rounded-t-lg overflow-hidden bg-muted">
+              <div className="h-32 mb-2 rounded-md overflow-hidden bg-muted">
                 <img
                   src={card.coverImages[0]}
                   alt="Card cover"
-                  className="w-full h-full object-contain cursor-zoom-in"
+                  className="w-full h-full object-cover cursor-zoom-in"
                   onClick={(e) => {
                     e.stopPropagation();
                     const firstCover = card.coverImages && card.coverImages.length > 0 
