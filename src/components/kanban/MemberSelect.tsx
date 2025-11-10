@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "../ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Badge } from "../ui/badge";
@@ -43,6 +43,43 @@ export function MemberSelect({ selectedMembers, onMembersChange, className, card
   const sb = supabase as SupabaseClient;
   const authorName = (user?.user_metadata?.full_name as string) || (user?.email as string) || "Usuário";
   const { toast } = useToast();
+  const [canManage, setCanManage] = useState<boolean>(true);
+  const [checkingPerms, setCheckingPerms] = useState<boolean>(true);
+
+  // Check if current user can manage card members (owner or board member)
+  useEffect(() => {
+    let mounted = true;
+    const check = async () => {
+      try {
+        setCheckingPerms(true);
+        // Get board to check owner
+        const { data: boardRow } = await supabase
+          .from('boards')
+          .select('owner_id')
+          .eq('id', boardId)
+          .maybeSingle();
+        const isOwner = !!boardRow && boardRow.owner_id === user?.id;
+
+        // Check membership (self row is visible by RLS)
+        const { data: membership } = await supabase
+          .from('board_members')
+          .select('user_id')
+          .eq('board_id', boardId)
+          .eq('user_id', user?.id || '')
+          .limit(1);
+        const isMember = !!membership && membership.length > 0;
+
+        const allowed = isOwner || isMember;
+        if (mounted) setCanManage(allowed);
+      } catch {
+        if (mounted) setCanManage(false);
+      } finally {
+        if (mounted) setCheckingPerms(false);
+      }
+    };
+    if (user?.id && boardId) check();
+    return () => { mounted = false; };
+  }, [user?.id, boardId]);
 
   const errorMessage = (err: unknown): string => {
     if (!err) return 'Erro desconhecido';
@@ -63,6 +100,10 @@ export function MemberSelect({ selectedMembers, onMembersChange, className, card
   });
 
   const addMember = async (user: { id: string; full_name?: string; display_name?: string; avatar_url?: string }) => {
+    if (!canManage) {
+      toast({ title: 'Sem permissão', description: 'Você não é membro deste board. Peça ao administrador para adicioná-lo ao board para poder gerenciar membros do card.', variant: 'destructive' });
+      return;
+    }
     // Persist in Supabase card_members
     const { error } = await supabase
       .from('card_members')
@@ -206,6 +247,11 @@ export function MemberSelect({ selectedMembers, onMembersChange, className, card
         </PopoverTrigger>
         <PopoverContent className="w-80" align="start">
           <div className="space-y-3">
+            {!canManage && (
+              <div className="text-sm text-destructive-foreground bg-destructive/10 border border-destructive rounded p-2">
+                Você não é membro deste board. Peça ao administrador para adicioná-lo pelo botão de membros do board.
+              </div>
+            )}
             <div>
               <Label htmlFor="member-search">Buscar usuário</Label>
               <Input
@@ -214,13 +260,17 @@ export function MemberSelect({ selectedMembers, onMembersChange, className, card
                 value={searchTerm}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
                 className="mt-1"
-              />
+                />
             </div>
             
             <div className="max-h-48 overflow-y-auto space-y-1">
               {filteredUsers.length === 0 ? (
                 <div className="text-sm text-muted-foreground text-center py-4">
-                  {searchTerm ? "Nenhum usuário encontrado" : "Todos os usuários já foram adicionados"}
+                  {searchTerm
+                    ? "Nenhum usuário encontrado"
+                    : canManage
+                      ? "Todos os usuários já foram adicionados"
+                      : "Você não tem permissão para listar usuários deste board"}
                 </div>
               ) : (
                 filteredUsers.map((u: Profile) => (
