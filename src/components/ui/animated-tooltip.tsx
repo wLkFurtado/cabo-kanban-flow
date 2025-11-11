@@ -13,17 +13,21 @@ export const AnimatedTooltip = ({
   items,
   className,
   imageClassName,
+  overlap = true,
+  overlapLevel = 4,
 }: {
   items: {
-    id: number;
+    id: number | string;
     name: string;
-    designation: string;
+    designation?: string;
     image: string;
   }[];
   className?: string;
   imageClassName?: string;
+  overlap?: boolean;
+  overlapLevel?: 1 | 2 | 3 | 4;
 }) => {
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [hoveredIndex, setHoveredIndex] = useState<number | string | null>(null);
   const springConfig = { stiffness: 100, damping: 5 };
   const x = useMotionValue(0);
   const rotate = useSpring(
@@ -47,8 +51,19 @@ export const AnimatedTooltip = ({
     <div className={cn("flex items-center gap-2", className)}>
       {items.map((item) => (
         <div
-          className="-mr-4 relative group"
-          key={item.name}
+          className={cn(
+            overlap
+              ? overlapLevel === 1
+                ? "-mr-1"
+                : overlapLevel === 2
+                ? "-mr-2"
+                : overlapLevel === 3
+                ? "-mr-3"
+                : "-mr-4"
+              : "mr-0",
+            "relative group"
+          )}
+          key={String(item.id)}
           onMouseEnter={() => setHoveredIndex(item.id)}
           onMouseLeave={() => setHoveredIndex(null)}
         >
@@ -79,9 +94,11 @@ export const AnimatedTooltip = ({
                 <div className="font-bold text-background relative z-30 text-base">
                   {item.name}
                 </div>
-                <div className="text-muted-foreground text-xs">
-                  {item.designation}
-                </div>
+                {item.designation && (
+                  <div className="text-muted-foreground text-xs">
+                    {item.designation}
+                  </div>
+                )}
               </motion.div>
             )}
           </AnimatePresence>

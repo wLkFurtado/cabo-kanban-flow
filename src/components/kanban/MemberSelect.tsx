@@ -25,6 +25,7 @@ import { useAdminRole } from "../../hooks/useAdminRole";
 import { useToast } from "../../hooks/use-toast";
 import { postWebhook } from "../../lib/webhook";
 import type { ChangeEvent } from "react";
+import { useOnlineStatus } from "../../hooks/useOnlineStatus";
 
 interface MemberSelectProps {
   selectedMembers: Member[];
@@ -45,43 +46,53 @@ export function MemberSelect({ selectedMembers, onMembersChange, className, card
   const sb = supabase as SupabaseClient;
   const authorName = (user?.user_metadata?.full_name as string) || (user?.email as string) || "Usuário";
   const { toast } = useToast();
-  const [canManage, setCanManage] = useState<boolean>(true);
-  const [checkingPerms, setCheckingPerms] = useState<boolean>(true);
+  const [boardMemberIds, setBoardMemberIds] = useState<string[]>([]);
+  const [ownerId, setOwnerId] = useState<string | null>(null);
+  const isOnline = useOnlineStatus();
 
-  // Check if current user can manage card members (owner or board member)
+  // Removido: checagem de permissão do lado do cliente.
+  // Agora confiamos totalmente nas políticas RLS do banco para permitir/negAR ações
+  // e exibimos mensagens de erro adequadas quando necessário.
+
+  // Carregar os membros vinculados ao board (e o dono) para limitar as opções
   useEffect(() => {
     let mounted = true;
-    const check = async () => {
+    const loadMembers = async () => {
+      if (!isOnline) {
+        if (mounted) {
+          setOwnerId(null);
+          setBoardMemberIds([]);
+        }
+        return;
+      }
       try {
-        setCheckingPerms(true);
-        // Get board to check owner
         const { data: boardRow } = await supabase
           .from('boards')
           .select('owner_id')
           .eq('id', boardId)
           .maybeSingle();
-        const isOwner = !!boardRow && boardRow.owner_id === user?.id;
+        if (mounted) setOwnerId(boardRow?.owner_id ?? null);
+      } catch {
+        if (mounted) setOwnerId(null);
+      }
 
-        // Check membership (self row is visible by RLS)
-        const { data: membership } = await supabase
+      try {
+        const { data, error } = await supabase
           .from('board_members')
           .select('user_id')
-          .eq('board_id', boardId)
-          .eq('user_id', user?.id || '')
-          .limit(1);
-        const isMember = !!membership && membership.length > 0;
-
-        const allowed = isOwner || isMember || !!isAdmin;
-        if (mounted) setCanManage(allowed);
+          .eq('board_id', boardId);
+        if (!error && mounted) {
+          setBoardMemberIds((data || []).map(r => r.user_id));
+        } else if (mounted) {
+          setBoardMemberIds([]);
+        }
       } catch {
-        if (mounted) setCanManage(false);
-      } finally {
-        if (mounted) setCheckingPerms(false);
+        if (mounted) setBoardMemberIds([]);
       }
     };
-    if (user?.id && boardId) check();
+    if (boardId) loadMembers();
     return () => { mounted = false; };
-  }, [user?.id, boardId]);
+  }, [boardId, isOnline]);
 
   const errorMessage = (err: unknown): string => {
     if (!err) return 'Erro desconhecido';
@@ -94,14 +105,19 @@ export function MemberSelect({ selectedMembers, onMembersChange, className, card
   
   // Filter users based on search term and exclude already selected members
   const filteredUsers = (profiles || []).filter((u: Profile) => {
+    const isLinkedToBoard = boardMemberIds.includes(u.id) || (!!ownerId && u.id === ownerId);
     const name = (u.full_name || u.display_name || '').toLowerCase();
     const email = (u.email || '').toLowerCase();
     const matchesSearch = name.includes(searchTerm.toLowerCase()) || email.includes(searchTerm.toLowerCase());
     const notSelected = !selectedMembers.some(member => member.id === u.id);
-    return matchesSearch && notSelected;
+    return isLinkedToBoard && matchesSearch && notSelected;
   });
 
   const addMember = async (user: { id: string; full_name?: string; display_name?: string; avatar_url?: string }) => {
+    if (!isOnline) {
+      toast({ title: 'Sem conexão', description: 'Conecte-se à internet para adicionar membros.', variant: 'destructive' });
+      return;
+    }
     // Persist in Supabase card_members
     const { error } = await supabase
       .from('card_members')
@@ -171,6 +187,10 @@ export function MemberSelect({ selectedMembers, onMembersChange, className, card
   };
 
   const removeMember = async (memberId: string) => {
+    if (!isOnline) {
+      toast({ title: 'Sem conexão', description: 'Conecte-se à internet para remover membros.', variant: 'destructive' });
+      return;
+    }
     const { error } = await supabase
       .from('card_members')
       .delete()
@@ -264,11 +284,6 @@ export function MemberSelect({ selectedMembers, onMembersChange, className, card
         </PopoverTrigger>
         <PopoverContent className="w-80" align="start">
           <div className="space-y-3">
-            {!canManage && (
-              <div className="text-sm text-destructive-foreground bg-destructive/10 border border-destructive rounded p-2">
-                Você não é membro deste board. Peça ao administrador para adicioná-lo pelo botão de membros do board.
-              </div>
-            )}
             <div>
               <Label htmlFor="member-search">Buscar usuário</Label>
               <Input
@@ -285,9 +300,9 @@ export function MemberSelect({ selectedMembers, onMembersChange, className, card
                 <div className="text-sm text-muted-foreground text-center py-4">
                   {searchTerm
                     ? "Nenhum usuário encontrado"
-                    : canManage
-                      ? "Todos os usuários já foram adicionados"
-                      : "Você não tem permissão para listar usuários deste board"}
+                    : boardMemberIds.length === 0
+                      ? "Este board ainda não possui membros"
+                      : "Todos os membros do board já foram adicionados"}
                 </div>
               ) : (
                 filteredUsers.map((u: Profile) => (

@@ -6,8 +6,8 @@ import { useBoardsStore } from "../../state/boards/store";
 import type { BoardsStore } from "../../state/boards/types";
 import { BoardActions } from "./BoardActions";
 import { supabase } from "../../integrations/supabase/client";
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
-import { AnimatedTooltip } from "../ui/animated-tooltip";
+import { AnimatedTooltip } from "@/components/ui/animated-tooltip";
+import { useOnlineStatus } from "../../hooks/useOnlineStatus";
 
 interface BoardCardProps {
   board: Board;
@@ -18,30 +18,71 @@ export function BoardCard({ board }: BoardCardProps) {
   const updateBoardTitle = useBoardsStore((s: BoardsStore) => s.updateBoardTitle);
   const titleRef = useRef<HTMLDivElement>(null);
   const [members, setMembers] = useState<Array<{ id: string; name: string; avatar: string | null }>>([]);
+  const isOnline = useOnlineStatus();
+
+  function getInitials(name: string): string {
+    const parts = name.trim().split(/\s+/);
+    const first = parts[0]?.[0] ?? '';
+    const last = parts.length > 1 ? parts[parts.length - 1]?.[0] ?? '' : '';
+    return (first + last).toUpperCase() || 'U';
+  }
 
   useEffect(() => {
     let mounted = true;
     const fetchMembers = async () => {
+      if (!isOnline) return; // evita chamadas quando offline
       try {
-        const { data, error } = await supabase
+        // 1) Buscar membros do board
+        const { data: bmData, error: bmError } = await supabase
           .from('board_members')
           .select('user_id, profiles:profiles(id, full_name, avatar_url)')
           .eq('board_id', board.id);
-        if (error) throw error;
-        const rows = (data || []) as Array<{ user_id: string; profiles: { full_name?: string | null; avatar_url?: string | null } | null }>;
+        if (bmError) throw bmError;
+        const rows = (bmData || []) as Array<{ user_id: string; profiles: { full_name?: string | null; avatar_url?: string | null } | null }>;
         const mapped = rows.map((row) => ({
           id: row.user_id,
           name: row.profiles?.full_name ?? 'Usuário',
           avatar: row.profiles?.avatar_url ?? null,
         }));
-        if (mounted) setMembers(mapped);
+
+        // 2) Incluir o dono do board (se não estiver em board_members)
+        let ownerEntry: { id: string; name: string; avatar: string | null } | null = null;
+        const { data: boardRow, error: boardErr } = await supabase
+          .from('boards')
+          .select('owner_id')
+          .eq('id', board.id)
+          .single();
+        if (boardErr) throw boardErr;
+        const ownerId = (boardRow as { owner_id?: string | null })?.owner_id;
+        if (ownerId) {
+          type OwnerProfile = { id: string; full_name?: string | null; avatar_url?: string | null };
+          const { data: ownerProfileData, error: ownerErr } = await supabase
+            .from('profiles')
+            .select('id, full_name, avatar_url')
+            .eq('id', ownerId)
+            .single();
+          if (!ownerErr && ownerProfileData) {
+            const owner = ownerProfileData as OwnerProfile;
+            ownerEntry = {
+              id: owner.id,
+              name: owner.full_name ?? 'Usuário',
+              avatar: owner.avatar_url ?? null,
+            };
+          }
+        }
+
+        const combined = [...mapped, ...(ownerEntry ? [ownerEntry] : [])]
+          .filter((m, idx, arr) => arr.findIndex((x) => x.id === m.id) === idx);
+        console.log('[DEBUG] BoardCard members combined count:', combined.length, combined);
+
+        if (mounted) setMembers(combined);
       } catch (err) {
         console.warn('Falha ao buscar membros do board:', err);
       }
     };
     fetchMembers();
     return () => { mounted = false; };
-  }, [board.id]);
+  }, [board.id, isOnline]);
 
   return (
     <div
@@ -95,20 +136,18 @@ export function BoardCard({ board }: BoardCardProps) {
           </div>
         </div>
         {members.length > 0 && (
-          <div className="mt-3">
+          <div className="mt-3" onClick={(e) => e.stopPropagation()}>
             <AnimatedTooltip
-              className="flex -space-x-2"
-              imageClassName="h-7 w-7 border bg-muted"
-              items={members.slice(0, 5).map((m, idx) => ({
-                id: idx,
+              items={members.map((m) => ({
+                id: m.id,
                 name: m.name,
-                designation: "Membro",
                 image: m.avatar ?? "/placeholder.svg",
               }))}
+              className="flex flex-wrap gap-1"
+              imageClassName="h-7 w-7"
+              overlap={true}
+              overlapLevel={2}
             />
-            {members.length > 5 && (
-              <div className="ml-2 text-xs text-muted-foreground inline-block align-middle">+{members.length - 5}</div>
-            )}
           </div>
         )}
       </div>

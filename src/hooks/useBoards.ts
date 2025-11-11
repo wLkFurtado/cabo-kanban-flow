@@ -945,11 +945,13 @@ export function useBoardDetails(boardId: string) {
       if (card?.id) {
         // Vincular automaticamente o criador como membro do card
         try {
-          await supabase
-            .from('card_members')
-            .insert({ card_id: card.id as string, user_id: user?.id as string });
-          // Atualizar imediatamente membros
-          queryClient.invalidateQueries({ queryKey: ['card-members', boardId] });
+          if (isOnline) {
+            await supabase
+              .from('card_members')
+              .insert({ card_id: card.id as string, user_id: user?.id as string });
+            // Atualizar imediatamente membros
+            queryClient.invalidateQueries({ queryKey: ['card-members', boardId] });
+          }
         } catch (memberErr) {
           console.warn('⚠️ Falha ao vincular criador como membro do card:', memberErr);
         }

@@ -3,6 +3,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../integrations/supabase/client';
 import { useToast } from './use-toast';
 import type { TablesInsert } from '../integrations/supabase/types';
+import { useOnlineStatus } from './useOnlineStatus';
 
 export interface UserData {
   full_name?: string;
@@ -46,11 +47,18 @@ export function useAuth(): AuthState & AuthActions {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const isOnline = useOnlineStatus();
 
   useEffect(() => {
     // Get initial session
     const getInitialSession = async () => {
       try {
+        if (!isOnline) {
+          setSession(null);
+          setUser(null);
+          setLoading(false);
+          return;
+        }
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
@@ -84,12 +92,13 @@ export function useAuth(): AuthState & AuthActions {
     );
 
     return () => subscription.unsubscribe();
-  }, [toast]);
+  }, [toast, isOnline]);
 
   // Ensure user metadata and profiles table stay in sync for name/cargo/avatar
   useEffect(() => {
     const syncUserProfile = async () => {
       if (!user) return;
+      if (!isOnline) return;
 
       try {
         const md: Record<string, unknown> = user.user_metadata || {};
@@ -209,10 +218,13 @@ export function useAuth(): AuthState & AuthActions {
 
     // Fire and forget; keeps UI consistent for existing users
     syncUserProfile();
-  }, [user]);
+  }, [user, isOnline]);
 
   const signUp = async (email: string, password: string, userData: UserData = {}) => {
     try {
+      if (!isOnline) {
+        return { error: { message: 'Sem conexão. Tente novamente quando estiver online.' } } as OpResult;
+      }
       const redirectUrl = `${window.location.origin}/`;
       
       const { data, error } = await supabase.auth.signUp({
@@ -269,6 +281,9 @@ export function useAuth(): AuthState & AuthActions {
 
   const signIn = async (email: string, password: string) => {
     try {
+      if (!isOnline) {
+        return { error: { message: 'Sem conexão. Tente novamente quando estiver online.' } } as OpResult;
+      }
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -284,6 +299,9 @@ export function useAuth(): AuthState & AuthActions {
 
   const signOut = async () => {
     try {
+      if (!isOnline) {
+        return { error: { message: 'Sem conexão. Tente novamente quando estiver online.' } } as OpResult;
+      }
       const { error } = await supabase.auth.signOut();
       return { error } as OpResult;
     } catch (error: unknown) {
@@ -295,6 +313,9 @@ export function useAuth(): AuthState & AuthActions {
 
   const updateProfile = async (updates: ProfileUpdates) => {
     try {
+      if (!isOnline) {
+        return { error: { message: 'Sem conexão. Tente novamente quando estiver online.' } } as OpResult;
+      }
       if (!user) return { error: { message: 'No user found' } } as OpResult;
 
       const patch: TablesInsert<'profiles'> = {
