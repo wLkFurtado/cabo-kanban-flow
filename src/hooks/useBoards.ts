@@ -966,13 +966,29 @@ export function useBoardDetails(boardId: string) {
             `)
             .eq('card_id', card.id as string);
 
-          const members = (memberRows ?? []).map(row => ({
+          let members = (memberRows ?? []).map(row => ({
             id: row.user_id,
             name: row.profiles?.full_name ?? 'Usuário',
             avatar: row.profiles?.avatar_url ?? undefined,
             phone: row.profiles?.phone ?? null,
             cargo: row.profiles?.cargo ?? null,
           }));
+
+          // Fallback: se não houver membros (ex.: card recém-criado ou RLS), incluir o criador
+          if (!members || members.length === 0) {
+            const { data: creatorProfile } = await supabase
+              .from('profiles')
+              .select('id, full_name, avatar_url, phone, cargo')
+              .eq('id', user?.id || '')
+              .maybeSingle();
+            members = [{
+              id: user?.id as string,
+              name: (creatorProfile?.full_name ?? user?.email ?? 'Usuário') as string,
+              avatar: creatorProfile?.avatar_url ?? undefined,
+              phone: creatorProfile?.phone ?? null,
+              cargo: creatorProfile?.cargo ?? null,
+            }];
+          }
 
           await postWebhook({
             event: 'card_created',
@@ -1224,6 +1240,23 @@ export function useBoardDetails(boardId: string) {
         // Webhook: movimentação de card com TODOS os membros vinculados (nome, telefone, cargo)
         const movedCard = (cardsQuery.data || []).find(c => c.id === data.cardId) || { id: data.cardId, list_id: data.destinationListId, position: data.newPosition };
         try {
+          // Garantir que o autor do movimento esteja vinculado como membro do card
+          try {
+            const { data: exists } = await supabase
+              .from('card_members')
+              .select('user_id')
+              .eq('card_id', data.cardId)
+              .eq('user_id', user?.id || '')
+              .limit(1);
+            if (!exists || exists.length === 0) {
+              await supabase
+                .from('card_members')
+                .insert({ card_id: data.cardId, user_id: user?.id as string });
+            }
+          } catch (linkErr) {
+            console.warn('⚠️ Falha ao garantir vínculo do autor como membro no movimento:', linkErr);
+          }
+
           const { data: memberRows } = await supabase
             .from('card_members')
             .select(`
@@ -1233,13 +1266,38 @@ export function useBoardDetails(boardId: string) {
             `)
             .eq('card_id', data.cardId);
 
-          const members = (memberRows ?? []).map(row => ({
-            id: row.user_id,
-            name: row.profiles?.full_name ?? 'Usuário',
-            avatar: row.profiles?.avatar_url ?? undefined,
-            phone: row.profiles?.phone ?? null,
-            cargo: row.profiles?.cargo ?? null,
-          }));
+          const membersFromCache = (cardMembersQuery.data || {})[data.cardId] || [];
+          let members = (memberRows && memberRows.length > 0)
+            ? memberRows.map(row => ({
+                id: row.user_id,
+                name: row.profiles?.full_name ?? 'Usuário',
+                avatar: row.profiles?.avatar_url ?? undefined,
+                phone: row.profiles?.phone ?? null,
+                cargo: row.profiles?.cargo ?? null,
+              }))
+            : membersFromCache.map(m => ({
+                id: m.id,
+                name: m.name,
+                avatar: m.avatar,
+                phone: m.phone ?? null,
+                cargo: m.cargo ?? null,
+              }));
+
+          // Fallback adicional: se ainda estiver vazio, incluir o autor do movimento
+          if (!members || members.length === 0) {
+            const { data: actorProfile } = await supabase
+              .from('profiles')
+              .select('id, full_name, avatar_url, phone, cargo')
+              .eq('id', user?.id || '')
+              .maybeSingle();
+            members = [{
+              id: user?.id as string,
+              name: (actorProfile?.full_name ?? user?.email ?? 'Usuário') as string,
+              avatar: actorProfile?.avatar_url ?? undefined,
+              phone: actorProfile?.phone ?? null,
+              cargo: actorProfile?.cargo ?? null,
+            }];
+          }
 
           await postWebhook({
             event: 'card_moved',
