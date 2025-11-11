@@ -56,7 +56,7 @@ export function BoardHeader({ board, onDeleted }: BoardHeaderProps) {
         console.log('🔍 [DEBUG] Fetching members for board:', board.id);
         const { data, error } = await supabase
           .from('board_members')
-          .select('user_id, profiles:profiles!inner(full_name, avatar_url)')
+          .select('user_id, profiles:profiles(id, full_name, avatar_url)')
           .eq('board_id', board.id);
 
       if (error) throw error;

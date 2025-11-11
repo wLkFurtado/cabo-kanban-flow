@@ -118,7 +118,14 @@ export function AgendaCalendar({ selectedDate, onDateSelect, events = [] }: Agen
                 !isCurrentMonth && "opacity-40"
               )}
             >
-              <span className={cn("font-semibold", isToday(date) && "text-primary")}>{format(date, "d")}</span>
+              <span
+                className={cn(
+                  "inline-block font-semibold",
+                  isToday(date) ? "bg-yellow-200 text-yellow-800 rounded px-1" : ""
+                )}
+              >
+                {format(date, "d")}
+              </span>
               <div className="mt-1 space-y-0.5 max-h-[5rem] overflow-hidden">
                 {demands.slice(0, 3).map((d: UserDemandWithBoard) => (
                   <div key={d.card.id} className="flex items-start gap-1 truncate">

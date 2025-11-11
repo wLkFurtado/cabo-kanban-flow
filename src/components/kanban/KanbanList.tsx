@@ -4,7 +4,6 @@ import { KanbanCard } from "./KanbanCard";
 import { Card, List } from "@/state/kanbanTypes";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useBoardsStore } from "@/state/boards/store";
 import { EditableText } from "@/components/editable/EditableText";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { GripVertical, MoreHorizontal, Plus, Trash2 } from "lucide-react";
@@ -17,11 +16,11 @@ interface KanbanListProps {
   dragHandleProps?: DraggableProvidedDragHandleProps;
   onAddCard: (listId: string, title: string) => void;
   onDeleteCard: (cardId: string) => void;
+  onRenameList: (listId: string, title: string) => void;
+  onDeleteList: (listId: string) => void;
  }
 
-export function KanbanList({ list, cards, boardId, dragHandleProps, onAddCard, onDeleteCard }: KanbanListProps) {
-  const updateListTitle = useBoardsStore((s) => s.updateListTitle);
-  const deleteList = useBoardsStore((s) => s.deleteList);
+export function KanbanList({ list, cards, boardId, dragHandleProps, onAddCard, onDeleteCard, onRenameList, onDeleteList }: KanbanListProps) {
   const [adding, setAdding] = useState(false);
   const [newTitle, setNewTitle] = useState("");
 
@@ -52,7 +51,7 @@ export function KanbanList({ list, cards, boardId, dragHandleProps, onAddCard, o
           </div>
           <EditableText
             value={list.title}
-            onSubmit={(newTitle) => updateListTitle(boardId, list.id, newTitle)}
+            onSubmit={(newTitle) => onRenameList(list.id, newTitle)}
             className="font-semibold text-sm text-gray-800 flex-1"
             placeholder="Nome da lista"
           />
@@ -74,7 +73,7 @@ export function KanbanList({ list, cards, boardId, dragHandleProps, onAddCard, o
             <AlertDialogFooter>
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
               <AlertDialogAction
-                onClick={() => deleteList(boardId, list.id)}
+                onClick={() => onDeleteList(list.id)}
                 className="bg-red-600 hover:bg-red-700"
               >
                 Excluir

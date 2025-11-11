@@ -13,8 +13,7 @@ import { supabase } from "../integrations/supabase/client";
 import { useAuth } from "../hooks/useAuth";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAdminRole } from "../hooks/useAdminRole";
-import type { TablesUpdate, Database } from "../integrations/supabase/types";
-import type { SupabaseClient } from "@supabase/supabase-js";
+ 
 
 export default function Melhorias() {
   const [open, setOpen] = useState(false);
@@ -24,8 +23,7 @@ export default function Melhorias() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { isAdmin } = useAdminRole();
-  // Relaxar os genéricos do cliente Supabase para evitar instância de tipos profunda
-  const sb = supabase as unknown as SupabaseClient<Database>;
+  const sb = supabase;
 
   type Suggestion = {
     id: string;
@@ -46,11 +44,12 @@ export default function Melhorias() {
         .eq("status", "proposed")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      const suggestions = (data ?? []) as unknown as Database["public"]["Tables"]["roadmap_suggestions"]["Row"][];
+      const suggestions = (data ?? []) as Array<{ id: string; title: string; description: string | null; created_at: string | null }>;
 
       // Buscar votos e agregar
       const ids = suggestions.map((s) => s.id);
-      let votesRows: Database["public"]["Tables"]["roadmap_votes"]["Row"][] = [];
+      type VoteRow = { suggestion_id: string; user_id: string; vote: number | null };
+      let votesRows: VoteRow[] = [];
       if (ids.length > 0) {
         const { data: votesData, error: votesError } = await sb
           .from("roadmap_votes")
@@ -68,14 +67,13 @@ export default function Melhorias() {
             votesRows = fallbackRows.map((v) => ({
               suggestion_id: v.suggestion_id,
               user_id: v.user_id,
-              created_at: null,
               vote: 1,
-            })) as Database["public"]["Tables"]["roadmap_votes"]["Row"][];
+            }));
           } else {
             throw votesError;
           }
         } else {
-          votesRows = (votesData ?? []) as Database["public"]["Tables"]["roadmap_votes"]["Row"][];
+          votesRows = (votesData ?? []) as VoteRow[];
         }
       }
 
@@ -123,7 +121,8 @@ export default function Melhorias() {
 
   const moveToRoadmap = useMutation({
     mutationFn: async (id: string) => {
-      const patch = { status: "in_progress" } as unknown as TablesUpdate<'roadmap_suggestions'>;
+      // Tipos gerados podem não incluir 'status' ainda; forçar payload amplo
+      const patch = { status: "in_progress" } as any;
       const { error } = await sb
         .from("roadmap_suggestions")
         .update(patch)

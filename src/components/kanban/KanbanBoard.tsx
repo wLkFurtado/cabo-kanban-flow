@@ -15,6 +15,8 @@ interface KanbanBoardProps {
   onAddList: (title: string) => void;
   onAddCard: (listId: string, title: string) => void;
   onDeleteCard: (cardId: string) => void;
+  onRenameList: (listId: string, title: string) => void;
+  onDeleteList: (listId: string) => void;
 }
 
 export const KanbanBoard: React.FC<KanbanBoardProps> = ({
@@ -26,6 +28,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   onAddList,
   onAddCard,
   onDeleteCard,
+  onRenameList,
+  onDeleteList,
 }) => {
   const [isAddingList, setIsAddingList] = useState(false);
   const [newListTitle, setNewListTitle] = useState("");
@@ -104,6 +108,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                             dragHandleProps={provided.dragHandleProps}
                             onAddCard={onAddCard}
                             onDeleteCard={onDeleteCard}
+                            onRenameList={onRenameList}
+                            onDeleteList={onDeleteList}
                           />
                         </div>
                       )}

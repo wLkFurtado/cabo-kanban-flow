@@ -2,7 +2,6 @@ import { useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { BoardHeader } from '../components/boards/BoardHeader';
 import { KanbanBoard } from "../components/kanban/KanbanBoard";
-import { DragTestSimple } from "../components/kanban/DragTestSimple";
 import { ViewTabs } from '../components/boards/ViewTabs';
 import { useBoardDetails } from '../hooks/useBoards';
 import { useAuth } from '../hooks/useAuth';
@@ -31,46 +30,48 @@ export default function BoardView() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
-  const { board, lists, cards, labelsByCardId, commentsCountByCardId, membersByCardId, isLoading, error, addList, addCard, moveCard } = useBoardDetails(boardId ?? '');
+  const { board, lists, cards, labelsByCardId, commentsCountByCardId, membersByCardId, isLoading, error, addList, addCard, moveCard, renameList, deleteList } = useBoardDetails(boardId ?? '');
 
-  // Convert Supabase data to Kanban format
-  const kanbanData = useMemo(() => {
-    if (!lists || !cards) {
-      return { lists: [], cards: [] };
-    }
+  // Helpers simples para conversão e agrupamento (KISS)
+  const convertKanbanData = (
+    rawLists: SupabaseList[] | undefined,
+    rawCards: SupabaseCard[] | undefined,
+    labelsMap: Record<string, SupabaseLabel[]> | undefined,
+    commentsCountMap: Record<string, number> | undefined,
+    membersMap: Record<string, SupabaseMember[]> | undefined,
+  ): { lists: List[]; cards: Card[] } => {
+    if (!rawLists || !rawCards) return { lists: [], cards: [] };
 
-    const convertedLists: List[] = lists.map((list: SupabaseList) => ({
-      id: list.id,
-      title: list.title,
-      color: list.color || '#6366f1',
-      position: list.position
+    const listsOut: List[] = rawLists.map((l) => ({
+      id: l.id,
+      title: l.title,
+      color: l.color || '#6366f1',
+      position: l.position,
     }));
 
-    const convertedCards: Card[] = cards.map((rawCard) => {
-      const labelRows: SupabaseLabel[] = (labelsByCardId?.[rawCard.id] || []) as SupabaseLabel[];
-      const commentsCount = commentsCountByCardId?.[rawCard.id] || 0;
-      const membersRows: SupabaseMember[] = (membersByCardId?.[rawCard.id] || []) as SupabaseMember[];
+    const cardsOut: Card[] = rawCards.map((c) => {
+      const labelRows = labelsMap?.[c.id] || [];
+      const membersRows = membersMap?.[c.id] || [];
+      const commentsCount = commentsCountMap?.[c.id] || 0;
       return {
-        id: rawCard.id,
-        title: rawCard.title,
-        description: rawCard.description ?? '',
-        list_id: rawCard.list_id,
-        position: rawCard.position,
-        priority: (rawCard.priority ?? 'medium') as 'low' | 'medium' | 'high' | 'urgent',
-        completed: !!rawCard.completed,
-        dueDate: rawCard.due_date ?? undefined,
-        // Mapear cover_color do Supabase para coverColor do Kanban
-        coverColor: (rawCard.cover_color ?? undefined) as 'green' | 'yellow' | 'orange' | 'red' | 'purple' | 'blue' | undefined,
-        // Mapear cover_images do Supabase para coverImages do Kanban
-        coverImages: rawCard.cover_images ?? [],
+        id: c.id,
+        title: c.title,
+        description: c.description ?? '',
+        list_id: c.list_id,
+        position: c.position,
+        priority: (c.priority ?? 'medium') as 'low' | 'medium' | 'high' | 'urgent',
+        completed: !!c.completed,
+        dueDate: c.due_date ?? undefined,
+        coverColor: (c.cover_color ?? undefined) as 'green' | 'yellow' | 'orange' | 'red' | 'purple' | 'blue' | undefined,
+        coverImages: c.cover_images ?? [],
         assignees: [],
         tags: [],
         attachments: [],
-        labels: labelRows.map((l: SupabaseLabel) => ({ id: l.id, name: l.name, color: l.color })),
-        members: membersRows.map((m: SupabaseMember) => ({ id: m.id, name: m.name, avatar: m.avatar })),
-        comments: Array.from({ length: commentsCount }).map((_: unknown, i: number) => ({
-          id: `${rawCard.id}-comment-${i}`,
-          cardId: rawCard.id,
+        labels: labelRows.map((l) => ({ id: l.id, name: l.name, color: l.color })),
+        members: membersRows.map((m) => ({ id: m.id, name: m.name, avatar: m.avatar })),
+        comments: Array.from({ length: commentsCount }).map((_, i) => ({
+          id: `${c.id}-comment-${i}`,
+          cardId: c.id,
           author: '',
           content: '',
           timestamp: new Date().toISOString(),
@@ -79,8 +80,13 @@ export default function BoardView() {
       };
     });
 
-    return { lists: convertedLists, cards: convertedCards };
-  }, [lists, cards, labelsByCardId, commentsCountByCardId, membersByCardId]);
+    return { lists: listsOut, cards: cardsOut };
+  };
+
+  const kanbanData = useMemo(
+    () => convertKanbanData(lists as SupabaseList[], cards as SupabaseCard[], labelsByCardId as Record<string, SupabaseLabel[]>, commentsCountByCardId as Record<string, number>, membersByCardId as Record<string, SupabaseMember[]>),
+    [lists, cards, labelsByCardId, commentsCountByCardId, membersByCardId]
+  );
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -124,6 +130,22 @@ export default function BoardView() {
     }
   };
 
+  const handleRenameList = (listId: string, title: string) => {
+    try {
+      renameList({ listId, title });
+    } catch (error) {
+      console.error('Erro ao renomear lista:', error);
+    }
+  };
+
+  const handleDeleteList = (listId: string) => {
+    try {
+      deleteList(listId);
+    } catch (error) {
+      console.error('Erro ao excluir lista:', error);
+    }
+  };
+
   const handleAddCard = async (listId: string, title: string) => {
     try {
       await addCard({ listId, title });
@@ -158,19 +180,19 @@ export default function BoardView() {
     console.log('🗑️ Deletar card', cardId);
   };
 
-  // Group cards by list and sort by position
-  const cardsByList = kanbanData.cards.reduce((acc, card) => {
-    if (!acc[card.list_id]) {
-      acc[card.list_id] = [];
+  // Agrupar e ordenar cards de forma simples
+  const groupCardsByList = (allCards: Card[]): Record<string, Card[]> => {
+    const out: Record<string, Card[]> = {};
+    for (const c of allCards) {
+      (out[c.list_id] ||= []).push(c);
     }
-    acc[card.list_id].push(card);
-    return acc;
-  }, {} as Record<string, Card[]>);
+    Object.keys(out).forEach((listId) => {
+      out[listId].sort((a, b) => a.position - b.position);
+    });
+    return out;
+  };
 
-  // Sort cards by position within each list
-  Object.keys(cardsByList).forEach((listId: string) => {
-    cardsByList[listId].sort((a: Card, b: Card) => a.position - b.position);
-  });
+  const cardsByList = groupCardsByList(kanbanData.cards);
 
 
 
@@ -213,6 +235,8 @@ export default function BoardView() {
             onAddList={handleAddList}
             onAddCard={handleAddCard}
             onDeleteCard={handleDeleteCard}
+            onRenameList={handleRenameList}
+            onDeleteList={handleDeleteList}
           />
         </div>
     </section>

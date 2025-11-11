@@ -25,12 +25,12 @@ export function ImageViewerDialog({ open, src, alt = "Imagem", onOpenChange }: I
           <DialogTitle>Visualizar imagem</DialogTitle>
           <DialogDescription>Clique para abrir em nova aba ou baixar.</DialogDescription>
         </DialogHeader>
-        <div className="flex items-center justify-center">
+        <div className="mt-2">
           {src ? (
             <img
               src={src}
               alt={alt}
-              className="max-h-[80vh] max-w-[90vw] object-contain rounded-md"
+              className="block w-full h-auto max-h-[70vh] max-w-full object-contain rounded-md"
             />
           ) : (
             <div className="text-sm text-muted-foreground">Nenhuma imagem disponível</div>
@@ -43,7 +43,7 @@ export function ImageViewerDialog({ open, src, alt = "Imagem", onOpenChange }: I
             </a>
           )}
           {src && (
-            <a href={src} target="_blank" rel="noopener noreferrer" className="ml-2">
+            <a href={src} target="_blank" rel="noopener noreferrer">
               <Button variant="outline" type="button">Abrir em nova aba</Button>
             </a>
           )}

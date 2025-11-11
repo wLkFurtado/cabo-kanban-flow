@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar, AlertTriangle, Clock, Plus, Pencil, Trash } from "lucide-react";
+import { Calendar, AlertTriangle, Clock, Pencil, Trash } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { useUserDemands } from "@/hooks/useUserDemands";
@@ -42,28 +42,12 @@ export default function Agenda() {
   const dueSoonDemands = getDueSoonDemands();
   const hasSidebar = overdueDemands.length > 0 || dueSoonDemands.length > 0;
 
-  const [lastClickTime, setLastClickTime] = useState<number>(0);
-  const [lastClickedDate, setLastClickedDate] = useState<Date | null>(null);
-
   const handleDateSelect = (date: Date | undefined) => {
     setSelectedDate(date);
     if (date) {
-      const now = Date.now();
-      const timeDiff = now - lastClickTime;
-      
-      // Detectar duplo clique (menos de 300ms entre cliques na mesma data)
-      if (timeDiff < 300 && lastClickedDate && 
-          lastClickedDate.getTime() === date.getTime()) {
-        // Duplo clique - abrir modal de evento
-        setIsEventModalOpen(true);
-        setIsSheetOpen(false);
-      } else {
-        // Clique simples - abrir sheet com demandas
-        setIsSheetOpen(true);
-      }
-      
-      setLastClickTime(now);
-      setLastClickedDate(date);
+      // KISS: Clique na data abre diretamente o modal de criação de evento
+      setIsEventModalOpen(true);
+      setIsSheetOpen(false);
     }
   };
 
@@ -107,16 +91,6 @@ export default function Agenda() {
                 Gerencie seus eventos e compromissos
               </p>
             </div>
-            <Button
-              onClick={() => {
-                setIsEventModalOpen(true);
-                setIsSheetOpen(false);
-              }}
-              className="flex items-center gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              Criar Evento
-            </Button>
           </div>
         </header>
 
@@ -247,18 +221,6 @@ export default function Agenda() {
                 <div className="text-center py-8">
                   <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                   <p className="text-muted-foreground mb-4">Nenhuma demanda para este dia.</p>
-                  <Button
-                    onClick={() => {
-                      setIsEventModalOpen(true);
-                      setIsSheetOpen(false);
-                    }}
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-2"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Criar Evento
-                  </Button>
                 </div>
               ) : (
                 <div className="space-y-3">

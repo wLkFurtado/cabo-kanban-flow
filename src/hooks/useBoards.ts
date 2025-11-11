@@ -624,7 +624,7 @@ export function useBoardDetails(boardId: string) {
 
       const { data, error } = await supabase
         .from('board_lists')
-        .select('*')
+        .select('id, title, position, color')
         .eq('board_id', boardId)
         .order('position');
 
@@ -644,32 +644,17 @@ export function useBoardDetails(boardId: string) {
   const cardsQuery = useQuery({
     queryKey: ['board-cards', boardId],
     queryFn: async () => {
-      console.log('🔍 [DEBUG] Buscando cards do board:', boardId);
-      
-      // Primeiro buscar as listas do board
-      const { data: lists, error: listsError } = await supabase
-        .from('board_lists')
-        .select('id')
-        .eq('board_id', boardId);
+      console.log('🔍 [DEBUG] Buscando cards do board (join por listas):', boardId);
 
-      if (listsError) {
-        console.log('❌ [DEBUG] Erro ao buscar listas:', listsError);
-        throw listsError;
-      }
-
-      if (!lists || lists.length === 0) {
-        console.log('📋 [DEBUG] Nenhuma lista encontrada para o board');
-        return [];
-      }
-
-      const listIds = lists.map(list => list.id);
-      console.log('📝 [DEBUG] IDs das listas:', listIds);
-
-      // Agora buscar cards dessas listas
+      // Buscar cards diretamente via join com board_lists, filtrando por board_id
       const { data, error } = await supabase
         .from('cards')
-        .select('*')
-        .in('list_id', listIds)
+        .select(`
+          id, list_id, title, position, priority, completed, due_date, description,
+          cover_color, cover_images,
+          board_lists!inner ( board_id )
+        `)
+        .eq('board_lists.board_id', boardId)
         .order('position');
 
       if (error) {
@@ -678,8 +663,24 @@ export function useBoardDetails(boardId: string) {
       }
 
       console.log('📋 [DEBUG] Cards encontrados:', data);
-      const normalized = ((data || []) as CardRow[]).map((row: CardRow) => ({
-        ...row,
+      const rows = (data ?? []) as unknown as Array<{
+        id: string;
+        list_id: string;
+        title: string;
+        position: number;
+        priority: 'low' | 'medium' | 'high' | 'urgent' | null;
+        completed: boolean | null;
+        due_date: string | null;
+        description: string | null;
+        cover_color?: string | null;
+        cover_images?: string[] | null;
+      }>;
+
+      const normalized = rows.map((row) => ({
+        id: row.id,
+        list_id: row.list_id,
+        title: row.title,
+        position: row.position,
         description: row.description ?? undefined,
         due_date: row.due_date ?? undefined,
         completed: !!row.completed,
@@ -762,7 +763,7 @@ export function useBoardDetails(boardId: string) {
         .select(`
           card_id,
           user_id,
-          profiles:user_id (full_name, avatar_url, phone)
+          profiles:profiles (id, full_name, avatar_url, phone)
         `)
         .in('card_id', cardIds);
 
@@ -839,6 +840,53 @@ export function useBoardDetails(boardId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['board-lists', boardId] });
+    },
+  });
+
+  const renameListMutation = useMutation({
+    mutationFn: async ({ listId, title }: { listId: string; title: string }) => {
+      if (!isOnline) {
+        throw new Error('Sem conexão. Tente novamente quando estiver online.');
+      }
+      const { data, error } = await supabase
+        .from('board_lists')
+        .update({ title, updated_at: new Date().toISOString() })
+        .eq('id', listId)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['board-lists', boardId] });
+      toast({ title: 'Lista renomeada', description: 'Título atualizado com sucesso.' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Erro ao renomear lista', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const deleteListMutation = useMutation({
+    mutationFn: async (listId: string) => {
+      if (!isOnline) {
+        throw new Error('Sem conexão. Tente novamente quando estiver online.');
+      }
+      // KISS: remover cards da lista antes para evitar erro de FK
+      await supabase.from('cards').delete().eq('list_id', listId);
+      const { error } = await supabase
+        .from('board_lists')
+        .delete()
+        .eq('id', listId);
+      if (error) throw error;
+      return listId;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['board-lists', boardId] });
+      queryClient.invalidateQueries({ queryKey: ['board-cards', boardId] });
+      toast({ title: 'Lista excluída', description: 'A lista foi removida com sucesso.' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Erro ao excluir lista', description: error.message, variant: 'destructive' });
     },
   });
 
@@ -1321,5 +1369,7 @@ export function useBoardDetails(boardId: string) {
     // Expor também a versão assíncrona para permitir await em fluxos de UI
     deleteCardAsync: deleteCardMutation.mutateAsync,
     updateCard: updateCardMutation.mutate,
+    renameList: renameListMutation.mutate,
+    deleteList: deleteListMutation.mutate,
   };
 }

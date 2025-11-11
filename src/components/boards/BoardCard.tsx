@@ -25,7 +25,7 @@ export function BoardCard({ board }: BoardCardProps) {
       try {
         const { data, error } = await supabase
           .from('board_members')
-          .select('user_id, profiles:profiles!inner(full_name, avatar_url)')
+          .select('user_id, profiles:profiles(id, full_name, avatar_url)')
           .eq('board_id', board.id);
         if (error) throw error;
         const rows = (data || []) as Array<{ user_id: string; profiles: { full_name?: string | null; avatar_url?: string | null } | null }>;
