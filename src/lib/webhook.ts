@@ -22,6 +22,7 @@ export type WebhookMember = {
   name: string;
   avatar?: string;
   phone?: string | null;
+  cargo?: string | null;
 };
 
 export type WebhookLabel = {

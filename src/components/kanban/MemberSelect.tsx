@@ -151,8 +151,12 @@ export function MemberSelect({ selectedMembers, onMembersChange, className, card
           name: newMember.name,
           avatar: newMember.avatar,
           phone: profile?.phone ?? null,
+          cargo: profile?.cargo ?? null,
         },
-        members: [...selectedMembers, newMember].map(m => ({ id: m.id, name: m.name, avatar: m.avatar })),
+        members: [...selectedMembers, newMember].map(m => {
+          const p = profiles.find((pf: Profile) => pf.id === m.id);
+          return { id: m.id, name: m.name, avatar: m.avatar, phone: p?.phone ?? null, cargo: p?.cargo ?? null };
+        }),
       });
     } catch (e) {
       console.warn('[Webhook] erro ao enviar member_added:', e);
@@ -200,8 +204,15 @@ export function MemberSelect({ selectedMembers, onMembersChange, className, card
         event: 'member_removed',
         boardId,
         cardId,
-        member: removedMember ? { id: removedMember.id, name: removedMember.name, avatar: removedMember.avatar, phone: profile?.phone ?? null } : { id: memberId, name: 'Usuário', phone: profile?.phone ?? null },
-        members: selectedMembers.filter(m => m.id !== memberId).map(m => ({ id: m.id, name: m.name, avatar: m.avatar })),
+        member: removedMember 
+          ? { id: removedMember.id, name: removedMember.name, avatar: removedMember.avatar, phone: profile?.phone ?? null, cargo: profile?.cargo ?? null }
+          : { id: memberId, name: 'Usuário', phone: profile?.phone ?? null, cargo: profile?.cargo ?? null },
+        members: selectedMembers
+          .filter(m => m.id !== memberId)
+          .map(m => {
+            const p = profiles.find((pf: Profile) => pf.id === m.id);
+            return { id: m.id, name: m.name, avatar: m.avatar, phone: p?.phone ?? null, cargo: p?.cargo ?? null };
+          }),
       });
     } catch (e) {
       console.warn('[Webhook] erro ao enviar member_removed:', e);

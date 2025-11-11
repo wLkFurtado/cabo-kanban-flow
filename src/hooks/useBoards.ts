@@ -771,6 +771,7 @@ export function useBoardDetails(boardId: string) {
       full_name?: string | null;
       avatar_url?: string | null;
       phone?: string | null;
+      cargo?: string | null;
     } | null;
   };
 
@@ -785,20 +786,21 @@ export function useBoardDetails(boardId: string) {
         .select(`
           card_id,
           user_id,
-          profiles:profiles (id, full_name, avatar_url, phone)
+          profiles:profiles (id, full_name, avatar_url, phone, cargo)
         `)
         .in('card_id', cardIds);
 
       if (error) throw error;
 
-      const grouped: Record<string, { id: string; name: string; avatar?: string; phone?: string | null }[]> = {};
+      const grouped: Record<string, { id: string; name: string; avatar?: string; phone?: string | null; cargo?: string | null }[]> = {};
       cardIds.forEach((id) => { grouped[id] = []; });
       const rows = (data || []) as CardMemberRow[];
       rows.forEach((row) => {
         const name = row.profiles?.full_name || 'Usuário';
         const avatar = row.profiles?.avatar_url || undefined;
         const phone = row.profiles?.phone ?? null;
-        const member = { id: row.user_id, name, avatar, phone };
+        const cargo = row.profiles?.cargo ?? null;
+        const member = { id: row.user_id, name, avatar, phone, cargo };
         if (!grouped[row.card_id]) grouped[row.card_id] = [];
         grouped[row.card_id].push(member);
       });
@@ -926,10 +928,10 @@ export function useBoardDetails(boardId: string) {
 
       const { data, error } = await supabase
         .from('cards')
-        .insert([{
-          list_id: listId,
-          title,
-          position: maxPosition + 1,
+        .insert([{ 
+          list_id: listId, 
+          title, 
+          position: maxPosition + 1, 
           created_by: user.id,
         }])
         .select()
@@ -941,12 +943,50 @@ export function useBoardDetails(boardId: string) {
     onSuccess: async (card) => {
       queryClient.invalidateQueries({ queryKey: ['board-cards', boardId] });
       if (card?.id) {
+        // Vincular automaticamente o criador como membro do card
+        try {
+          await supabase
+            .from('card_members')
+            .insert({ card_id: card.id as string, user_id: user?.id as string });
+          // Atualizar imediatamente membros
+          queryClient.invalidateQueries({ queryKey: ['card-members', boardId] });
+        } catch (memberErr) {
+          console.warn('⚠️ Falha ao vincular criador como membro do card:', memberErr);
+        }
+
         await logActivity(card.id as string, 'card_created', 'criou este cartão');
-        // Webhook: criação de card
-        await postWebhook({
-          event: 'card_created',
-          ...buildCardSnapshot(card as CardRow),
-        });
+        // Webhook: criação de card com TODOS os membros vinculados (nome, telefone, cargo)
+        try {
+          const { data: memberRows } = await supabase
+            .from('card_members')
+            .select(`
+              card_id,
+              user_id,
+              profiles:profiles (id, full_name, avatar_url, phone, cargo)
+            `)
+            .eq('card_id', card.id as string);
+
+          const members = (memberRows ?? []).map(row => ({
+            id: row.user_id,
+            name: row.profiles?.full_name ?? 'Usuário',
+            avatar: row.profiles?.avatar_url ?? undefined,
+            phone: row.profiles?.phone ?? null,
+            cargo: row.profiles?.cargo ?? null,
+          }));
+
+          await postWebhook({
+            event: 'card_created',
+            ...buildCardSnapshot(card as CardRow),
+            members,
+          });
+        } catch (whErr) {
+          console.warn('[Webhook] erro ao montar lista completa de membros em card_created:', whErr);
+          // Fallback: enviar sem lista se algo falhar
+          await postWebhook({
+            event: 'card_created',
+            ...buildCardSnapshot(card as CardRow),
+          });
+        }
       }
       toast({
         title: 'Card criado',
@@ -1181,18 +1221,50 @@ export function useBoardDetails(boardId: string) {
         });
         // Atualizar imediatamente atividades do card movido
         queryClient.invalidateQueries({ queryKey: ['card-activities', data.cardId] });
-        // Webhook: movimentação de card
+        // Webhook: movimentação de card com TODOS os membros vinculados (nome, telefone, cargo)
         const movedCard = (cardsQuery.data || []).find(c => c.id === data.cardId) || { id: data.cardId, list_id: data.destinationListId, position: data.newPosition };
-        await postWebhook({
-          event: 'card_moved',
-          movement: {
-            from_list_id: data.sourceListId,
-            to_list_id: data.destinationListId,
-            to_position: data.newPosition,
-            to_list_title: destinationTitle,
-          },
-          ...buildCardSnapshot(movedCard as Partial<CardRow>),
-        });
+        try {
+          const { data: memberRows } = await supabase
+            .from('card_members')
+            .select(`
+              card_id,
+              user_id,
+              profiles:profiles (id, full_name, avatar_url, phone, cargo)
+            `)
+            .eq('card_id', data.cardId);
+
+          const members = (memberRows ?? []).map(row => ({
+            id: row.user_id,
+            name: row.profiles?.full_name ?? 'Usuário',
+            avatar: row.profiles?.avatar_url ?? undefined,
+            phone: row.profiles?.phone ?? null,
+            cargo: row.profiles?.cargo ?? null,
+          }));
+
+          await postWebhook({
+            event: 'card_moved',
+            movement: {
+              from_list_id: data.sourceListId,
+              to_list_id: data.destinationListId,
+              to_position: data.newPosition,
+              to_list_title: destinationTitle,
+            },
+            ...buildCardSnapshot(movedCard as Partial<CardRow>),
+            members,
+          });
+        } catch (whErr) {
+          console.warn('[Webhook] erro ao montar lista completa de membros em card_moved:', whErr);
+          await postWebhook({
+            event: 'card_moved',
+            movement: {
+              from_list_id: data.sourceListId,
+              to_list_id: data.destinationListId,
+              to_position: data.newPosition,
+              to_list_title: destinationTitle,
+            },
+            ...buildCardSnapshot(movedCard as Partial<CardRow>),
+          });
+        }
       } catch (activityError) {
         console.warn('⚠️ Falha ao registrar atividade de movimentação:', activityError);
       }
