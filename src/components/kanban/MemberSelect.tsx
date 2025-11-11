@@ -21,6 +21,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useBoardsStore } from "../../state/boards/store";
 import type { BoardsStore } from "../../state/boards/types";
 import { useAuth } from "../../hooks/useAuth";
+import { useAdminRole } from "../../hooks/useAdminRole";
 import { useToast } from "../../hooks/use-toast";
 import { postWebhook } from "../../lib/webhook";
 import type { ChangeEvent } from "react";
@@ -40,6 +41,7 @@ export function MemberSelect({ selectedMembers, onMembersChange, className, card
   const { profiles } = useProfiles();
   const addActivity = useBoardsStore((s: BoardsStore) => s.addActivity);
   const { user } = useAuth();
+  const { isAdmin } = useAdminRole();
   const sb = supabase as SupabaseClient;
   const authorName = (user?.user_metadata?.full_name as string) || (user?.email as string) || "Usuário";
   const { toast } = useToast();
@@ -69,7 +71,7 @@ export function MemberSelect({ selectedMembers, onMembersChange, className, card
           .limit(1);
         const isMember = !!membership && membership.length > 0;
 
-        const allowed = isOwner || isMember;
+        const allowed = isOwner || isMember || !!isAdmin;
         if (mounted) setCanManage(allowed);
       } catch {
         if (mounted) setCanManage(false);
@@ -100,17 +102,21 @@ export function MemberSelect({ selectedMembers, onMembersChange, className, card
   });
 
   const addMember = async (user: { id: string; full_name?: string; display_name?: string; avatar_url?: string }) => {
-    if (!canManage) {
-      toast({ title: 'Sem permissão', description: 'Você não é membro deste board. Peça ao administrador para adicioná-lo ao board para poder gerenciar membros do card.', variant: 'destructive' });
-      return;
-    }
     // Persist in Supabase card_members
     const { error } = await supabase
       .from('card_members')
       .insert({ card_id: cardId, user_id: user.id });
     if (error) {
       console.error('Erro ao adicionar membro ao card:', error);
-      toast({ title: 'Erro ao adicionar membro', description: error.message, variant: 'destructive' });
+      const msg = String(error.message || '').toLowerCase();
+      const isRLSDenied = msg.includes('not authorized') || msg.includes('violates row level security') || msg.includes('permission') || msg.includes('rls');
+      toast({
+        title: isRLSDenied ? 'Sem permissão' : 'Erro ao adicionar membro',
+        description: isRLSDenied
+          ? 'Você não é membro deste board. Peça ao administrador para adicioná-lo ao board para poder gerenciar membros do card.'
+          : error.message,
+        variant: 'destructive',
+      });
       return;
     }
     const newMember: Member = {
