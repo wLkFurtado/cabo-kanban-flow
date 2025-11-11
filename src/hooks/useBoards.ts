@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
 import { supabase } from '../integrations/supabase/client';
 import { useOnlineStatus } from './useOnlineStatus';
 import { useAuth } from './useAuth';
@@ -98,11 +99,9 @@ export function useBoards() {
   const { isAdmin, loading: adminLoading } = useAdminRole();
   const isOnline = useOnlineStatus();
 
-  const { data: boards, isLoading, error } = useQuery({
-    queryKey: ['boards', user?.id, isAdmin ? 'admin' : 'user'],
-    enabled: !!user?.id && !adminLoading && isOnline,
-    refetchOnMount: 'always',
-    queryFn: async () => {
+  const { data: boards, isLoading, error } = useQuery(
+    ['boards', user?.id, isAdmin ? 'admin' : 'user'] as const,
+    async () => {
       const currentUserId = user?.id;
       if (!currentUserId) {
         throw new Error('User not authenticated');
@@ -112,7 +111,7 @@ export function useBoards() {
         console.log('🔍 [DEBUG] Admin detected. Fetching ALL boards');
         const { data, error } = await supabase
           .from('boards')
-          .select('*')
+          .select('id, title, description, created_at, owner_id, visibility')
           .order('created_at', { ascending: false });
         if (error) {
           console.error('❌ [DEBUG] Error fetching all boards for admin:', error);
@@ -131,7 +130,7 @@ export function useBoards() {
       console.log('🔍 [DEBUG] Fetching owned boards for user:', currentUserId);
       const ownedResult = await supabase
         .from('boards')
-        .select('*')
+        .select('id, title, description, created_at, owner_id, visibility')
         .eq('owner_id', currentUserId)
         .order('created_at', { ascending: false });
 
@@ -167,7 +166,7 @@ export function useBoards() {
         console.log('🔍 [DEBUG] Fetching member boards via ids:', membershipIds.length);
         const memberBoardsResult = await supabase
           .from('boards')
-          .select('*')
+          .select('id, title, description, created_at, owner_id, visibility')
           .in('id', membershipIds);
 
         if (memberBoardsResult.error) {
@@ -193,14 +192,19 @@ export function useBoards() {
       console.log('✅ [DEBUG] Merged visible boards count:', merged.length);
       return merged;
     },
-    retry: (failureCount, error) => {
-      console.log(`🔄 [useBoards] Retry attempt ${failureCount} for error:`, error instanceof Error ? error.message : String(error));
-      return failureCount < 2; // Only retry twice
-    },
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    cacheTime: 10 * 60 * 1000, // 10 minutes
-  });
+    {
+      enabled: !!user?.id && !adminLoading && isOnline,
+      refetchOnMount: false,
+      staleTime: 300000,
+      keepPreviousData: true,
+      retry: (failureCount, error) => {
+        console.log(`🔄 [useBoards] Retry attempt ${failureCount} for error:`, error instanceof Error ? error.message : String(error));
+        return failureCount < 2; // Only retry twice
+      },
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+      cacheTime: 10 * 60 * 1000, // 10 minutes
+    }
+  );
 
   const createBoardMutation = useMutation({
     mutationFn: async (board: { title: string; description?: string; visibility?: 'private' | 'team' | 'public'; initialStages?: string[] }) => {
@@ -572,6 +576,8 @@ export function useBoardDetails(boardId: string) {
       } as Board;
     },
     enabled: !!user && !!boardId && isOnline,
+    staleTime: 60000,
+    keepPreviousData: true,
   });
 
   // Garante que o dono do board tenha membership para evitar bloqueios de RLS nas tabelas filhas
@@ -637,7 +643,9 @@ export function useBoardDetails(boardId: string) {
         color: row.color ?? '#6366f1',
       })) as BoardList[];
     },
-    enabled: !!user && !!boardId && isOnline && !!boardQuery.data && !ensureMembershipQuery.isLoading,
+    enabled: !!user && !!boardId && isOnline && !!boardQuery.data,
+    staleTime: 60000,
+    keepPreviousData: true,
   });
 
   // Query para buscar cards do board
@@ -691,12 +699,22 @@ export function useBoardDetails(boardId: string) {
       return normalized;
     },
     enabled: !!user && !!boardId && isOnline,
+    staleTime: 60000,
+    keepPreviousData: true,
   });
+
+  // KISS: adiar dados secundários (labels, comentários e membros) após a renderização básica
+  const [enableSecondary, setEnableSecondary] = useState(false);
+  useEffect(() => {
+    setEnableSecondary(false);
+    const t = setTimeout(() => setEnableSecondary(true), 300);
+    return () => clearTimeout(t);
+  }, [boardId]);
 
   // Buscar labels dos cards para exibir cores e contagem
   const cardLabelsQuery = useQuery({
     queryKey: ['card-labels', boardId],
-    enabled: !!cardsQuery.data && cardsQuery.data.length > 0,
+    enabled: enableSecondary && !!cardsQuery.data && cardsQuery.data.length > 0 && isOnline,
     retry: false,
     queryFn: async () => {
       const cardIds = (cardsQuery.data || []).map((c) => c.id);
@@ -715,12 +733,14 @@ export function useBoardDetails(boardId: string) {
       });
       return grouped;
     },
+    staleTime: 60000,
+    keepPreviousData: true,
   });
 
   // Buscar comentários para obter contagem por card
   const cardCommentsCountQuery = useQuery({
     queryKey: ['card-comments-count', boardId],
-    enabled: !!cardsQuery.data && cardsQuery.data.length > 0 && isOnline,
+    enabled: enableSecondary && !!cardsQuery.data && cardsQuery.data.length > 0 && isOnline,
     retry: false,
     queryFn: async () => {
       const cardIds = (cardsQuery.data || []).map((c) => c.id);
@@ -738,6 +758,8 @@ export function useBoardDetails(boardId: string) {
       });
       return counts;
     },
+    staleTime: 60000,
+    keepPreviousData: true,
   });
 
   // Buscar membros dos cards (apenas usuários cadastrados)
@@ -754,7 +776,7 @@ export function useBoardDetails(boardId: string) {
 
   const cardMembersQuery = useQuery({
     queryKey: ['card-members', boardId],
-    enabled: !!cardsQuery.data && cardsQuery.data.length > 0 && isOnline,
+    enabled: enableSecondary && !!cardsQuery.data && cardsQuery.data.length > 0 && isOnline,
     retry: false,
     queryFn: async () => {
       const cardIds = (cardsQuery.data || []).map((c) => c.id);
@@ -782,6 +804,8 @@ export function useBoardDetails(boardId: string) {
       });
       return grouped;
     },
+    staleTime: 60000,
+    keepPreviousData: true,
   });
 
   // Helper para montar snapshot completo de card para o webhook

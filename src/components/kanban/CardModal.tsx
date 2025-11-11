@@ -66,6 +66,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const sb = supabase as SupabaseClient;
+  const [boardOwnerName, setBoardOwnerName] = useState<string | null>(null);
   
   // Hook para gerenciar comentários do Supabase
   const { 
@@ -475,7 +476,51 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
   // Atividades locais do store (fallback imediato)
   const localActivities: Comment[] = (storeCard?.comments || []).filter((c) => c.type === 'activity');
   const supabaseContents = new Set(supabaseActivities.map((a) => a.content));
+  // Buscar nome do criador do board consultando o Supabase
+  useEffect(() => {
+    const fetchOwnerName = async () => {
+      try {
+        // Buscar o owner_id do board via tabela boards
+        const { data: boardRow, error: boardErr } = await sb
+          .from('boards')
+          .select('owner_id')
+          .eq('id', boardId)
+          .maybeSingle();
+        if (boardErr) { setBoardOwnerName(null); return; }
+        const ownerId = (boardRow as { owner_id?: string } | null)?.owner_id;
+        if (!ownerId) { setBoardOwnerName(null); return; }
+        const { data: profileRow } = await sb
+          .from('profiles')
+          .select('full_name, email')
+          .eq('id', ownerId)
+          .maybeSingle();
+        const name = (profileRow?.full_name as string) || (profileRow?.email as string) || null;
+        setBoardOwnerName(name);
+      } catch {
+        setBoardOwnerName(null);
+      }
+    };
+    if (open) fetchOwnerName();
+  }, [open, boardId]);
+
+  const boardCreatedActivity: Comment | null = React.useMemo(() => {
+    const createdAt = board?.createdAt;
+    if (!createdAt) return null;
+    const author = boardOwnerName || 'Usuário';
+    const when = format(parseISO(createdAt), "dd/MM/yyyy HH:mm", { locale: ptBR });
+    return {
+      id: `activity_board_created_${boardId}`,
+      cardId: card.id,
+      author,
+      content: `board_created:criou o board em ${when}`,
+      timestamp: createdAt,
+      type: 'activity',
+      avatarUrl: undefined,
+    } as Comment;
+  }, [board?.createdAt, boardOwnerName, boardId, card.id]);
+
   const mergedActivities = [
+    ...(boardCreatedActivity ? [boardCreatedActivity] : []),
     ...supabaseActivities,
     ...localActivities.filter((c) => !supabaseContents.has(c.content)),
   ];

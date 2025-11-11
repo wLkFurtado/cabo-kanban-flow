@@ -110,7 +110,28 @@ export default function BoardView() {
   }
 
   if (isLoading) {
-    return <div>Carregando...</div>;
+    return (
+      <section>
+        <div className="flex items-center justify-between mb-8">
+          <div className="animate-pulse">
+            <div className="h-8 w-48 bg-muted rounded mb-2" />
+            <div className="h-4 w-72 bg-muted rounded" />
+          </div>
+        </div>
+        <div className="flex gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="flex-1">
+              <div className="animate-pulse space-y-2">
+                <div className="h-6 w-36 bg-muted rounded" />
+                {Array.from({ length: 4 }).map((__, j) => (
+                  <div key={j} className="h-20 bg-muted rounded" />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    );
   }
 
   if (error) {
