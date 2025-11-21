@@ -663,7 +663,8 @@ export function useBoardDetails(boardId: string) {
           board_lists!inner ( board_id )
         `)
         .eq('board_lists.board_id', boardId)
-        .order('position');
+        .order('position')
+        .limit(100); // Limitar a 100 cards por board para performance
 
       if (error) {
         console.log('❌ [DEBUG] Erro ao buscar cards:', error);

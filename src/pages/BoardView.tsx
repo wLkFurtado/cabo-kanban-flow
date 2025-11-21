@@ -1,8 +1,9 @@
-import { useMemo, useEffect } from 'react';
+import { useMemo, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { BoardHeader } from '../components/boards/BoardHeader';
 import { KanbanBoard } from "../components/kanban/KanbanBoard";
 import { ViewTabs } from '../components/boards/ViewTabs';
+import BoardLoading from '../components/kanban/BoardLoading';
 import { useBoardDetails } from '../hooks/useBoards';
 import { useAuth } from '../hooks/useAuth';
 import type { Card, List } from "../state/kanbanTypes";
@@ -32,8 +33,8 @@ export default function BoardView() {
 
   const { board, lists, cards, labelsByCardId, commentsCountByCardId, membersByCardId, isLoading, error, addList, addCard, moveCard, renameList, deleteList } = useBoardDetails(boardId ?? '');
 
-  // Helpers simples para conversão e agrupamento (KISS)
-  const convertKanbanData = (
+  // Helpers simples para conversão e agrupamento (KISS) - Memoizado para performance
+  const convertKanbanData = useCallback((
     rawLists: SupabaseList[] | undefined,
     rawCards: SupabaseCard[] | undefined,
     labelsMap: Record<string, SupabaseLabel[]> | undefined,
@@ -45,7 +46,6 @@ export default function BoardView() {
     const listsOut: List[] = rawLists.map((l) => ({
       id: l.id,
       title: l.title,
-      color: l.color || '#6366f1',
       position: l.position,
     }));
 
@@ -59,14 +59,9 @@ export default function BoardView() {
         description: c.description ?? '',
         list_id: c.list_id,
         position: c.position,
-        priority: (c.priority ?? 'medium') as 'low' | 'medium' | 'high' | 'urgent',
-        completed: !!c.completed,
         dueDate: c.due_date ?? undefined,
         coverColor: (c.cover_color ?? undefined) as 'green' | 'yellow' | 'orange' | 'red' | 'purple' | 'blue' | undefined,
         coverImages: c.cover_images ?? [],
-        assignees: [],
-        tags: [],
-        attachments: [],
         labels: labelRows.map((l) => ({ id: l.id, name: l.name, color: l.color })),
         members: membersRows.map((m) => ({ id: m.id, name: m.name, avatar: m.avatar })),
         comments: Array.from({ length: commentsCount }).map((_, i) => ({
@@ -81,7 +76,7 @@ export default function BoardView() {
     });
 
     return { lists: listsOut, cards: cardsOut };
-  };
+  }, []); // Dependências vazias pois a função é pura
 
   const kanbanData = useMemo(
     () => convertKanbanData(lists as SupabaseList[], cards as SupabaseCard[], labelsByCardId as Record<string, SupabaseLabel[]>, commentsCountByCardId as Record<string, number>, membersByCardId as Record<string, SupabaseMember[]>),
@@ -111,24 +106,17 @@ export default function BoardView() {
 
   if (isLoading) {
     return (
-      <section>
+      <section className="flex flex-col h-full">
         <div className="flex items-center justify-between mb-8">
           <div className="animate-pulse">
             <div className="h-8 w-48 bg-muted rounded mb-2" />
             <div className="h-4 w-72 bg-muted rounded" />
           </div>
         </div>
-        <div className="flex gap-4">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="flex-1">
-              <div className="animate-pulse space-y-2">
-                <div className="h-6 w-36 bg-muted rounded" />
-                {Array.from({ length: 4 }).map((__, j) => (
-                  <div key={j} className="h-20 bg-muted rounded" />
-                ))}
-              </div>
-            </div>
-          ))}
+        <div className="flex-1 overflow-hidden">
+          <div className="h-full bg-gray-50 p-4 overflow-hidden">
+            <BoardLoading listCount={3} cardCountPerList={3} />
+          </div>
         </div>
       </section>
     );

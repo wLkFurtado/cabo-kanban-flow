@@ -5,6 +5,7 @@ import { CardModal } from './CardModal';
 import { Calendar, MessageSquare, Tag } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar';
 import { ImageViewerDialog } from './ImageViewerDialog';
+import LazyImage from '../ui/lazy-image';
  
 
 const coverColorClass: Record<LabelColor, string> = {
@@ -95,19 +96,19 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
             {/* Cover Image */}
             {card.coverImages && card.coverImages.length > 0 && (
               <div className="h-32 mb-2 rounded-md overflow-hidden bg-muted">
-                <img
-                  src={card.coverImages[0]}
-                  alt="Card cover"
-                  className="w-full h-full object-cover cursor-zoom-in"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const firstCover = card.coverImages && card.coverImages.length > 0 
-                      ? (card.coverImages[0] ?? null)
-                      : null;
-                    setViewerSrc(firstCover);
-                    setViewerOpen(true);
-                  }}
-                />
+                <LazyImage
+                src={card.coverImages[0]}
+                alt="Card cover"
+                className="w-full h-full object-cover cursor-zoom-in"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const firstCover = card.coverImages && card.coverImages.length > 0 
+                    ? (card.coverImages[0] ?? null)
+                    : null;
+                  setViewerSrc(firstCover);
+                  setViewerOpen(true);
+                }}
+              />
               </div>
             )}
 
