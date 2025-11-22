@@ -22,6 +22,7 @@ interface KanbanCardProps {
   index: number;
   boardId: string;
   onDeleteCard: (cardId: string) => void;
+  onAdvanceCard: (card: Card) => void;
 }
 
 export const KanbanCard: React.FC<KanbanCardProps> = ({
@@ -29,6 +30,7 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
   index,
   boardId,
   onDeleteCard,
+  onAdvanceCard,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -83,6 +85,13 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
               ${snapshot.isDragging ? 'shadow-lg rotate-2' : ''}
             `}
             onClick={() => setIsModalOpen(true)}
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                onAdvanceCard(card);
+              }
+            }}
           >
             
 

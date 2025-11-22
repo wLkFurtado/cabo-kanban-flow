@@ -7,6 +7,7 @@ import BoardLoading from '../components/kanban/BoardLoading';
 import { useBoardDetails } from '../hooks/useBoards';
 import { useAuth } from '../hooks/useAuth';
 import type { Card, List } from "../state/kanbanTypes";
+import { useToast } from '../hooks/use-toast';
 // Tipos de origem Supabase usados na conversão
 type SupabaseList = { id: string; title: string; color?: string; position: number };
 type SupabaseLabel = { id: string; name: string; color: string };
@@ -30,6 +31,7 @@ export default function BoardView() {
   const { boardId } = useParams<{ boardId: string }>();
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   const { board, lists, cards, labelsByCardId, commentsCountByCardId, membersByCardId, isLoading, error, addList, addCard, moveCard, renameList, deleteList } = useBoardDetails(boardId ?? '');
 
@@ -79,8 +81,14 @@ export default function BoardView() {
   }, []); // Dependências vazias pois a função é pura
 
   const kanbanData = useMemo(
-    () => convertKanbanData(lists as SupabaseList[], cards as SupabaseCard[], labelsByCardId as Record<string, SupabaseLabel[]>, commentsCountByCardId as Record<string, number>, membersByCardId as Record<string, SupabaseMember[]>),
-    [lists, cards, labelsByCardId, commentsCountByCardId, membersByCardId]
+    () => convertKanbanData(
+      lists as SupabaseList[],
+      cards as SupabaseCard[],
+      labelsByCardId as Record<string, SupabaseLabel[]>,
+      commentsCountByCardId as Record<string, number>,
+      membersByCardId as Record<string, SupabaseMember[]>
+    ),
+    [convertKanbanData, lists, cards, labelsByCardId, commentsCountByCardId, membersByCardId]
   );
 
   // Redirect to login if not authenticated
@@ -169,13 +177,27 @@ export default function BoardView() {
 
   const handleMoveCard = (cardId: string, sourceListId: string, destinationListId: string, destinationIndex: number) => {
     console.log('🎯 [DEBUG] handleMoveCard chamado:', { cardId, sourceListId, destinationListId, destinationIndex });
-    
-    // Chamar a mutation com os parâmetros corretos
-    moveCard({ 
-      cardId, 
-      sourceListId, 
-      destinationListId, 
-      newPosition: destinationIndex 
+
+    const currentCard = kanbanData.cards.find((c) => c.id === cardId);
+    if (currentCard) {
+      const titleOk = currentCard.title && currentCard.title.trim().length > 0;
+      const descriptionOk = currentCard.description && currentCard.description.trim().length > 0;
+
+      if (!titleOk || !descriptionOk) {
+        toast({
+          title: 'Campos obrigatórios',
+          description: 'Preencha o título e a descrição do card para avançar para a próxima etapa.',
+          variant: 'destructive'
+        });
+        return;
+      }
+    }
+
+    moveCard({
+      cardId,
+      sourceListId,
+      destinationListId,
+      newPosition: destinationIndex
     });
   };
 

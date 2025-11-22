@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { EditableText } from "../editable/EditableText";
 import { Board } from "../../state/kanbanTypes";
 import { useBoardsStore } from "../../state/boards/store";
+import { useBoards } from "../../hooks/useBoards";
 import type { BoardsStore } from "../../state/boards/types";
 import { BoardActions } from "./BoardActions";
 import { supabase } from "../../integrations/supabase/client";
@@ -18,6 +19,7 @@ export function BoardCard({ board }: BoardCardProps) {
   const updateBoardTitle = useBoardsStore((s: BoardsStore) => s.updateBoardTitle);
   const titleRef = useRef<HTMLDivElement>(null);
   const [members, setMembers] = useState<Array<{ id: string; name: string; avatar: string | null }>>([]);
+  const { updateBoard } = useBoards();
   const isOnline = useOnlineStatus();
 
   function getInitials(name: string): string {
@@ -117,7 +119,7 @@ export function BoardCard({ board }: BoardCardProps) {
             <div className="flex items-center gap-2">
               <EditableText
                 value={board.title}
-                onSubmit={(v: string) => updateBoardTitle(board.id, v)}
+                onSubmit={(v: string) => updateBoard({ id: board.id, title: v })}
                 className="text-xl md:text-2xl font-semibold tracking-tight leading-tight"
                 placeholder="Sem título"
               />

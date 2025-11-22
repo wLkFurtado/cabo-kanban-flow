@@ -6,6 +6,7 @@ import { EditableText } from "../editable/EditableText";
 import { BoardActions } from "./BoardActions";
 import type { Board, Card } from "../../state/kanbanTypes";
 import { useBoardsStore } from "../../state/boards/store";
+import { useBoards } from "../../hooks/useBoards";
 import { useEffect, useRef, useState, ChangeEvent } from "react";
 import { supabase } from "../../integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
@@ -106,6 +107,8 @@ export function BoardHeader({ board, onDeleted }: BoardHeaderProps) {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   };
 
+  const { updateBoard } = useBoards();
+
   return (
     <div className="relative z-10 space-y-4 pb-6 border-b bg-transparent">
 
@@ -120,7 +123,7 @@ export function BoardHeader({ board, onDeleted }: BoardHeaderProps) {
                 ) : (
                   <EditableText 
                     value={board.title} 
-                    onSubmit={(v: string) => updateBoardTitle(board.id, v)} 
+                    onSubmit={(v: string) => updateBoard({ id: board.id, title: v })} 
                   />
                 )}
               </h1>

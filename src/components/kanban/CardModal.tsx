@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "../ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
+
 import { Input } from "../ui/input";
 import { Textarea } from "../ui/textarea";
 import { Button } from "../ui/button";
@@ -10,7 +10,7 @@ import { ScrollArea } from "../ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Checkbox } from "../ui/checkbox";
 import { cn } from "../../lib/utils";
-import { MessageSquare, Clock, User, Send, Calendar, Tag, Paperclip, ArrowRight, Plus, Image, CalendarDays, Users, Palette, Check } from "lucide-react";
+import { MessageSquare, Clock, User, Send, Calendar, Tag, Paperclip, ArrowRight, Plus, Image, CalendarDays, Users, Palette, Check, Trash, MoreHorizontal, FileText, FileArchive, Video, Music, FileCode, File } from "lucide-react";
 
 import { Card as TCard, Label as TLabel, LabelColor, Comment, Member } from "../../state/kanbanTypes";
 import { parseISO, format, formatDistanceToNow } from "date-fns";
@@ -21,12 +21,16 @@ import { useComments } from "../../hooks/useComments";
 import { useActivities } from "../../hooks/useActivities";
 import { supabase } from "../../integrations/supabase/client";
 import { SupabaseClient } from "@supabase/supabase-js";
+import type { Json } from "../../integrations/supabase/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "../../hooks/use-toast";
 import { MemberSelect } from "./MemberSelect";
 import { useAuth } from "../../hooks/useAuth";
 import { ImageViewerDialog } from "./ImageViewerDialog";
 import { postWebhook } from "../../lib/webhook";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "../ui/dropdown-menu";
+import { useAttachments } from "../../hooks/useAttachments";
+import { Progress } from "../ui/progress";
 
 const labelColorClass: Record<LabelColor, string> = {
   green: "bg-[hsl(var(--label-green))] text-white",
@@ -60,8 +64,6 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
   const addActivity = useBoardsStore((s) => s.addActivity);
   const board = useBoardsStore((s) => s.boards[boardId]);
   const { toast } = useToast();
-  const [viewerOpen, setViewerOpen] = useState(false);
-  const [viewerSrc, setViewerSrc] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -99,15 +101,141 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
   const [newTagName, setNewTagName] = useState("");
   const [selectedTagColor, setSelectedTagColor] = useState<LabelColor>("blue");
   const commentsScrollRef = useRef<HTMLDivElement>(null);
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
+  const [commentFocused, setCommentFocused] = useState(false);
+
+  // Timers para autosave (debounce por campo)
+  const titleTimerRef = useRef<number | null>(null);
+  const descTimerRef = useRef<number | null>(null);
+  const coverImagesTimerRef = useRef<number | null>(null);
+
+  // Funções para flush imediato de autosave ao fechar o modal
+  const flushTitleAutosave = () => {
+    if (titleTimerRef.current) {
+      window.clearTimeout(titleTimerRef.current);
+      titleTimerRef.current = null;
+      updateCard({ cardId: card.id, updates: { title: (title || '').trim() || 'Sem título' } });
+    }
+  };
+  const flushDescriptionAutosave = () => {
+    if (descTimerRef.current) {
+      window.clearTimeout(descTimerRef.current);
+      descTimerRef.current = null;
+      updateCard({ cardId: card.id, updates: { description: (description || '').trim() } });
+    }
+  };
+  const flushCoverImagesAutosave = () => {
+    if (coverImagesTimerRef.current) {
+      window.clearTimeout(coverImagesTimerRef.current);
+      coverImagesTimerRef.current = null;
+      updateCard({ cardId: card.id, updates: { coverImages: coverImages } });
+    }
+  };
+
+  // Ao fechar o modal, garantir que o último estado seja persistido
+  useEffect(() => {
+    if (!open) {
+      flushTitleAutosave();
+      flushDescriptionAutosave();
+      flushCoverImagesAutosave();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const isHexColor = (val: string) => /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(val);
 
+  const attachmentIcon = (mime: string) => {
+    if (mime.startsWith('image/')) return <Image className="h-4 w-4 text-blue-600" />;
+    if (mime.startsWith('video/')) return <Video className="h-4 w-4 text-purple-600" />;
+    if (mime.startsWith('audio/')) return <Music className="h-4 w-4 text-emerald-600" />;
+    if (mime.includes('pdf')) return <FileText className="h-4 w-4 text-red-600" />;
+    if (mime.includes('zip') || mime.includes('rar')) return <FileArchive className="h-4 w-4 text-orange-600" />;
+    if (mime.includes('json') || mime.includes('javascript') || mime.includes('typescript') || mime.includes('xml')) return <FileCode className="h-4 w-4 text-slate-600" />;
+    return <File className="h-4 w-4 text-muted-foreground" />;
+  };
+
+  const friendlyTypeLabel = (mime: string) => {
+    if (mime.startsWith('image/')) return 'Imagem';
+    if (mime.startsWith('video/')) return 'Vídeo';
+    if (mime.startsWith('audio/')) return 'Áudio';
+    if (mime.includes('pdf')) return 'PDF';
+    if (mime.includes('zip') || mime.includes('rar')) return 'Compactado';
+    if (mime.includes('msword') || mime.includes('officedocument') || mime.includes('rtf')) return 'Documento';
+    if (mime.includes('json') || mime.includes('javascript') || mime.includes('typescript') || mime.includes('xml')) return 'Código';
+    return 'Arquivo';
+  };
+
+  const handleDownload = (url: string, name: string) => {
+    try {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch {
+      window.open(url, '_blank');
+    }
+  };
+
   // State for expandable sections (clean interface only)
-  const [showImages, setShowImages] = useState(false);
   const [coverDialogOpen, setCoverDialogOpen] = useState(false);
   const [showTags, setShowTags] = useState(false);
   const [showDates, setShowDates] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
+  const [showAttachments, setShowAttachments] = useState(true);
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const { attachments: storedAttachments, relationMissing, uploading, upload, rename, setDescription: setAttachmentDescription, remove } = useAttachments(boardId, card.id);
+  
+  const [editingName, setEditingName] = useState<Record<string, string>>({});
+  const [editingDesc, setEditingDesc] = useState<Record<string, string>>({});
+
+  type FilterKey = 'all' | 'image' | 'video' | 'audio' | 'doc' | 'zip' | 'code' | 'link';
+  type SortBy = 'name' | 'size' | 'date';
+  type SortDir = 'asc' | 'desc';
+  type AttachmentItem = {
+    id: string;
+    board_id: string;
+    card_id: string;
+    name: string;
+    description?: string | null;
+    size: number;
+    type: string;
+    url: string;
+    path: string;
+    created_at: string;
+  };
+
+  const [filterState, setFilterState] = useState<FilterKey>('all');
+  const [sortByState, setSortByState] = useState<SortBy>('date');
+  const [sortDirState, setSortDirState] = useState<SortDir>('desc');
+
+  const filterFn = React.useCallback((t: string) => {
+    switch (filterState) {
+      case 'image': return t.startsWith('image/');
+      case 'video': return t.startsWith('video/');
+      case 'audio': return t.startsWith('audio/');
+      case 'doc': return t.includes('pdf') || t.includes('msword') || t.includes('officedocument') || t.includes('rtf');
+      case 'zip': return t.includes('zip') || t.includes('rar');
+      case 'code': return t.includes('json') || t.includes('javascript') || t.includes('typescript') || t.includes('xml');
+      case 'link': return false;
+      default: return true;
+    }
+  }, [filterState]);
+
+  const visibleAttachments = React.useMemo(() => {
+    const arr = (storedAttachments || []).filter(a => filterFn(a.type));
+    arr.sort((a, b) => {
+      let cmp = 0;
+      if (sortByState === 'name') cmp = a.name.localeCompare(b.name);
+      else if (sortByState === 'size') cmp = (a.size || 0) - (b.size || 0);
+      else cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      return sortDirState === 'asc' ? cmp : -cmp;
+    });
+    return arr;
+  }, [storedAttachments, filterFn, sortByState, sortDirState]);
+
+  
   useEffect(() => {
     if (open) {
       setTitle(card.title);
@@ -195,68 +323,24 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
   };
 
   const handleDelete = async () => {
-    // Sinaliza início para depuração visual
-    toast({ title: 'Iniciando exclusão...', description: 'Processando remoção do card.' });
-    // Executar exclusão diretamente via Supabase para garantir ação imediata
     try {
       setIsDeleting(true);
-      console.log('[CardModal] Iniciando exclusão do card', card.id);
-      const { data, error } = await supabase
-        .from('cards')
-        .delete()
-        .eq('id', card.id)
-        .select('id');
-
-      if (error) throw error;
-      if (!data || data.length === 0) {
-        // Diagnóstico adicional para entender o bloqueio (RLS ou inconsistência)
-        try {
-          // Tentar obter o board_id da lista do card
-          const { data: listRow } = await supabase
-            .from('board_lists')
-            .select('id, board_id')
-            .eq('id', card.list_id)
-            .maybeSingle();
-
-          // Tentar verificar se o usuário é membro do board
-          let isMember = false;
-          if (listRow?.board_id && user?.id) {
-            const { data: membership } = await supabase
-              .from('board_members')
-              .select('user_id')
-              .eq('board_id', listRow.board_id)
-              .eq('user_id', user.id);
-            isMember = !!(membership && membership.length > 0);
-          }
-
-          console.warn('[CardModal] Exclusão não afetou nenhuma linha. Possível RLS ou card inexistente.', {
-            cardId: card.id,
-            listId: card.list_id,
-            boardId: listRow?.board_id,
-            isMember,
-          });
-        } catch (diagErr) {
-          console.warn('[CardModal] Falha na coleta de diagnóstico pós-exclusão:', diagErr);
-        }
-
-        toast({
-          title: 'Não foi possível excluir',
-          description: 'Verifique seu acesso ao board ou tente novamente.',
-          variant: 'destructive'
-        });
-        return;
-      }
-
-      // Invalida cache dos cards do board para refletir a remoção
-      queryClient.invalidateQueries({ queryKey: ['board-cards', boardId] });
-
+      await deleteCardAsync(card.id);
       toast({ title: 'Card excluído', description: 'O card foi excluído com sucesso.' });
       onOpenChange(false);
     } catch (err) {
-      toast({ title: 'Erro ao excluir card', description: errorMessage(err), variant: 'destructive' });
+      toast({ title: 'Não foi possível excluir', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  const triggerAttachmentUpload = () => {
+    setShowAttachments(true);
+    const el1 = document.getElementById('file-upload') as HTMLInputElement | null;
+    const el2 = document.getElementById('file-upload-clean') as HTMLInputElement | null;
+    const el = el1 || el2;
+    if (el) el.click();
   };
 
   const addLabel = async () => {
@@ -390,6 +474,110 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
     setCoverImages((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const MAX_FILE_SIZE = 13 * 1024 * 1024; // 13 MB
+  const formatBytes = (bytes: number) => {
+    if (bytes === 0) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB", "TB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  };
+  const sanitizeFileName = (name: string) => name.replace(/[^a-zA-Z0-9._-]/g, "_");
+
+  const ATTACHMENTS_BUCKET = (import.meta.env.VITE_ATTACHMENTS_BUCKET as string) || 'attachments';
+  const PROFILE_BUCKET = (import.meta.env.VITE_PROFILE_BUCKET as string) || 'perfil';
+
+  const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    setIsUploadingAttachment(true);
+    try {
+      for (const file of files) {
+        if (file.size > MAX_FILE_SIZE) {
+          toast({ title: "Arquivo muito grande", description: `O limite é de 13 MB. ${file.name} tem ${formatBytes(file.size)}.`, variant: "destructive" });
+          continue;
+        }
+        const safeName = sanitizeFileName(file.name);
+        const path = `boards/${boardId}/cards/${card.id}/${Date.now()}_${safeName}`;
+        let uploadOk = false;
+        let usedBucket = ATTACHMENTS_BUCKET;
+        let publicUrl = '';
+        for (const b of [ATTACHMENTS_BUCKET, 'attachments', PROFILE_BUCKET]) {
+          const bucket = sb.storage.from(b);
+          const { error: uploadErr } = await bucket.upload(path, file, { contentType: file.type });
+          if (!uploadErr) {
+            usedBucket = b;
+            const { data: pub } = bucket.getPublicUrl(path);
+            publicUrl = pub?.publicUrl || '';
+            if (!publicUrl) {
+              try {
+                const { data: signed } = await bucket.createSignedUrl(path, 60 * 60 * 24 * 7);
+                publicUrl = signed?.signedUrl || '';
+              } catch (_) { publicUrl = publicUrl || ''; }
+            }
+            uploadOk = true;
+            break;
+          }
+        }
+        if (!uploadOk) {
+          toast({ title: "Falha ao enviar arquivo", description: `Bucket '${ATTACHMENTS_BUCKET}' ausente. Defina VITE_ATTACHMENTS_BUCKET ou crie o bucket e torne-o público.`, variant: "destructive" });
+          continue;
+        }
+
+        // Registrar atividade de arquivo adicionado
+        const authorName = (user?.user_metadata?.full_name as string) || (user?.email as string) || "Usuário";
+        const desc = `${safeName}|${file.size}|${file.type}|${publicUrl}|${path}`;
+        addActivity(boardId, card.id, authorName, 'attachment_added', `enviou um arquivo: ${safeName}`);
+        await sb.from('card_activities').insert({
+          board_id: boardId,
+          card_id: card.id,
+          user_id: user?.id,
+          type: 'attachment_added',
+          description: desc,
+        });
+        // Atualizar lista imediatamente
+        queryClient.invalidateQueries({ queryKey: ["card-activities", card.id] });
+        toast({ title: "Arquivo enviado", description: safeName });
+        if (file.type.startsWith('image/')) {
+          setCoverFromUrl(publicUrl);
+        }
+      }
+    } catch (err) {
+      toast({ title: "Erro ao enviar arquivo", description: errorMessage(err), variant: "destructive" });
+    } finally {
+      setIsUploadingAttachment(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleAttachmentRemove = async (path: string, name: string) => {
+    try {
+      let removed = false;
+      for (const b of [ATTACHMENTS_BUCKET, 'attachments', PROFILE_BUCKET]) {
+        const bucket = sb.storage.from(b);
+        const { error: remErr } = await bucket.remove([path]);
+        if (!remErr) { removed = true; break; }
+      }
+      if (!removed) {
+        toast({ title: "Erro ao remover arquivo", description: "Falha ao remover do Storage", variant: "destructive" });
+        return;
+      }
+      const authorName = (user?.user_metadata?.full_name as string) || (user?.email as string) || "Usuário";
+      addActivity(boardId, card.id, authorName, 'attachment_removed', `removeu o arquivo: ${name}`);
+      await sb.from('card_activities').insert({
+        board_id: boardId,
+        card_id: card.id,
+        user_id: user?.id,
+        type: 'attachment_removed',
+        description: name,
+      });
+      queryClient.invalidateQueries({ queryKey: ["card-activities", card.id] });
+      toast({ title: "Arquivo removido", description: name });
+    } catch (err) {
+      toast({ title: "Erro ao remover arquivo", description: errorMessage(err), variant: "destructive" });
+    }
+  };
+
   const clearCover = () => {
     setCoverImages([]);
     setCoverColor(undefined);
@@ -398,6 +586,71 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
       cardId: card.id,
       updates: { cover_color: undefined }
     });
+  };
+
+  const setCoverFromUrl = (url: string) => {
+    const prev = coverImages || [];
+    const next = [url, ...prev.filter((u) => u !== url)];
+    setCoverImages(next);
+    updateCard({ cardId: card.id, updates: { cover_images: next } });
+    toast({ title: "Capa definida", description: "Imagem definida como capa do cartão." });
+  };
+
+  const isCoverUrl = (url: string) => {
+    return (coverImages || [])[0] === url;
+  };
+
+  // Autosave: título (debounced)
+  const scheduleTitleAutosave = (value: string) => {
+    if (titleTimerRef.current) window.clearTimeout(titleTimerRef.current);
+    titleTimerRef.current = window.setTimeout(() => {
+      updateCard({
+        cardId: card.id,
+        updates: { title: (value || '').trim() || 'Sem título' }
+      });
+    }, 600);
+  };
+
+  // Autosave: descrição (debounced)
+  const scheduleDescriptionAutosave = (value: string) => {
+    if (descTimerRef.current) window.clearTimeout(descTimerRef.current);
+    descTimerRef.current = window.setTimeout(() => {
+      updateCard({
+        cardId: card.id,
+        updates: { description: (value || '').trim() }
+      });
+    }, 600);
+  };
+
+  // Autosave: imagens da capa (debounced)
+  useEffect(() => {
+    if (!open) return;
+    if (coverImagesTimerRef.current) window.clearTimeout(coverImagesTimerRef.current);
+    coverImagesTimerRef.current = window.setTimeout(() => {
+      updateCard({ cardId: card.id, updates: { coverImages: coverImages } });
+    }, 800);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [coverImages]);
+
+  // Autosave: data de vencimento (imediato)
+  const handleDueDateChange = (value: string) => {
+    setDueDate(value);
+    const iso = value ? new Date(`${value}T00:00:00`).toISOString() : null;
+    updateCard({ cardId: card.id, updates: { due_date: iso as unknown as string | null } });
+  };
+
+  // Autosave: campos customizados (upsert em card_custom_values)
+  const saveCustomValue = async (fieldId: string, value: Json) => {
+    try {
+      await sb
+        .from('card_custom_values')
+        .upsert(
+          { card_id: card.id, custom_field_id: fieldId, value },
+          { onConflict: 'card_id,custom_field_id' }
+        );
+    } catch (err) {
+      console.warn('Falha ao salvar campo customizado:', err);
+    }
   };
 
   const formatCommentTime = (timestamp: string) => {
@@ -475,7 +728,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
   const { activities: supabaseActivities } = useActivities(card.id);
   // Atividades locais do store (fallback imediato)
   const localActivities: Comment[] = (storeCard?.comments || []).filter((c) => c.type === 'activity');
-  const supabaseContents = new Set(supabaseActivities.map((a) => a.content));
+  // Conteúdos das atividades do Supabase (memoizados junto com mergedActivities)
   // Buscar nome do criador do board consultando o Supabase
   useEffect(() => {
     const fetchOwnerName = async () => {
@@ -501,7 +754,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
       }
     };
     if (open) fetchOwnerName();
-  }, [open, boardId]);
+  }, [open, boardId, sb]);
 
   const boardCreatedActivity: Comment | null = React.useMemo(() => {
     const createdAt = board?.createdAt;
@@ -519,10 +772,52 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
     } as Comment;
   }, [board?.createdAt, boardOwnerName, boardId, card.id]);
 
-  const mergedActivities = [
-    ...(boardCreatedActivity ? [boardCreatedActivity] : []),
-    ...supabaseActivities,
-    ...localActivities.filter((c) => !supabaseContents.has(c.content)),
+  const mergedActivities = React.useMemo(() => {
+    const supabaseContents = new Set(supabaseActivities.map((a) => a.content));
+    return [
+      ...(boardCreatedActivity ? [boardCreatedActivity] : []),
+      ...supabaseActivities,
+      ...localActivities.filter((c) => !supabaseContents.has(c.content)),
+    ];
+  }, [boardCreatedActivity, supabaseActivities, localActivities]);
+
+  const attachments = React.useMemo(() => {
+    const list: { name: string; size: number; type: string; url: string; path: string; addedAt?: string }[] = [];
+    for (const a of mergedActivities) {
+      const { type, description } = parseActivity(a.content);
+      if (type === 'attachment_added') {
+        const parts = description.split('|');
+        if (parts.length >= 5) {
+          const [name, sizeStr, mime, url, path] = parts;
+          const size = Number(sizeStr) || 0;
+          list.push({ name, size, type: mime, url, path, addedAt: a.timestamp });
+        }
+      }
+    }
+    return list;
+  }, [mergedActivities]);
+
+  const dataset: AttachmentItem[] = relationMissing ? attachments.map((a) => ({
+    id: a.path,
+    board_id: boardId,
+    card_id: card.id,
+    name: a.name,
+    description: null,
+    size: a.size,
+    type: a.type,
+    url: a.url,
+    path: a.path,
+    created_at: new Date().toISOString(),
+  })) : (visibleAttachments as unknown as AttachmentItem[]);
+
+  const filterOptions: { key: FilterKey; label: string }[] = [
+    { key: 'all', label: 'Todos' },
+    { key: 'image', label: 'Imagens' },
+    { key: 'video', label: 'Vídeos' },
+    { key: 'doc', label: 'Documentos' },
+    { key: 'audio', label: 'Áudio' },
+    { key: 'zip', label: 'Compactados' },
+    { key: 'code', label: 'Código' },
   ];
 
   const comments = [
@@ -533,7 +828,29 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-6xl max-h-[90vh] flex flex-col">
+      <DialogContent
+        style={{ position: 'fixed', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
+        className="sm:max-w-5xl w-[95vw] max-h-[85vh] flex flex-col relative"
+      >
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="absolute right-12 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 inline-flex items-center justify-center h-8 w-8"
+              aria-label="Opções do cartão"
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" sideOffset={6} className="z-[100]">
+            <DropdownMenuItem
+              onClick={handleDelete}
+              onSelect={(e) => { e.preventDefault(); handleDelete(); }}
+              className="text-red-600"
+            >
+              Excluir cartão
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             Editar cartão
@@ -554,80 +871,135 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
               {/* Left Column - Form (Original) */}
               <ScrollArea className="max-h-[60vh] pr-4">
                 <div className="space-y-4">
-                  {/* Cover Images */}
-                  <div>
-                    <div className="flex items-center justify-between">
-                      <label className="text-sm text-muted-foreground">Imagens do Card</label>
-                      <Button variant="outline" size="sm" type="button" onClick={() => setCoverDialogOpen(true)} className="flex items-center gap-2">
-                        <Palette className="h-4 w-4" />
-                        Capa
-                      </Button>
-                    </div>
-                    <div className="mt-2 space-y-4">
-                      {/* Upload Button */}
-                      <div>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          onChange={handleImageUpload}
-                          className="hidden"
-                          id="image-upload"
-                        />
-                        <label
-                          htmlFor="image-upload"
-                          className="flex items-center justify-center w-full h-24 border-2 border-dashed border-muted-foreground/25 rounded-lg cursor-pointer hover:border-muted-foreground/50 transition-colors"
-                        >
-                          <div className="text-center">
-                            <div className="text-muted-foreground text-sm">Clique para adicionar imagens</div>
-                            <div className="text-muted-foreground text-xs mt-1">Suporte para múltiplas imagens</div>
-                          </div>
-                        </label>
-                      </div>
-                      
-                      {/* Image Gallery */}
-                      {coverImages.length > 0 && (
-                        <div className="grid grid-cols-2 gap-2">
-                          {coverImages.map((image, index) => (
-                            <div key={index} className="relative group">
-                              <div className="aspect-video bg-muted rounded-lg overflow-hidden border">
-                                <img
-                                  src={image}
-                                  alt={`Imagem ${index + 1}`}
-                                  className="w-full h-full object-contain bg-muted"
-                                />
-                              </div>
-                              <Button
-                                size="sm"
-                                variant="secondary"
-                                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                                onClick={() => removeImage(index)}
-                              >
-                                ×
-                              </Button>
-                              {index === 0 && (
-                                <div className="absolute bottom-2 left-2">
-                                  <Badge variant="secondary" className="text-xs">
-                                    Capa Principal
-                                  </Badge>
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {/* Cover color selection moved to dialog */}
-                    </div>
-                  </div>
+                  
 
                   {/* 1. Título */}
                   <div>
                     <label className="text-sm text-muted-foreground">Título *</label>
                     <Input
                       value={title}
-                      onChange={(e) => setTitle(e.target.value)}
+                      onChange={(e) => { const v = e.target.value; setTitle(v); scheduleTitleAutosave(v); }}
                       placeholder="Título do cartão"
                     />
+                  </div>
+
+                  {/* Arquivos */}
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm text-muted-foreground">Arquivos</label>
+                      <div className="text-xs text-muted-foreground">Limite: 13 MB por arquivo</div>
+                    </div>
+                    <div className="mt-2 space-y-2">
+                      {relationMissing && (
+                        <div className="text-xs text-muted-foreground">Modo compatível: aplique a migration de `card_attachments` para habilitar filtros, renomear e descrição completos.</div>
+                      )}
+                      <div
+                        className="flex items-center justify-center w-full h-12 border-2 border-dashed border-muted-foreground/25 rounded-lg cursor-pointer hover:border-muted-foreground/50 transition-colors"
+                        onDragOver={(e) => { e.preventDefault(); }}
+                        onDrop={(e) => { e.preventDefault(); const files = Array.from(e.dataTransfer.files || []); if (files.length) { if (relationMissing) { const fakeEvent = { target: { files } } as unknown as React.ChangeEvent<HTMLInputElement>; handleAttachmentUpload(fakeEvent); } else { upload(files); } } }}
+                        onClick={() => { const el = document.getElementById('file-upload') as HTMLInputElement | null; el?.click(); }}
+                      >
+                        <input id="file-upload" type="file" multiple className="hidden" onChange={(e: React.ChangeEvent<HTMLInputElement>) => { const files = Array.from(e.target.files || []); if (files.length) { if (relationMissing) { handleAttachmentUpload(e); } else { upload(files); } } }} />
+                        <div className="text-center">
+                          <div className="text-muted-foreground text-sm flex items-center gap-2 justify-center"><Paperclip className="h-4 w-4" /> Arraste aqui ou clique para anexar (máx. 13 MB)</div>
+                        </div>
+                      </div>
+                      {uploading && (
+                        <div className="space-y-2">
+                          <div className="text-xs text-muted-foreground">Enviando arquivos...</div>
+                          <Progress value={90} />
+                        </div>
+                      )}
+                      {dataset.length > 0 && (
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap gap-2 items-center justify-between">
+                            <div className="flex flex-wrap gap-2">
+                              {filterOptions.map((f) => (
+                                <Button key={f.key} size="sm" variant={filterState === f.key ? 'default' : 'outline'} onClick={() => setFilterState(f.key)}>{f.label}</Button>
+                              ))}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Select value={sortByState} onValueChange={(v) => setSortByState(v as SortBy)}>
+                                <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="date">Data</SelectItem>
+                                  <SelectItem value="name">Nome</SelectItem>
+                                  <SelectItem value="size">Tamanho</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Button size="sm" variant="outline" onClick={() => setSortDirState((d) => d === 'asc' ? 'desc' : 'asc')}>{sortDirState === 'asc' ? 'Asc' : 'Desc'}</Button>
+                            </div>
+                          </div>
+                          {dataset.map((att) => (
+                            <div key={att.path} className="flex items-center justify-between p-2 border rounded-md">
+                              <div className="flex items-center gap-3 min-w-0">
+                                {att.type.startsWith('image/') ? (
+                                  <img src={att.url} alt={att.name} className="h-8 w-8 rounded object-cover border" />
+                                ) : (
+                                  <span className="shrink-0">{attachmentIcon(att.type)}</span>
+                                )}
+                                <div className="min-w-0">
+                                  {!relationMissing && editingName[att.id] !== undefined ? (
+                                    <div className="flex items-center gap-2">
+                                      <Input value={editingName[att.id]} onChange={(e) => setEditingName((m) => ({ ...m, [att.id]: e.target.value }))} className="h-7" />
+                                      <Button size="sm" onClick={async () => { await rename(att.id, (editingName[att.id] || '').trim() || att.name); setEditingName((m) => { const { [att.id]:_, ...rest } = m; return rest; }); }}>Salvar</Button>
+                                      <Button size="sm" variant="ghost" onClick={() => setEditingName((m) => { const { [att.id]:_, ...rest } = m; return rest; })}>Cancelar</Button>
+                                    </div>
+                                  ) : (
+                                    <a href={att.url} target="_blank" rel="noreferrer" className="truncate hover:underline block">{att.name}</a>
+                                  )}
+                                  <div className="text-xs text-muted-foreground truncate flex items-center gap-2">
+                                    <span>{formatBytes(att.size)} • {friendlyTypeLabel(att.type)}</span>
+                                    <span>{formatDistanceToNow(new Date(att.created_at || new Date().toISOString()), { locale: ptBR })}</span>
+                                    {isCoverUrl(att.url) && <Badge variant="secondary">Capa</Badge>}
+                                  </div>
+                                  {!relationMissing && editingDesc[att.id] !== undefined && (
+                                    <div className="mt-1 flex items-center gap-2">
+                                      <Textarea value={editingDesc[att.id]} onChange={(e) => setEditingDesc((m) => ({ ...m, [att.id]: e.target.value }))} className="min-h-[60px]" />
+                                      <div className="flex flex-col gap-2">
+                                        <Button size="sm" onClick={async () => { await setAttachmentDescription(att.id, (editingDesc[att.id] || '').trim()); setEditingDesc((m) => { const { [att.id]:_, ...rest } = m; return rest; }); }}>Salvar</Button>
+                                        <Button size="sm" variant="ghost" onClick={() => setEditingDesc((m) => { const { [att.id]:_, ...rest } = m; return rest; })}>Cancelar</Button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {att.type.startsWith('image/') && (
+                                  <Button variant={isCoverUrl(att.url) ? "default" : "secondary"} size="sm" onClick={() => setCoverFromUrl(att.url)}>
+                                    {isCoverUrl(att.url) ? 'Capa definida' : 'Definir capa'}
+                                  </Button>
+                                )}
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="sm">
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" sideOffset={6} className="z-[100]">
+                                    <DropdownMenuItem onSelect={() => window.open(att.url, '_blank')}>Abrir</DropdownMenuItem>
+                                    <DropdownMenuItem onSelect={() => handleDownload(att.url, att.name)}>Baixar</DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    {!relationMissing && (
+                                      <>
+                                        <DropdownMenuItem onSelect={() => setEditingName((m) => ({ ...m, [att.id]: att.name }))}>Renomear</DropdownMenuItem>
+                                        <DropdownMenuItem onSelect={() => setEditingDesc((m) => ({ ...m, [att.id]: att.description || '' }))}>Adicionar descrição</DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                      </>
+                                    )}
+                                    {att.type.startsWith('image/') && (
+                                      <DropdownMenuItem onSelect={() => setCoverFromUrl(att.url)}>Definir como capa</DropdownMenuItem>
+                                    )}
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem onSelect={() => { if (window.confirm('Excluir anexo?')) { if (relationMissing) { handleAttachmentRemove(att.path, att.name); } else { remove(att.id, att.path); } } }} className="text-red-600">Excluir</DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* 2. Descrição */}
@@ -635,7 +1007,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                     <label className="text-sm text-muted-foreground">Descrição</label>
                     <Textarea
                       value={description}
-                      onChange={(e) => setDescription(e.target.value)}
+                      onChange={(e) => { const v = e.target.value; setDescription(v); scheduleDescriptionAutosave(v); }}
                       placeholder="Descrição do cartão"
                       className="min-h-[80px] resize-none"
                     />
@@ -644,7 +1016,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                   {/* 3. Vencimento */}
                   <div>
                     <label className="text-sm text-muted-foreground">Vencimento</label>
-                    <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+                    <Input type="date" value={dueDate} onChange={(e) => handleDueDateChange(e.target.value)} />
                   </div>
 
                   {/* Dynamic Custom Fields */}
@@ -666,14 +1038,14 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                                 <Input
                                   placeholder={`Digite ${field.name.toLowerCase()}`}
                                   value={(value as string) || ""}
-                                  onChange={(e) => setCustom((prev) => ({ ...(prev || {}), [field.id]: e.target.value }))}
+                                  onChange={(e) => { const v = e.target.value; setCustom((prev) => ({ ...(prev || {}), [field.id]: v })); saveCustomValue(field.id, v); }}
                                 />
                               )}
                               {field.type === "textarea" && (
                                 <Textarea
                                   placeholder={`Digite ${field.name.toLowerCase()}`}
                                   value={(value as string) || ""}
-                                  onChange={(e) => setCustom((prev) => ({ ...(prev || {}), [field.id]: e.target.value }))}
+                                  onChange={(e) => { const v = e.target.value; setCustom((prev) => ({ ...(prev || {}), [field.id]: v })); saveCustomValue(field.id, v); }}
                                   className="min-h-[80px] resize-none"
                                 />
                               )}
@@ -682,21 +1054,21 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                                   type="number"
                                   placeholder={`Digite ${field.name.toLowerCase()}`}
                                   value={(value as string) || ""}
-                                  onChange={(e) => setCustom((prev) => ({ ...(prev || {}), [field.id]: e.target.value }))}
+                                  onChange={(e) => { const v = e.target.value; setCustom((prev) => ({ ...(prev || {}), [field.id]: v })); saveCustomValue(field.id, v); }}
                                 />
                               )}
                               {field.type === "date" && (
                                 <Input
                                   type="date"
                                   value={(value as string) || ""}
-                                  onChange={(e) => setCustom((prev) => ({ ...(prev || {}), [field.id]: e.target.value }))}
+                                  onChange={(e) => { const v = e.target.value; setCustom((prev) => ({ ...(prev || {}), [field.id]: v })); saveCustomValue(field.id, v); }}
                                 />
                               )}
                               {field.type === "checkbox" && (
                                 <div className="flex items-center space-x-2">
                                   <Checkbox
                                     checked={Boolean(value)}
-                                    onCheckedChange={(checked) => setCustom((prev) => ({ ...(prev || {}), [field.id]: checked }))}
+                                    onCheckedChange={(checked) => { setCustom((prev) => ({ ...(prev || {}), [field.id]: checked })); saveCustomValue(field.id, checked); }}
                                   />
                                   <span className="text-sm">{field.name}</span>
                                 </div>
@@ -704,7 +1076,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                               {field.type === "select" && field.options && (
                                 <Select
                                   value={(value as string) || ""}
-                                  onValueChange={(v) => setCustom((prev) => ({ ...(prev || {}), [field.id]: v }))}
+                                  onValueChange={(v) => { setCustom((prev) => ({ ...(prev || {}), [field.id]: v })); saveCustomValue(field.id, v); }}
                                 >
                                   <SelectTrigger>
                                     <SelectValue placeholder={`Selecione ${field.name.toLowerCase()}`} />
@@ -734,7 +1106,9 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                                             } else {
                                               currentValues.delete(option);
                                             }
-                                            setCustom((prev) => ({ ...(prev || {}), [field.id]: Array.from(currentValues) }));
+                                            const out = Array.from(currentValues);
+                                            setCustom((prev) => ({ ...(prev || {}), [field.id]: out }));
+                                            saveCustomValue(field.id, out);
                                           }}
                                         />
                                         <span className="text-sm">{option}</span>
@@ -848,20 +1222,56 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                 <div className="space-y-6">
                   {/* Action Bar */}
                   <div className="flex flex-wrap gap-2 p-4 bg-muted/30 rounded-lg">
-                    <Button
-                      variant={showImages ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setShowImages(!showImages)}
-                      className="flex items-center gap-2"
-                    >
-                      <Image className="h-4 w-4" />
-                      Imagens
-                      {coverImages.length > 0 && (
-                        <Badge variant="secondary" className="ml-1">
-                          {coverImages.length}
-                        </Badge>
-                      )}
-                    </Button>
+                    <DropdownMenu open={addMenuOpen} onOpenChange={setAddMenuOpen}>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="default" size="sm" className="flex items-center gap-2" onClick={() => setAddMenuOpen(true)}>
+                          + Adicionar
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" sideOffset={6} className="min-w-[260px] z-[100]">
+                        <div className="flex items-center justify-between px-2 py-1.5">
+                          <span className="text-sm font-semibold">Adicionar ao cartão</span>
+                          <button
+                            type="button"
+                            onClick={() => setAddMenuOpen(false)}
+                            className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 h-6 w-6 inline-flex items-center justify-center"
+                            aria-label="Fechar"
+                          >
+                            ×
+                          </button>
+                        </div>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onSelect={() => setShowTags(true)} className="gap-3 py-2">
+                          <Tag className="h-4 w-4" />
+                          <div>
+                            <div className="text-sm font-medium">Etiquetas</div>
+                            <div className="text-xs text-muted-foreground">Organize, categorize e priorize</div>
+                          </div>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => setShowDates(true)} className="gap-3 py-2">
+                          <CalendarDays className="h-4 w-4" />
+                          <div>
+                            <div className="text-sm font-medium">Datas</div>
+                            <div className="text-xs text-muted-foreground">Início, entrega e lembretes</div>
+                          </div>
+                        </DropdownMenuItem>
+                        
+                        <DropdownMenuItem onSelect={() => setShowMembers(true)} className="gap-3 py-2">
+                          <Users className="h-4 w-4" />
+                          <div>
+                            <div className="text-sm font-medium">Membros</div>
+                            <div className="text-xs text-muted-foreground">Atribuir membros ao cartão</div>
+                          </div>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={(e) => { e.preventDefault(); triggerAttachmentUpload(); }} className="gap-3 py-2">
+                          <Paperclip className="h-4 w-4" />
+                          <div>
+                            <div className="text-sm font-medium">Anexo</div>
+                            <div className="text-xs text-muted-foreground">Links, arquivos e imagens</div>
+                          </div>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                     <Button
                       variant={(coverImages.length > 0 || coverColor) ? "default" : "outline"}
                       size="sm"
@@ -924,7 +1334,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                     <label className="text-sm text-muted-foreground">Título *</label>
                     <Input
                       value={title}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => { const v = e.target.value; setTitle(v); scheduleTitleAutosave(v); }}
                       placeholder="Título do cartão"
                       className="text-lg font-medium"
                     />
@@ -935,86 +1345,67 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                     <label className="text-sm text-muted-foreground">Descrição</label>
                     <Textarea
                       value={description}
-                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => { const v = e.target.value; setDescription(v); scheduleDescriptionAutosave(v); }}
                       placeholder="Adicionar uma descrição mais detalhada..."
                       className="min-h-[120px] resize-none"
                     />
                   </div>
 
-                  {/* Expandable Sections */}
-                  
-                  {/* Images Section */}
-                  {showImages && (
-                    <div className="border rounded-lg p-4 space-y-4 animate-fade-in">
-                      <h3 className="font-semibold flex items-center gap-2">
-                        <Image className="h-4 w-4" />
-                        Imagens do Card
-                      </h3>
-                      <div>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          onChange={handleImageUpload}
-                          className="hidden"
-                          id="image-upload-clean"
-                        />
-                        <label
-                          htmlFor="image-upload-clean"
-                          className="flex items-center justify-center w-full h-20 border-2 border-dashed border-muted-foreground/25 rounded-lg cursor-pointer hover:border-muted-foreground/50 transition-colors"
-                        >
-                          <div className="text-center">
-                            <div className="text-muted-foreground text-sm">Clique para adicionar imagens</div>
-                          </div>
-                        </label>
-                      </div>
-                      
-                      {coverImages.length > 0 && (
-                        <div className="grid grid-cols-3 gap-2">
-                          {coverImages.map((image, index) => (
-                            <div key={index} className="relative group">
-                              <div className="aspect-video bg-muted rounded-lg overflow-hidden border">
-                                <img
-                                  src={image}
-                                  alt={`Imagem ${index + 1}`}
-                                  className="w-full h-full object-contain bg-muted cursor-zoom-in"
-                                  onClick={() => {
-                                    setViewerSrc(image);
-                                    setViewerOpen(true);
-                                  }}
-                                />
-                              </div>
-                              <Button
-                                size="sm"
-                                variant="secondary"
-                                className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0"
-                                onClick={() => removeImage(index)}
-                              >
-                                ×
-                              </Button>
-                              {index === 0 && (
-                                <div className="absolute bottom-1 left-1">
-                                  <Badge variant="secondary" className="text-xs px-1">
-                                    Capa
-                                  </Badge>
-                                </div>
-                              )}
-                            </div>
-                          ))}
+                  {/* Arquivos */}
+                  {(attachments.length > 0 || showAttachments) && (
+                  <div className="border rounded-lg p-4 space-y-4 animate-fade-in">
+                    <h3 className="font-semibold flex items-center gap-2">
+                      <Paperclip className="h-4 w-4" />
+                      Arquivos
+                    </h3>
+                    <div>
+                      <input
+                        type="file"
+                        multiple
+                        onChange={handleAttachmentUpload}
+                        className="hidden"
+                        id="file-upload-clean"
+                      />
+                      <label
+                        htmlFor="file-upload-clean"
+                        className="flex items-center justify-center w-full h-12 border-2 border-dashed border-muted-foreground/25 rounded-lg cursor-pointer hover:border-muted-foreground/50 transition-colors"
+                      >
+                        <div className="text-center">
+                          <div className="text-muted-foreground text-sm">Clique para anexar arquivos (máx. 13 MB)</div>
                         </div>
-                      )}
+                      </label>
                     </div>
+                    {isUploadingAttachment && (
+                      <div className="text-xs text-muted-foreground">Enviando...</div>
+                    )}
+                    {attachments.length > 0 && (
+                      <div className="space-y-2">
+                        {attachments.map((att) => (
+                          <div key={att.path} className="flex items-center justify-between p-2 border rounded-md">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
+                              <a href={att.url} target="_blank" rel="noreferrer" className="truncate hover:underline">{att.name}</a>
+                              <span className="text-xs text-muted-foreground truncate">{formatBytes(att.size)} • {att.type}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {att.type.startsWith('image/') && (
+                                <Button variant={isCoverUrl(att.url) ? "default" : "secondary"} size="sm" onClick={() => setCoverFromUrl(att.url)}>
+                                  {isCoverUrl(att.url) ? 'Capa definida' : 'Definir capa'}
+                                </Button>
+                              )}
+                              <Button variant="ghost" size="sm" onClick={() => handleAttachmentRemove(att.path, att.name)} className="text-red-600 hover:text-red-700">
+                                <Trash className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   )}
 
-                  {/* Modal de visualização de imagem */}
-                  <ImageViewerDialog
-                    open={viewerOpen}
-                    src={viewerSrc}
-                    onOpenChange={(o) => {
-                      setViewerOpen(o);
-                      if (!o) setViewerSrc(null);
-                    }}
-                  />
+                  {/* Expandable Sections */}
+                  
 
                   {/* Cover color selection moved to dialog */}
 
@@ -1192,58 +1583,28 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                     value={newComment}
                     onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNewComment(e.target.value)}
                     onKeyDown={handleCommentKeyDown}
+                    onFocus={() => setCommentFocused(true)}
+                    onBlur={() => setCommentFocused(false)}
                     className="min-h-[80px] resize-none text-sm"
                   />
-                  <div className="flex justify-end mt-2">
-                    <Button
-                      size="sm"
-                      onClick={handleAddComment}
-                      disabled={!newComment.trim() || isAddingComment}
-                      className="flex items-center gap-2"
-                    >
-                      <Send className="h-3 w-3" />
-                      {isAddingComment ? "Comentando..." : "Comentar"}
-                    </Button>
-                  </div>
+                  {(commentFocused || newComment.trim().length > 0) && (
+                    <div className="flex justify-end mt-2">
+                      <Button
+                        size="sm"
+                        onClick={handleAddComment}
+                        disabled={!newComment.trim() || isAddingComment}
+                        className="flex items-center gap-2"
+                      >
+                        <Send className="h-3 w-3" />
+                        {isAddingComment ? "Salvando..." : "Salvar"}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           </div>
         </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancelar
-          </Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive">
-                Excluir
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Excluir card</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Tem certeza de que deseja excluir este card? Esta ação não pode ser desfeita.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction
-                  className="bg-red-600 hover:bg-red-700"
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete(); }}
-                  disabled={isDeleting}
-                >
-                  {isDeleting ? 'Excluindo...' : 'Excluir'}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-          <Button onClick={handleSave}>
-            Salvar
-          </Button>
-        </DialogFooter>
       </DialogContent>
       {/* Cover Color Dialog */}
       <Dialog open={coverDialogOpen} onOpenChange={setCoverDialogOpen}>

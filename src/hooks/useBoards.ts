@@ -400,8 +400,16 @@ export function useBoards() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
+      const id = (variables as { id: string }).id;
+      // Atualizar cache imediatamente para refletir título e demais campos
+      queryClient.setQueryData(['board', id], (prev: Board | undefined) => {
+        if (!prev) return data as Board;
+        return { ...prev, ...(variables as Partial<Board>), updated_at: new Date().toISOString() } as Board;
+      });
+      // Invalidar lista geral e detalhes do board para consistência
       queryClient.invalidateQueries({ queryKey: ['boards'] });
+      queryClient.invalidateQueries({ queryKey: ['board', id] });
     },
   });
 

@@ -4,9 +4,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 // Usar Supabase via hook de boards para apagar boards reais
 import { useBoards } from "../../hooks/useBoards";
 import { useToast } from "../ui/use-toast";
-import { MoreVertical, Pencil, Trash, Palette } from "lucide-react";
+import { MoreVertical, Pencil, Trash, Palette, Image as ImageIcon, Upload } from "lucide-react";
 import React from "react";
 import { BoardDetailsDialog } from "./BoardDetailsDialog";
+import { useCoversMigration } from "../../hooks/useCoversMigration";
 
 interface BoardActionsProps {
   boardId: string;
@@ -19,6 +20,7 @@ export function BoardActions({ boardId, onRename, onDeleted }: BoardActionsProps
   const { toast } = useToast();
   const [detailsOpen, setDetailsOpen] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const { migrateBoardCardCovers } = useCoversMigration();
 
   const handleDelete = async () => {
     try {
@@ -64,6 +66,14 @@ export function BoardActions({ boardId, onRename, onDeleted }: BoardActionsProps
             }}
           >
             <Palette className="mr-2 h-4 w-4" /> Editar detalhes…
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={async (e: React.MouseEvent) => {
+              e.stopPropagation();
+              await migrateBoardCardCovers(boardId);
+            }}
+          >
+            <Upload className="mr-2 h-4 w-4" /> Migrar capas para Storage
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <AlertDialogTrigger asChild>

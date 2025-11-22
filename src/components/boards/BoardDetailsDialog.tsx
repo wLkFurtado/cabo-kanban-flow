@@ -4,6 +4,7 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Textarea } from "../ui/textarea";
 import { useBoardsStore } from "../../state/boards/store";
+import { useBoards } from "../../hooks/useBoards";
 import { useToast } from "../../components/ui/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { CustomFieldsManager } from "./CustomFieldsManager";
@@ -18,7 +19,7 @@ interface BoardDetailsDialogProps {
 
 export function BoardDetailsDialog({ boardId, open, onOpenChange }: BoardDetailsDialogProps) {
   const board = useBoardsStore((s) => s.boards[boardId]);
-  const updateBoard = useBoardsStore((s) => s.updateBoard);
+  const { updateBoard } = useBoards();
   const { toast } = useToast();
 
   const [title, setTitle] = useState("");
@@ -113,13 +114,14 @@ export function BoardDetailsDialog({ boardId, open, onOpenChange }: BoardDetails
   const onSave = () => {
     const trimmed = title.trim();
     if (!trimmed) return;
-    updateBoard(boardId, {
+    // Persistir apenas campos existentes no tipo Board do hook useBoards
+    // Mapear nomes camelCase para snake_case quando necessário
+    updateBoard({
+      id: boardId,
       title: trimmed,
-      icon: icon?.trim() || undefined,
       description: description?.trim() || undefined,
-      color: color || undefined,
-      coverImageUrl: coverImageUrl || undefined,
-      coverColor: coverColor || undefined,
+      cover_image_url: coverImageUrl || undefined,
+      cover_color: coverColor || undefined,
     });
     toast({ title: "Detalhes atualizados" });
     onOpenChange(false);

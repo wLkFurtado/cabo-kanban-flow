@@ -16,11 +16,12 @@ interface KanbanListProps {
   dragHandleProps?: DraggableProvidedDragHandleProps;
   onAddCard: (listId: string, title: string) => void;
   onDeleteCard: (cardId: string) => void;
+  onAdvanceCard: (card: Card) => void;
   onRenameList: (listId: string, title: string) => void;
   onDeleteList: (listId: string) => void;
  }
 
-export function KanbanList({ list, cards, boardId, dragHandleProps, onAddCard, onDeleteCard, onRenameList, onDeleteList }: KanbanListProps) {
+export function KanbanList({ list, cards, boardId, dragHandleProps, onAddCard, onDeleteCard, onAdvanceCard, onRenameList, onDeleteList }: KanbanListProps) {
   const [adding, setAdding] = useState(false);
   const [newTitle, setNewTitle] = useState("");
 
@@ -101,6 +102,7 @@ export function KanbanList({ list, cards, boardId, dragHandleProps, onAddCard, o
                 index={index}
                 boardId={boardId}
                 onDeleteCard={onDeleteCard}
+                onAdvanceCard={onAdvanceCard}
               />
             ))}
             {provided.placeholder}

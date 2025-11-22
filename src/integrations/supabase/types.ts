@@ -287,6 +287,56 @@ export type Database = {
           },
         ]
       }
+      card_attachments: {
+        Row: {
+          id: string
+          board_id: string
+          card_id: string
+          name: string
+          description: string | null
+          size: number
+          type: string
+          url: string
+          path: string
+          created_at: string
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          board_id: string
+          card_id: string
+          name: string
+          description?: string | null
+          size: number
+          type: string
+          url: string
+          path: string
+          created_at?: string
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          board_id?: string
+          card_id?: string
+          name?: string
+          description?: string | null
+          size?: number
+          type?: string
+          url?: string
+          path?: string
+          created_at?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "card_attachments_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "cards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cards: {
         Row: {
           completed: boolean | null

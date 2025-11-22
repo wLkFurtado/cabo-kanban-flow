@@ -61,6 +61,17 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     }
   };
 
+  const advanceCard = (card: Card) => {
+    const currentIndex = lists.findIndex((l) => l.id === card.list_id);
+    if (currentIndex < 0) return;
+    const nextList = lists[currentIndex + 1];
+    if (!nextList) return;
+    const destinationListId = nextList.id;
+    const sourceListId = card.list_id;
+    const destinationIndex = (cards[destinationListId]?.length ?? 0);
+    onMoveCard(card.id, sourceListId, destinationListId, destinationIndex);
+  };
+
   const handleAddList = () => {
     if (newListTitle.trim()) {
       onAddList(newListTitle.trim());
@@ -108,6 +119,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                             dragHandleProps={provided.dragHandleProps}
                             onAddCard={onAddCard}
                             onDeleteCard={onDeleteCard}
+                            onAdvanceCard={advanceCard}
                             onRenameList={onRenameList}
                             onDeleteList={onDeleteList}
                           />
