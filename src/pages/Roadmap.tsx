@@ -62,7 +62,7 @@ export default function Roadmap({ allowSubmit = false, allowVoting = false }: Ro
     queryKey: ["roadmap-suggestions"],
     queryFn: async () => {
       // Buscar sugestões
-      const { data: suggestionsData, error: suggestionsError } = await sb
+      const { data: suggestionsData, error: suggestionsError } = await (sb as any)
         .from("roadmap_suggestions")
         .select("id,title,description,user_id,created_at")
         .eq("status", "in_progress")

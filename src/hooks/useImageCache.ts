@@ -69,10 +69,10 @@ export function preloadImage(src: string): Promise<void> {
 }
 
 // Função para pré-carregar múltiplas imagens
-export function preloadImages(srcs: string[]): Promise<void[]> {
-  return Promise.allSettled(srcs.map(preloadImage)).then(results => 
-    results.map(result => 
-      result.status === 'fulfilled' ? undefined : Promise.reject(result.reason)
-    )
-  );
+export async function preloadImages(srcs: string[]): Promise<void> {
+  const results = await Promise.allSettled(srcs.map(preloadImage));
+  const failed = results.filter(r => r.status === 'rejected');
+  if (failed.length > 0) {
+    console.warn(`Failed to preload ${failed.length} image(s)`);
+  }
 }
