@@ -38,7 +38,7 @@ export default function Melhorias() {
   const { data: proposed, isLoading } = useQuery<Suggestion[], Error>({
     queryKey: ["roadmap-suggestions", "proposed"],
     queryFn: async () => {
-      const { data, error } = await sb
+      const { data, error } = await (sb as any)
         .from("roadmap_suggestions")
         .select("id,title,description,created_at")
         .eq("status", "proposed")

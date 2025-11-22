@@ -93,8 +93,6 @@ export type Database = {
       }
       boards: {
         Row: {
-          cover_color: string | null
-          cover_image_url: string | null
           created_at: string | null
           description: string | null
           id: string
@@ -104,8 +102,6 @@ export type Database = {
           visibility: Database["public"]["Enums"]["board_visibility"] | null
         }
         Insert: {
-          cover_color?: string | null
-          cover_image_url?: string | null
           created_at?: string | null
           description?: string | null
           id?: string
@@ -115,8 +111,6 @@ export type Database = {
           visibility?: Database["public"]["Enums"]["board_visibility"] | null
         }
         Update: {
-          cover_color?: string | null
-          cover_image_url?: string | null
           created_at?: string | null
           description?: string | null
           id?: string
@@ -287,59 +281,11 @@ export type Database = {
           },
         ]
       }
-      card_attachments: {
-        Row: {
-          id: string
-          board_id: string
-          card_id: string
-          name: string
-          description: string | null
-          size: number
-          type: string
-          url: string
-          path: string
-          created_at: string
-          updated_at: string | null
-        }
-        Insert: {
-          id?: string
-          board_id: string
-          card_id: string
-          name: string
-          description?: string | null
-          size: number
-          type: string
-          url: string
-          path: string
-          created_at?: string
-          updated_at?: string | null
-        }
-        Update: {
-          id?: string
-          board_id?: string
-          card_id?: string
-          name?: string
-          description?: string | null
-          size?: number
-          type?: string
-          url?: string
-          path?: string
-          created_at?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "card_attachments_card_id_fkey"
-            columns: ["card_id"]
-            isOneToOne: false
-            referencedRelation: "cards"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       cards: {
         Row: {
           completed: boolean | null
+          cover_color: string | null
+          cover_images: Json | null
           created_at: string | null
           created_by: string | null
           description: string | null
@@ -353,6 +299,8 @@ export type Database = {
         }
         Insert: {
           completed?: boolean | null
+          cover_color?: string | null
+          cover_images?: Json | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
@@ -366,6 +314,8 @@ export type Database = {
         }
         Update: {
           completed?: boolean | null
+          cover_color?: string | null
+          cover_images?: Json | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
@@ -490,7 +440,7 @@ export type Database = {
         Insert: {
           all_day?: boolean | null
           created_at?: string | null
-          created_by: string
+          created_by?: string
           description?: string | null
           end_date: string
           id?: string
@@ -523,30 +473,30 @@ export type Database = {
       }
       institutional_contacts: {
         Row: {
+          created_at: string | null
+          created_by: string | null
           id: string
           instituicao: string
           responsavel: string
           telefone: string | null
-          created_by: string | null
-          created_at: string | null
           updated_at: string | null
         }
         Insert: {
+          created_at?: string | null
+          created_by?: string | null
           id?: string
           instituicao: string
           responsavel: string
           telefone?: string | null
-          created_by?: string | null
-          created_at?: string | null
           updated_at?: string | null
         }
         Update: {
+          created_at?: string | null
+          created_by?: string | null
           id?: string
           instituicao?: string
           responsavel?: string
           telefone?: string | null
-          created_by?: string | null
-          created_at?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -559,58 +509,125 @@ export type Database = {
           },
         ]
       }
-      roadmap_suggestions: {
+      job_applications: {
         Row: {
+          address: string
+          age: string
+          birth_date: string
+          cnh_category: string | null
+          course_certificates_url: string | null
+          cpf: string
+          created_at: string
+          curriculum_url: string | null
+          document_urls: string[] | null
+          education: string
+          email: string
+          expected_salary: string | null
+          full_name: string
+          gender: string
+          has_cnh: string
+          has_transport: string
+          holidays_available: string
           id: string
-          title: string
-          description: string | null
-          user_id: string
-          created_at: string | null
+          marital_status: string
+          nationality: string
+          phone: string
+          positions: string[]
+          proof_of_residence_url: string | null
+          relevant_courses: string | null
+          rg: string
+          rg_document_url: string | null
+          saturday_afternoon: boolean | null
+          saturday_morning: boolean | null
+          saturday_night: boolean | null
+          sunday_afternoon: boolean | null
+          sunday_morning: boolean | null
+          sunday_night: boolean | null
+          webhook_sent: boolean | null
+          webhook_sent_at: string | null
+          weekday_afternoon: boolean | null
+          weekday_morning: boolean | null
+          weekday_night: boolean | null
         }
         Insert: {
+          address: string
+          age: string
+          birth_date: string
+          cnh_category?: string | null
+          course_certificates_url?: string | null
+          cpf: string
+          created_at?: string
+          curriculum_url?: string | null
+          document_urls?: string[] | null
+          education: string
+          email: string
+          expected_salary?: string | null
+          full_name: string
+          gender: string
+          has_cnh: string
+          has_transport: string
+          holidays_available: string
           id?: string
-          title: string
-          description?: string | null
-          user_id: string
-          created_at?: string | null
+          marital_status: string
+          nationality: string
+          phone: string
+          positions: string[]
+          proof_of_residence_url?: string | null
+          relevant_courses?: string | null
+          rg: string
+          rg_document_url?: string | null
+          saturday_afternoon?: boolean | null
+          saturday_morning?: boolean | null
+          saturday_night?: boolean | null
+          sunday_afternoon?: boolean | null
+          sunday_morning?: boolean | null
+          sunday_night?: boolean | null
+          webhook_sent?: boolean | null
+          webhook_sent_at?: string | null
+          weekday_afternoon?: boolean | null
+          weekday_morning?: boolean | null
+          weekday_night?: boolean | null
         }
         Update: {
+          address?: string
+          age?: string
+          birth_date?: string
+          cnh_category?: string | null
+          course_certificates_url?: string | null
+          cpf?: string
+          created_at?: string
+          curriculum_url?: string | null
+          document_urls?: string[] | null
+          education?: string
+          email?: string
+          expected_salary?: string | null
+          full_name?: string
+          gender?: string
+          has_cnh?: string
+          has_transport?: string
+          holidays_available?: string
           id?: string
-          title?: string
-          description?: string | null
-          user_id?: string
-          created_at?: string | null
+          marital_status?: string
+          nationality?: string
+          phone?: string
+          positions?: string[]
+          proof_of_residence_url?: string | null
+          relevant_courses?: string | null
+          rg?: string
+          rg_document_url?: string | null
+          saturday_afternoon?: boolean | null
+          saturday_morning?: boolean | null
+          saturday_night?: boolean | null
+          sunday_afternoon?: boolean | null
+          sunday_morning?: boolean | null
+          sunday_night?: boolean | null
+          webhook_sent?: boolean | null
+          webhook_sent_at?: string | null
+          weekday_afternoon?: boolean | null
+          weekday_morning?: boolean | null
+          weekday_night?: boolean | null
         }
         Relationships: []
-      }
-      roadmap_votes: {
-        Row: {
-          suggestion_id: string
-          user_id: string
-          created_at: string | null
-          vote: number
-        }
-        Insert: {
-          suggestion_id: string
-          user_id: string
-          created_at?: string | null
-          vote?: number
-        }
-        Update: {
-          suggestion_id?: string
-          user_id?: string
-          created_at?: string | null
-          vote?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "roadmap_votes_suggestion_id_fkey"
-            columns: ["suggestion_id"]
-            isOneToOne: false
-            referencedRelation: "roadmap_suggestions"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       n8n_chat_histories: {
         Row: {
@@ -661,6 +678,7 @@ export type Database = {
           prioridade: Database["public"]["Enums"]["event_priority"] | null
           recorrencia: Database["public"]["Enums"]["event_recurrence"] | null
           responsavel_id: string | null
+          source_event_id: string | null
           status: Database["public"]["Enums"]["event_status"] | null
           tipo: Database["public"]["Enums"]["event_type"]
           titulo: string
@@ -678,6 +696,7 @@ export type Database = {
           prioridade?: Database["public"]["Enums"]["event_priority"] | null
           recorrencia?: Database["public"]["Enums"]["event_recurrence"] | null
           responsavel_id?: string | null
+          source_event_id?: string | null
           status?: Database["public"]["Enums"]["event_status"] | null
           tipo: Database["public"]["Enums"]["event_type"]
           titulo: string
@@ -695,6 +714,7 @@ export type Database = {
           prioridade?: Database["public"]["Enums"]["event_priority"] | null
           recorrencia?: Database["public"]["Enums"]["event_recurrence"] | null
           responsavel_id?: string | null
+          source_event_id?: string | null
           status?: Database["public"]["Enums"]["event_status"] | null
           tipo?: Database["public"]["Enums"]["event_type"]
           titulo?: string
@@ -713,6 +733,13 @@ export type Database = {
             columns: ["responsavel_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pautas_events_source_event_id_fkey"
+            columns: ["source_event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
             referencedColumns: ["id"]
           },
         ]
@@ -756,36 +783,36 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          cargo: string | null
           created_at: string | null
           display_name: string | null
           email: string | null
           full_name: string | null
           id: string
-          cargo: string | null
           phone: string | null
           role: string | null
           updated_at: string | null
         }
         Insert: {
           avatar_url?: string | null
+          cargo?: string | null
           created_at?: string | null
           display_name?: string | null
           email?: string | null
           full_name?: string | null
           id: string
-          cargo?: string | null
           phone?: string | null
           role?: string | null
           updated_at?: string | null
         }
         Update: {
           avatar_url?: string | null
+          cargo?: string | null
           created_at?: string | null
           display_name?: string | null
           email?: string | null
           full_name?: string | null
           id?: string
-          cargo?: string | null
           phone?: string | null
           role?: string | null
           updated_at?: string | null
@@ -834,23 +861,82 @@ export type Database = {
         }
         Relationships: []
       }
+      roadmap_suggestions: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          status: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          status?: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          status?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      roadmap_votes: {
+        Row: {
+          created_at: string | null
+          suggestion_id: string
+          user_id: string
+          vote: number
+        }
+        Insert: {
+          created_at?: string | null
+          suggestion_id: string
+          user_id: string
+          vote?: number
+        }
+        Update: {
+          created_at?: string | null
+          suggestion_id?: string
+          user_id?: string
+          vote?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roadmap_votes_suggestion_id_fkey"
+            columns: ["suggestion_id"]
+            isOneToOne: false
+            referencedRelation: "roadmap_suggestions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string | null
           id: string
           role: Database["public"]["Enums"]["app_role"]
+          scopes: string[]
           user_id: string
         }
         Insert: {
           created_at?: string | null
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          scopes?: string[]
           user_id: string
         }
         Update: {
           created_at?: string | null
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          scopes?: string[]
           user_id?: string
         }
         Relationships: [
@@ -868,12 +954,27 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      binary_quantize: {
-        Args: { "": string } | { "": unknown }
-        Returns: unknown
+      create_board_safe: {
+        Args: {
+          board_description?: string
+          board_owner_id?: string
+          board_title: string
+          board_visibility?: Database["public"]["Enums"]["board_visibility"]
+        }
+        Returns: {
+          created_at: string
+          description: string
+          id: string
+          owner_id: string
+          title: string
+          updated_at: string
+          visibility: Database["public"]["Enums"]["board_visibility"]
+        }[]
       }
+      event_is_accessible: { Args: { _event_id: string }; Returns: boolean }
+      get_card_board_id: { Args: { p_card_id: string }; Returns: string }
       get_current_user_role: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: Database["public"]["Enums"]["app_role"]
       }
       get_reservations_status: {
@@ -886,57 +987,14 @@ export type Database = {
           seats_remaining: number
         }[]
       }
-      halfvec_avg: {
-        Args: { "": number[] }
-        Returns: unknown
+      has_scope: { Args: { scope: string }; Returns: boolean }
+      is_board_member: {
+        Args: { p_board_id: string; p_user_id: string }
+        Returns: boolean
       }
-      halfvec_out: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      halfvec_send: {
-        Args: { "": unknown }
-        Returns: string
-      }
-      halfvec_typmod_in: {
-        Args: { "": unknown[] }
-        Returns: number
-      }
-      hnsw_bit_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      hnsw_halfvec_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      hnsw_sparsevec_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      hnswhandler: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      ivfflat_bit_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      ivfflat_halfvec_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      ivfflathandler: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      l2_norm: {
-        Args: { "": unknown } | { "": unknown }
-        Returns: number
-      }
-      l2_normalize: {
-        Args: { "": string } | { "": unknown } | { "": unknown }
-        Returns: string
+      is_user_participant: {
+        Args: { _event: string; _user: string }
+        Returns: boolean
       }
       match_documents: {
         Args: { filter?: Json; match_count?: number; query_embedding: string }
@@ -947,21 +1005,33 @@ export type Database = {
           similarity: number
         }[]
       }
-      match_documents_julia: {
-        Args:
-          | { filter?: Json; match_count?: number; query_embedding: string }
-          | {
+      match_documents_julia:
+        | {
+            Args: {
+              filter?: Json
+              match_count?: number
+              query_embedding: string
+            }
+            Returns: {
+              content: string
+              id: number
+              metadata: Json
+              similarity: number
+            }[]
+          }
+        | {
+            Args: {
               match_threshold?: number
               max_limit?: number
               query_embedding: string
             }
-        Returns: {
-          content: string
-          id: number
-          metadata: Json
-          similarity: number
-        }[]
-      }
+            Returns: {
+              content: string
+              id: number
+              metadata: Json
+              similarity: number
+            }[]
+          }
       match_documentsmalu: {
         Args: { filter?: Json; match_count?: number; query_embedding: string }
         Returns: {
@@ -971,46 +1041,7 @@ export type Database = {
           similarity: number
         }[]
       }
-      sparsevec_out: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      sparsevec_send: {
-        Args: { "": unknown }
-        Returns: string
-      }
-      sparsevec_typmod_in: {
-        Args: { "": unknown[] }
-        Returns: number
-      }
-      user_has_board_access: {
-        Args: { board_uuid: string }
-        Returns: boolean
-      }
-      vector_avg: {
-        Args: { "": number[] }
-        Returns: string
-      }
-      vector_dims: {
-        Args: { "": string } | { "": unknown }
-        Returns: number
-      }
-      vector_norm: {
-        Args: { "": string }
-        Returns: number
-      }
-      vector_out: {
-        Args: { "": string }
-        Returns: unknown
-      }
-      vector_send: {
-        Args: { "": string }
-        Returns: string
-      }
-      vector_typmod_in: {
-        Args: { "": unknown[] }
-        Returns: number
-      }
+      user_has_board_access: { Args: { board_uuid: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "user" | "guest"
