@@ -957,47 +957,32 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                       {dataset.filter((a) => a.type.startsWith('image/')).length > 0 && (
                         <div className="space-y-2">
                           <h4 className="text-sm font-medium flex items-center gap-2"><Image className="h-4 w-4" /> Imagens</h4>
-                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                          <div className="space-y-2">
                             {dataset.filter((a) => a.type.startsWith('image/')).map((att) => (
-                              <div key={att.path} className="relative group h-24 rounded-md overflow-hidden bg-muted">
-                                <button
-                                  type="button"
-                                  className="absolute inset-0"
-                                  onClick={(e) => { e.stopPropagation(); setViewerSrc(att.url); setViewerOpen(true); }}
-                                  aria-label="Visualizar imagem"
-                                />
-                                <LazyImage src={att.url} alt={att.name} className="w-full h-full object-cover" />
-                                {isCoverUrl(att.url) && (
-                                  <Badge variant="secondary" className="absolute top-2 left-2">Capa</Badge>
-                                )}
-                                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                <Image className="absolute top-2 right-2 h-4 w-4 text-white/80" />
-                                <div className="absolute bottom-2 left-2 flex gap-2">
-                                  <Button
-                                    size="sm"
-                                    variant="secondary"
-                                    onClick={(e) => { e.stopPropagation(); window.open(att.url, '_blank'); }}
-                                    className="opacity-0 group-hover:opacity-100 transition-opacity"
-                                  >
-                                    Abrir
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={(e) => { e.stopPropagation(); handleDownload(att.url, att.name); }}
-                                    className="opacity-0 group-hover:opacity-100 transition-opacity"
-                                  >
-                                    Baixar
-                                  </Button>
+                              <div key={att.path} className="flex items-center justify-between p-2 border rounded-md">
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div className="relative h-8 w-8 rounded overflow-hidden border bg-muted shrink-0">
+                                    <button
+                                      type="button"
+                                      className="absolute inset-0"
+                                      onClick={(e) => { e.stopPropagation(); setViewerSrc(att.url); setViewerOpen(true); }}
+                                      aria-label="Visualizar imagem"
+                                    />
+                                    <LazyImage src={att.url} alt={att.name} className="h-full w-full object-cover" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <a href={att.url} target="_blank" rel="noreferrer" className="truncate hover:underline block">{att.name}</a>
+                                    <div className="text-xs text-muted-foreground truncate flex items-center gap-2">
+                                      <span>{formatBytes(att.size)} • Imagem</span>
+                                      {isCoverUrl(att.url) && <Badge variant="secondary">Capa</Badge>}
+                                    </div>
+                                  </div>
                                 </div>
-                                <div className="absolute bottom-2 right-2 flex justify-center">
-                                  <Button
-                                    size="sm"
-                                    variant={isCoverUrl(att.url) ? "default" : "secondary"}
-                                    onClick={(e) => { e.stopPropagation(); setCoverFromUrl(att.url); }}
-                                    className="opacity-0 group-hover:opacity-100 transition-opacity"
-                                  >
-                                    {isCoverUrl(att.url) ? "Capa definida" : "Definir capa"}
+                                <div className="flex items-center gap-2">
+                                  <Button variant="ghost" size="sm" onClick={() => window.open(att.url, '_blank')}>Abrir</Button>
+                                  <Button variant="outline" size="sm" onClick={() => handleDownload(att.url, att.name)}>Baixar</Button>
+                                  <Button variant={isCoverUrl(att.url) ? "default" : "secondary"} size="sm" onClick={() => setCoverFromUrl(att.url)}>
+                                    {isCoverUrl(att.url) ? 'Capa definida' : 'Definir capa'}
                                   </Button>
                                 </div>
                               </div>
@@ -1473,52 +1458,37 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                             <Image className="h-4 w-4" />
                             Imagens
                           </h3>
-                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                          <div className="space-y-2">
                         {galleryImages.map((att) => (
-                          <div key={att.path} className="relative group h-24 rounded-md overflow-hidden bg-muted">
-                            <button
-                              type="button"
-                              className="absolute inset-0"
-                              onClick={(e) => { e.stopPropagation(); setViewerSrc(att.url); setViewerOpen(true); }}
-                              aria-label="Visualizar imagem"
-                            />
-                            <LazyImage
-                              src={att.url}
-                              alt={att.name}
-                              className="w-full h-full object-cover"
-                              placeholderClassName="bg-muted"
-                            />
-                            {isCoverUrl(att.url) && (
-                              <Badge variant="secondary" className="absolute top-2 left-2">Capa</Badge>
-                            )}
-                            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity" />
-                            <Image className="absolute top-2 right-2 h-4 w-4 text-white/80" />
-                            <div className="absolute bottom-2 left-2 flex gap-2">
-                              <Button
-                                size="sm"
-                                variant="secondary"
-                                onClick={(e) => { e.stopPropagation(); window.open(att.url, '_blank'); }}
-                                className="opacity-0 group-hover:opacity-100 transition-opacity"
-                              >
-                                Abrir
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={(e) => { e.stopPropagation(); handleDownload(att.url, att.name); }}
-                                className="opacity-0 group-hover:opacity-100 transition-opacity"
-                              >
-                                Baixar
-                              </Button>
+                          <div key={att.path} className="flex items-center justify-between p-2 border rounded-md">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="relative h-8 w-8 rounded overflow-hidden border bg-muted shrink-0">
+                                <button
+                                  type="button"
+                                  className="absolute inset-0"
+                                  onClick={(e) => { e.stopPropagation(); setViewerSrc(att.url); setViewerOpen(true); }}
+                                  aria-label="Visualizar imagem"
+                                />
+                                <LazyImage
+                                  src={att.url}
+                                  alt={att.name}
+                                  className="h-full w-full object-cover"
+                                  placeholderClassName="bg-muted"
+                                />
+                              </div>
+                              <div className="min-w-0">
+                                <a href={att.url} target="_blank" rel="noreferrer" className="truncate hover:underline block">{att.name}</a>
+                                <div className="text-xs text-muted-foreground truncate flex items-center gap-2">
+                                  <span>Imagem</span>
+                                  {isCoverUrl(att.url) && <Badge variant="secondary">Capa</Badge>}
+                                </div>
+                              </div>
                             </div>
-                            <div className="absolute bottom-2 right-2 flex justify-center">
-                              <Button
-                                size="sm"
-                                variant={isCoverUrl(att.url) ? "default" : "secondary"}
-                                onClick={(e) => { e.stopPropagation(); setCoverFromUrl(att.url); }}
-                                className="opacity-0 group-hover:opacity-100 transition-opacity"
-                              >
-                                {isCoverUrl(att.url) ? "Capa definida" : "Definir capa"}
+                            <div className="flex items-center gap-2">
+                              <Button variant="ghost" size="sm" onClick={() => window.open(att.url, '_blank')}>Abrir</Button>
+                              <Button variant="outline" size="sm" onClick={() => handleDownload(att.url, att.name)}>Baixar</Button>
+                              <Button variant={isCoverUrl(att.url) ? "default" : "secondary"} size="sm" onClick={() => setCoverFromUrl(att.url)}>
+                                {isCoverUrl(att.url) ? 'Capa definida' : 'Definir capa'}
                               </Button>
                             </div>
                           </div>
