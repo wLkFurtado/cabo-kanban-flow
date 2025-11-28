@@ -984,6 +984,14 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                                   <Button variant={isCoverUrl(att.url) ? "default" : "secondary"} size="sm" onClick={() => setCoverFromUrl(att.url)}>
                                     {isCoverUrl(att.url) ? 'Capa definida' : 'Definir capa'}
                                   </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => { if (window.confirm('Excluir anexo?')) { if (relationMissing) { handleAttachmentRemove(att.path, att.name); } else { remove(att.id, att.path); } } }}
+                                    className="text-red-600 hover:text-red-700"
+                                  >
+                                    Excluir
+                                  </Button>
                                 </div>
                               </div>
                             ))}
@@ -1490,6 +1498,16 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                               <Button variant={isCoverUrl(att.url) ? "default" : "secondary"} size="sm" onClick={() => setCoverFromUrl(att.url)}>
                                 {isCoverUrl(att.url) ? 'Capa definida' : 'Definir capa'}
                               </Button>
+                              {(!String(att.id || '').startsWith('cover_')) && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => { if (window.confirm('Excluir anexo?')) { if (relationMissing) { handleAttachmentRemove(att.path, att.name); } else { remove(att.id, att.path); } } }}
+                                  className="text-red-600 hover:text-red-700"
+                                >
+                                  Excluir
+                                </Button>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -1540,7 +1558,12 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                               <Button variant="outline" size="sm" onClick={() => handleDownload(att.url, att.name)}>
                                 Baixar
                               </Button>
-                              <Button variant="ghost" size="sm" onClick={() => handleAttachmentRemove(att.path, att.name)} className="text-red-600 hover:text-red-700">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => { if (window.confirm('Excluir anexo?')) { if (relationMissing) { handleAttachmentRemove(att.path, att.name); } else { remove(att.id, att.path); } } }}
+                                className="text-red-600 hover:text-red-700"
+                              >
                                 <Trash className="h-4 w-4" />
                               </Button>
                             </div>
