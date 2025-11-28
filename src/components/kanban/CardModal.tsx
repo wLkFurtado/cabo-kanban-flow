@@ -10,7 +10,7 @@ import { ScrollArea } from "../ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Checkbox } from "../ui/checkbox";
 import { cn } from "../../lib/utils";
-import { MessageSquare, Clock, User, Send, Calendar, Tag, Paperclip, ArrowRight, Plus, Image, CalendarDays, Users, Palette, Check, Trash, MoreHorizontal, FileText, FileArchive, Video, Music, FileCode, File } from "lucide-react";
+import { MessageSquare, Clock, User, Send, Calendar, Tag, Paperclip, ArrowRight, Plus, Image, CalendarDays, Users, Palette, Check, Trash, MoreHorizontal, FileText, FileArchive, Video, Music, FileCode, File, Link } from "lucide-react";
 
 import { Card as TCard, Label as TLabel, LabelColor, Comment, Member } from "../../state/kanbanTypes";
 import { parseISO, format, formatDistanceToNow } from "date-fns";
@@ -27,10 +27,12 @@ import { useToast } from "../../hooks/use-toast";
 import { MemberSelect } from "./MemberSelect";
 import { useAuth } from "../../hooks/useAuth";
 import { ImageViewerDialog } from "./ImageViewerDialog";
+import LazyImage from "../ui/lazy-image";
 import { postWebhook } from "../../lib/webhook";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "../ui/dropdown-menu";
 import { useAttachments } from "../../hooks/useAttachments";
 import { Progress } from "../ui/progress";
+import AttachmentDialog from "./AttachmentDialog";
 
 const labelColorClass: Record<LabelColor, string> = {
   green: "bg-[hsl(var(--label-green))] text-white",
@@ -103,6 +105,8 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
   const commentsScrollRef = useRef<HTMLDivElement>(null);
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
   const [commentFocused, setCommentFocused] = useState(false);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerSrc, setViewerSrc] = useState<string | null>(null);
 
   // Timers para autosave (debounce por campo)
   const titleTimerRef = useRef<number | null>(null);
@@ -125,18 +129,12 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
     }
   };
   const flushCoverImagesAutosave = () => {
-    if (coverImagesTimerRef.current) {
-      window.clearTimeout(coverImagesTimerRef.current);
-      coverImagesTimerRef.current = null;
-      updateCard({ cardId: card.id, updates: { coverImages: coverImages } });
-    }
+    updateCard({ cardId: card.id, updates: { cover_images: coverImages } });
   };
 
   // Ao fechar o modal, garantir que o último estado seja persistido
   useEffect(() => {
     if (!open) {
-      flushTitleAutosave();
-      flushDescriptionAutosave();
       flushCoverImagesAutosave();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -151,6 +149,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
     if (mime.includes('pdf')) return <FileText className="h-4 w-4 text-red-600" />;
     if (mime.includes('zip') || mime.includes('rar')) return <FileArchive className="h-4 w-4 text-orange-600" />;
     if (mime.includes('json') || mime.includes('javascript') || mime.includes('typescript') || mime.includes('xml')) return <FileCode className="h-4 w-4 text-slate-600" />;
+    if (mime === 'link/url' || mime.includes('link')) return <Link className="h-4 w-4 text-sky-600" />;
     return <File className="h-4 w-4 text-muted-foreground" />;
   };
 
@@ -162,6 +161,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
     if (mime.includes('zip') || mime.includes('rar')) return 'Compactado';
     if (mime.includes('msword') || mime.includes('officedocument') || mime.includes('rtf')) return 'Documento';
     if (mime.includes('json') || mime.includes('javascript') || mime.includes('typescript') || mime.includes('xml')) return 'Código';
+    if (mime === 'link/url' || mime.includes('link')) return 'Link';
     return 'Arquivo';
   };
 
@@ -186,6 +186,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
   const [showAttachments, setShowAttachments] = useState(true);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const { attachments: storedAttachments, relationMissing, uploading, upload, rename, setDescription: setAttachmentDescription, remove } = useAttachments(boardId, card.id);
+  const [attachmentsDialogOpen, setAttachmentsDialogOpen] = useState(false);
   
   const [editingName, setEditingName] = useState<Record<string, string>>({});
   const [editingDesc, setEditingDesc] = useState<Record<string, string>>({});
@@ -218,7 +219,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
       case 'doc': return t.includes('pdf') || t.includes('msword') || t.includes('officedocument') || t.includes('rtf');
       case 'zip': return t.includes('zip') || t.includes('rar');
       case 'code': return t.includes('json') || t.includes('javascript') || t.includes('typescript') || t.includes('xml');
-      case 'link': return false;
+      case 'link': return t === 'link/url' || t.includes('link');
       default: return true;
     }
   }, [filterState]);
@@ -337,10 +338,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
 
   const triggerAttachmentUpload = () => {
     setShowAttachments(true);
-    const el1 = document.getElementById('file-upload') as HTMLInputElement | null;
-    const el2 = document.getElementById('file-upload-clean') as HTMLInputElement | null;
-    const el = el1 || el2;
-    if (el) el.click();
+    setAttachmentsDialogOpen(true);
   };
 
   const addLabel = async () => {
@@ -471,7 +469,9 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
   };
 
   const removeImage = (index: number) => {
-    setCoverImages((prev) => prev.filter((_, i) => i !== index));
+    const next = (coverImages || []).filter((_, i) => i !== index);
+    setCoverImages(next);
+    updateCard({ cardId: card.id, updates: { cover_images: next } });
   };
 
   const MAX_FILE_SIZE = 13 * 1024 * 1024; // 13 MB
@@ -483,6 +483,20 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
   const sanitizeFileName = (name: string) => name.replace(/[^a-zA-Z0-9._-]/g, "_");
+
+  const inferMimeType = (name: string, fallback: string): string => {
+    if (fallback && fallback.trim().length > 0) return fallback;
+    const ext = name.split('.').pop()?.toLowerCase() || '';
+    const map: Record<string, string> = {
+      jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp', svg: 'image/svg+xml',
+      mp4: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime', mkv: 'video/x-matroska',
+      mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg',
+      pdf: 'application/pdf', doc: 'application/msword', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', rtf: 'application/rtf',
+      zip: 'application/zip', rar: 'application/x-rar-compressed',
+      json: 'application/json', js: 'application/javascript', ts: 'application/typescript', xml: 'application/xml'
+    };
+    return map[ext] || 'application/octet-stream';
+  };
 
   const ATTACHMENTS_BUCKET = (import.meta.env.VITE_ATTACHMENTS_BUCKET as string) || 'attachments';
   const PROFILE_BUCKET = (import.meta.env.VITE_PROFILE_BUCKET as string) || 'perfil';
@@ -526,7 +540,8 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
 
         // Registrar atividade de arquivo adicionado
         const authorName = (user?.user_metadata?.full_name as string) || (user?.email as string) || "Usuário";
-        const desc = `${safeName}|${file.size}|${file.type}|${publicUrl}|${path}`;
+        const mime = inferMimeType(safeName, file.type);
+        const desc = `${safeName}|${file.size}|${mime}|${publicUrl}|${path}`;
         addActivity(boardId, card.id, authorName, 'attachment_added', `enviou um arquivo: ${safeName}`);
         await sb.from('card_activities').insert({
           board_id: boardId,
@@ -535,10 +550,21 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
           type: 'attachment_added',
           description: desc,
         });
+        await sb.from('card_attachments').insert({
+          board_id: boardId,
+          card_id: card.id,
+          name: safeName,
+          description: null,
+          size: file.size,
+          type: mime,
+          url: publicUrl,
+          path,
+        });
         // Atualizar lista imediatamente
         queryClient.invalidateQueries({ queryKey: ["card-activities", card.id] });
+        queryClient.invalidateQueries({ queryKey: ["card-attachments", card.id] });
         toast({ title: "Arquivo enviado", description: safeName });
-        if (file.type.startsWith('image/')) {
+        if (mime.startsWith('image/')) {
           setCoverFromUrl(publicUrl);
         }
       }
@@ -622,15 +648,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
     }, 600);
   };
 
-  // Autosave: imagens da capa (debounced)
-  useEffect(() => {
-    if (!open) return;
-    if (coverImagesTimerRef.current) window.clearTimeout(coverImagesTimerRef.current);
-    coverImagesTimerRef.current = window.setTimeout(() => {
-      updateCard({ cardId: card.id, updates: { coverImages: coverImages } });
-    }, 800);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [coverImages]);
+  
 
   // Autosave: data de vencimento (imediato)
   const handleDueDateChange = (value: string) => {
@@ -810,6 +828,31 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
     created_at: new Date().toISOString(),
   })) : (visibleAttachments as unknown as AttachmentItem[]);
 
+  const imageAttachments: AttachmentItem[] = React.useMemo(() => {
+    return dataset.filter((a) => a.type?.startsWith("image/"));
+  }, [dataset]);
+
+  const galleryImages: AttachmentItem[] = React.useMemo(() => {
+    if (imageAttachments.length > 0) return imageAttachments;
+    const srcs = coverImages || [];
+    return srcs.map((url, idx) => ({
+      id: `cover_${idx}`,
+      board_id: boardId,
+      card_id: card.id,
+      name: `capa_${idx + 1}`,
+      description: null,
+      size: 0,
+      type: 'image/*',
+      url,
+      path: url,
+      created_at: new Date().toISOString(),
+    }));
+  }, [imageAttachments, coverImages, boardId, card.id]);
+
+  const fileAttachments: AttachmentItem[] = React.useMemo(() => {
+    return dataset.filter((a) => !a.type?.startsWith('image/'));
+  }, [dataset]);
+
   const filterOptions: { key: FilterKey; label: string }[] = [
     { key: 'all', label: 'Todos' },
     { key: 'image', label: 'Imagens' },
@@ -818,6 +861,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
     { key: 'audio', label: 'Áudio' },
     { key: 'zip', label: 'Compactados' },
     { key: 'code', label: 'Código' },
+    { key: 'link', label: 'Links' },
   ];
 
   const comments = [
@@ -878,7 +922,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                     <label className="text-sm text-muted-foreground">Título *</label>
                     <Input
                       value={title}
-                      onChange={(e) => { const v = e.target.value; setTitle(v); scheduleTitleAutosave(v); }}
+                      onChange={(e) => { const v = e.target.value; setTitle(v); }}
                       placeholder="Título do cartão"
                     />
                   </div>
@@ -910,6 +954,57 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                           <Progress value={90} />
                         </div>
                       )}
+                      {dataset.filter((a) => a.type.startsWith('image/')).length > 0 && (
+                        <div className="space-y-2">
+                          <h4 className="text-sm font-medium flex items-center gap-2"><Image className="h-4 w-4" /> Imagens</h4>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                            {dataset.filter((a) => a.type.startsWith('image/')).map((att) => (
+                              <div key={att.path} className="relative group h-24 rounded-md overflow-hidden bg-muted">
+                                <button
+                                  type="button"
+                                  className="absolute inset-0"
+                                  onClick={(e) => { e.stopPropagation(); setViewerSrc(att.url); setViewerOpen(true); }}
+                                  aria-label="Visualizar imagem"
+                                />
+                                <LazyImage src={att.url} alt={att.name} className="w-full h-full object-cover" />
+                                {isCoverUrl(att.url) && (
+                                  <Badge variant="secondary" className="absolute top-2 left-2">Capa</Badge>
+                                )}
+                                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <Image className="absolute top-2 right-2 h-4 w-4 text-white/80" />
+                                <div className="absolute bottom-2 left-2 flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="secondary"
+                                    onClick={(e) => { e.stopPropagation(); window.open(att.url, '_blank'); }}
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                  >
+                                    Abrir
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={(e) => { e.stopPropagation(); handleDownload(att.url, att.name); }}
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                  >
+                                    Baixar
+                                  </Button>
+                                </div>
+                                <div className="absolute bottom-2 right-2 flex justify-center">
+                                  <Button
+                                    size="sm"
+                                    variant={isCoverUrl(att.url) ? "default" : "secondary"}
+                                    onClick={(e) => { e.stopPropagation(); setCoverFromUrl(att.url); }}
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                  >
+                                    {isCoverUrl(att.url) ? "Capa definida" : "Definir capa"}
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       {dataset.length > 0 && (
                         <div className="space-y-2">
                           <div className="flex flex-wrap gap-2 items-center justify-between">
@@ -934,7 +1029,17 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                             <div key={att.path} className="flex items-center justify-between p-2 border rounded-md">
                               <div className="flex items-center gap-3 min-w-0">
                                 {att.type.startsWith('image/') ? (
-                                  <img src={att.url} alt={att.name} className="h-8 w-8 rounded object-cover border" />
+                                  <div className="relative h-8 w-8 rounded overflow-hidden border bg-muted">
+                                    <button
+                                      type="button"
+                                      className="absolute inset-0"
+                                      onClick={(e) => { e.stopPropagation(); setViewerSrc(att.url); setViewerOpen(true); }}
+                                      aria-label="Visualizar imagem"
+                                    />
+                                    <LazyImage src={att.url} alt={att.name} className="h-full w-full object-cover" />
+                                    <div className="absolute inset-0 bg-black/10 opacity-0 hover:opacity-100 transition-opacity" />
+                                    <Image className="absolute top-1 right-1 h-3 w-3 text-white/80" />
+                                  </div>
                                 ) : (
                                   <span className="shrink-0">{attachmentIcon(att.type)}</span>
                                 )}
@@ -1007,10 +1112,15 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                     <label className="text-sm text-muted-foreground">Descrição</label>
                     <Textarea
                       value={description}
-                      onChange={(e) => { const v = e.target.value; setDescription(v); scheduleDescriptionAutosave(v); }}
+                      onChange={(e) => { const v = e.target.value; setDescription(v); }}
                       placeholder="Descrição do cartão"
                       className="min-h-[80px] resize-none"
                     />
+                    <div className="mt-2 flex gap-2">
+                      <Button size="sm" onClick={() => updateCard({ cardId: card.id, updates: { title: (title || '').trim() || 'Sem título', description: (description || '').trim() } })}>
+                        Salvar alterações
+                      </Button>
+                    </div>
                   </div>
 
                   {/* 3. Vencimento */}
@@ -1334,7 +1444,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                     <label className="text-sm text-muted-foreground">Título *</label>
                     <Input
                       value={title}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => { const v = e.target.value; setTitle(v); scheduleTitleAutosave(v); }}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => { const v = e.target.value; setTitle(v); }}
                       placeholder="Título do cartão"
                       className="text-lg font-medium"
                     />
@@ -1345,11 +1455,77 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                     <label className="text-sm text-muted-foreground">Descrição</label>
                     <Textarea
                       value={description}
-                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => { const v = e.target.value; setDescription(v); scheduleDescriptionAutosave(v); }}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => { const v = e.target.value; setDescription(v); }}
                       placeholder="Adicionar uma descrição mais detalhada..."
                       className="min-h-[120px] resize-none"
                     />
+                    <div className="mt-2 flex gap-2">
+                      <Button size="sm" onClick={() => updateCard({ cardId: card.id, updates: { title: (title || '').trim() || 'Sem título', description: (description || '').trim() } })}>
+                        Salvar alterações
+                      </Button>
+                    </div>
                   </div>
+
+                  {/* Imagens (miniaturas com overlay) */}
+                      {galleryImages.length > 0 && (
+                        <div className="border rounded-lg p-4 space-y-3 animate-fade-in">
+                          <h3 className="font-semibold flex items-center gap-2">
+                            <Image className="h-4 w-4" />
+                            Imagens
+                          </h3>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                        {galleryImages.map((att) => (
+                          <div key={att.path} className="relative group h-24 rounded-md overflow-hidden bg-muted">
+                            <button
+                              type="button"
+                              className="absolute inset-0"
+                              onClick={(e) => { e.stopPropagation(); setViewerSrc(att.url); setViewerOpen(true); }}
+                              aria-label="Visualizar imagem"
+                            />
+                            <LazyImage
+                              src={att.url}
+                              alt={att.name}
+                              className="w-full h-full object-cover"
+                              placeholderClassName="bg-muted"
+                            />
+                            {isCoverUrl(att.url) && (
+                              <Badge variant="secondary" className="absolute top-2 left-2">Capa</Badge>
+                            )}
+                            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <Image className="absolute top-2 right-2 h-4 w-4 text-white/80" />
+                            <div className="absolute bottom-2 left-2 flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={(e) => { e.stopPropagation(); window.open(att.url, '_blank'); }}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                Abrir
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => { e.stopPropagation(); handleDownload(att.url, att.name); }}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                Baixar
+                              </Button>
+                            </div>
+                            <div className="absolute bottom-2 right-2 flex justify-center">
+                              <Button
+                                size="sm"
+                                variant={isCoverUrl(att.url) ? "default" : "secondary"}
+                                onClick={(e) => { e.stopPropagation(); setCoverFromUrl(att.url); }}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                {isCoverUrl(att.url) ? "Capa definida" : "Definir capa"}
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                          </div>
+                        </div>
+                      )}
 
                   {/* Arquivos */}
                   {(attachments.length > 0 || showAttachments) && (
@@ -1366,33 +1542,34 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                         className="hidden"
                         id="file-upload-clean"
                       />
-                      <label
-                        htmlFor="file-upload-clean"
+                      <div
                         className="flex items-center justify-center w-full h-12 border-2 border-dashed border-muted-foreground/25 rounded-lg cursor-pointer hover:border-muted-foreground/50 transition-colors"
+                        onClick={() => setAttachmentsDialogOpen(true)}
                       >
                         <div className="text-center">
-                          <div className="text-muted-foreground text-sm">Clique para anexar arquivos (máx. 13 MB)</div>
+                          <div className="text-muted-foreground text-sm">Clique para anexar arquivos (ou links)</div>
                         </div>
-                      </label>
+                      </div>
                     </div>
                     {isUploadingAttachment && (
                       <div className="text-xs text-muted-foreground">Enviando...</div>
                     )}
-                    {attachments.length > 0 && (
+                    {fileAttachments.length > 0 && (
                       <div className="space-y-2">
-                        {attachments.map((att) => (
+                        {fileAttachments.map((att) => (
                           <div key={att.path} className="flex items-center justify-between p-2 border rounded-md">
                             <div className="flex items-center gap-3 min-w-0">
-                              <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
+                              <span className="shrink-0">{attachmentIcon(att.type)}</span>
                               <a href={att.url} target="_blank" rel="noreferrer" className="truncate hover:underline">{att.name}</a>
-                              <span className="text-xs text-muted-foreground truncate">{formatBytes(att.size)} • {att.type}</span>
+                              <span className="text-xs text-muted-foreground truncate">{formatBytes(att.size || 0)} • {friendlyTypeLabel(att.type)}</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              {att.type.startsWith('image/') && (
-                                <Button variant={isCoverUrl(att.url) ? "default" : "secondary"} size="sm" onClick={() => setCoverFromUrl(att.url)}>
-                                  {isCoverUrl(att.url) ? 'Capa definida' : 'Definir capa'}
-                                </Button>
-                              )}
+                              <Button variant="ghost" size="sm" onClick={() => window.open(att.url, '_blank')}>
+                                Abrir
+                              </Button>
+                              <Button variant="outline" size="sm" onClick={() => handleDownload(att.url, att.name)}>
+                                Baixar
+                              </Button>
                               <Button variant="ghost" size="sm" onClick={() => handleAttachmentRemove(att.path, att.name)} className="text-red-600 hover:text-red-700">
                                 <Trash className="h-4 w-4" />
                               </Button>
@@ -1606,6 +1783,18 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
           </div>
         </div>
       </DialogContent>
+      {/* Image Viewer Dialog */}
+      <ImageViewerDialog
+        open={viewerOpen}
+        src={viewerSrc}
+        onOpenChange={(open) => { setViewerOpen(open); if (!open) setViewerSrc(null); }}
+      />
+      <AttachmentDialog
+        open={attachmentsDialogOpen}
+        onOpenChange={setAttachmentsDialogOpen}
+        boardId={boardId}
+        cardId={card.id}
+      />
       {/* Cover Color Dialog */}
       <Dialog open={coverDialogOpen} onOpenChange={setCoverDialogOpen}>
         <DialogContent className="sm:max-w-md">
