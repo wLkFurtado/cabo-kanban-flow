@@ -118,13 +118,16 @@ export default function Register() {
             render={({ field }: { field: ControllerRenderProps<FormValues, "role"> }) => (
               <FormItem>
                 <FormLabel>Cargo</FormLabel>
-                <Select value={field.value} onValueChange={field.onChange}>
+                <Select 
+                  value={field.value || undefined} 
+                  onValueChange={field.onChange}
+                >
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione seu cargo" />
                     </SelectTrigger>
                   </FormControl>
-                  <SelectContent>
+                  <SelectContent position="popper" className="z-[9999]">
                     {CARGOS.map((cargo) => (
                       <SelectItem key={cargo} value={cargo}>
                         {cargo}

@@ -19,6 +19,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import { ProtectedRoute } from "./components/layout/ProtectedRoute";
 import { AdminRoute } from "./components/layout/AdminRoute";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 // Create QueryClient outside component to prevent recreation
 const queryClient = new QueryClient({
@@ -34,42 +35,45 @@ const queryClient = new QueryClient({
 });
 
 const App = () => (
-  <BrowserRouter>
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <Routes>
-          <Route element={
-            <ProtectedRoute>
-              <RootLayout />
-            </ProtectedRoute>
-          }>
-            <Route path="/" element={<Index />} />
-            <Route path="/board/:boardId" element={<BoardView />} />
-            <Route path="/agenda" element={<Agenda />} />
-            <Route path="/pautas" element={<Pautas />} />
-            <Route path="/escala-fds" element={<EscalaFDS />} />
-            <Route path="/agenda-institucional" element={<AgendaInstitucional />} />
-            <Route path="/melhorias" element={<Melhorias />} />
-            <Route path="/roadmap" element={<Roadmap />} />
-            <Route
-              path="/contatos"
-              element={
-                <AdminRoute>
-                  <AdminContacts />
-                </AdminRoute>
-              }
-            />
-          </Route>
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </TooltipProvider>
-    </QueryClientProvider>
-  </BrowserRouter>
+  <ErrorBoundary>
+    <BrowserRouter>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <Routes>
+            <Route element={
+              <ProtectedRoute>
+                <RootLayout />
+              </ProtectedRoute>
+            }>
+              <Route path="/" element={<Index />} />
+              <Route path="/board/:boardId" element={<BoardView />} />
+              <Route path="/agenda" element={<Agenda />} />
+              <Route path="/pautas" element={<Pautas />} />
+              <Route path="/escala-fds" element={<EscalaFDS />} />
+              <Route path="/agenda-institucional" element={<AgendaInstitucional />} />
+              <Route path="/melhorias" element={<Melhorias />} />
+              <Route path="/roadmap" element={<Roadmap />} />
+              <Route
+                path="/contatos"
+                element={
+                  <AdminRoute>
+                    <AdminContacts />
+                  </AdminRoute>
+                }
+              />
+            </Route>
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </BrowserRouter>
+  </ErrorBoundary>
 );
 
 export default App;
+
