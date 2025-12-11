@@ -9,7 +9,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "../ui/popover";
-import { getInitials } from "../../state/authStore";
+import { getInitials } from "@/lib/utils";
 import { Member } from "../../state/kanbanTypes";
 import { UserPlus, X } from "lucide-react";
 import { cn } from "../../lib/utils";

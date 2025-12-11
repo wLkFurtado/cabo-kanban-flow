@@ -29,7 +29,7 @@ import { useProfiles, type Profile } from "../hooks/useProfiles";
 import { EditContactDialog } from "../components/admin/EditContactDialog";
 import { AddContactDialog } from "../components/admin/AddContactDialog";
 import { useAdminRole } from "../hooks/useAdminRole";
-import { getInitials } from "../state/authStore";
+import { getInitials } from "@/lib/utils";
 import { Seo } from "../components/seo/Seo";
 import { formatPhoneBR } from "../lib/utils";
 

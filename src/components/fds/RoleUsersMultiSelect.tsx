@@ -7,7 +7,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "../ui/avatar";
 import { Badge } from "../ui/badge";
 import { X, UserPlus } from "lucide-react";
 import { useProfiles, type Profile } from "../../hooks/useProfiles";
-import { getInitials } from "../../state/authStore";
+import { getInitials } from "@/lib/utils";
 
 interface RoleUsersMultiSelectProps {
   label: string;

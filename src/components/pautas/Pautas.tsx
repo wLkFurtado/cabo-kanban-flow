@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 // Removidos: imports de Card e Tabs, não são mais necessários
 import { WeeklyAgenda } from './WeeklyAgenda';
 import { EventModal } from './EventModal';
-import { useAuthStore } from '../../state/authStore';
+// Removido: useAuthStore - usar apenas useAuth para autenticação segura
 import { Evento } from '../../state/pautasTypes';
 import { usePautas } from '@/hooks/usePautas';
 import type { PautasEvent } from '@/hooks/usePautas';
@@ -12,8 +12,7 @@ import { useEvents } from '@/hooks/useEvents';
 
 export const Pautas: React.FC = () => {
   const { events, getEventsByUser } = usePautas();
-  const { getCurrentUser } = useAuthStore();
-  const currentUser = getCurrentUser();
+  // Usando apenas useAuth para autenticação segura (removido authStore)
   const { user } = useAuth();
   const { syncAgendaToPautas } = useEvents();
   const didSyncRef = useRef(false);
@@ -74,8 +73,8 @@ export const Pautas: React.FC = () => {
     return (events || []).map(mapToEvento);
   }, [events, mapToEvento]);
 
-  // Filtrar eventos do usuário logado (preferindo Supabase user.id; fallback para authStore)
-  const effectiveUserId = user?.id || currentUser?.id;
+  // Filtrar eventos do usuário logado
+  const effectiveUserId = user?.id;
   const eventosDoUsuario = useMemo(() => {
     if (!effectiveUserId) return [];
     const list = getEventsByUser(effectiveUserId) || [];

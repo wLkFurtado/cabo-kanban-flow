@@ -6,7 +6,7 @@ import { Input } from "../ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { useProfiles } from "../../hooks/useProfiles";
 import type { Profile } from "../../hooks/useProfiles";
-import { getInitials } from "../../state/authStore";
+import { getInitials } from "@/lib/utils";
 import { cn } from "../../lib/utils";
 
 interface RoleUserSelectProps {

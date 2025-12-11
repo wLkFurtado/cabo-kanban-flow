@@ -7,7 +7,7 @@ import {
   criarEventoVazio
 } from './pautasTypes';
 import { addDays, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns';
-import { useAuthStore } from './authStore';
+// Removido: useAuthStore - usar useAuth para autenticação segura
 
 interface PautasActions {
   // Eventos

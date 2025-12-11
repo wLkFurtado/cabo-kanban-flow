@@ -43,3 +43,16 @@ export function formatPhoneBR(input?: string | null): string | null {
   // Caso não caiba em nenhum formato conhecido, retorna a entrada original
   return input;
 }
+
+/**
+ * Retorna as iniciais de um nome (primeira e última letra)
+ * @param name Nome completo
+ * @returns Iniciais em maiúsculo ou "?" se não houver nome
+ */
+export function getInitials(name?: string): string {
+  if (!name) return "?";
+  const parts = name.trim().split(/\s+/);
+  const first = parts[0]?.[0] ?? "";
+  const last = parts.length > 1 ? parts[parts.length - 1][0] : "";
+  return (first + last).toUpperCase();
+}

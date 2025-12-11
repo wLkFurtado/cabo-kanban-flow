@@ -28,7 +28,7 @@ import { useProfiles, type Profile } from "../hooks/useProfiles";
 import { formatPhoneBR } from "../lib/utils";
 import { EditContactDialog } from "../components/admin/EditContactDialog";
 import { AddContactDialog } from "../components/admin/AddContactDialog";
-import { getInitials } from "../state/authStore";
+import { getInitials } from "@/lib/utils";
 import { Seo } from "../components/seo/Seo";
 
 export default function AdminContacts() {

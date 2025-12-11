@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useBoardsStore } from "@/state/boards/store";
-import { useAuthStore } from "@/state/authStore";
+import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/state/kanbanTypes";
 import { format, isBefore, isAfter, addDays } from "date-fns";
 
@@ -12,13 +12,14 @@ export interface UserDemandWithBoard {
 
 export function useUserDemands() {
   const { boards } = useBoardsStore();
-  const { getCurrentUser } = useAuthStore();
-  const currentUser = getCurrentUser();
+  const { user } = useAuth();
 
   const userDemands = useMemo((): UserDemandWithBoard[] => {
-    if (!currentUser) return [];
+    if (!user) return [];
 
     const demands: UserDemandWithBoard[] = [];
+    const userEmail = user.email || '';
+    const userName = (user.user_metadata?.full_name as string) || '';
 
     Object.entries(boards).forEach(([boardId, board]) => {
       if (board.isTemplate) return; // Skip template boards
@@ -27,7 +28,7 @@ export function useUserDemands() {
         cards.forEach((card) => {
           // Check if current user is a member of this card
           const isMember = card.members.some(member => 
-            member.id === currentUser.id || member.name === currentUser.name
+            member.id === user.id || member.name === userName || member.email === userEmail
           );
 
           if (isMember && !card.archived) {
@@ -42,7 +43,7 @@ export function useUserDemands() {
     });
 
     return demands;
-  }, [boards, currentUser]);
+  }, [boards, user]);
 
   const getDemandsByDate = (date: string): UserDemandWithBoard[] => {
     return userDemands.filter(demand => {

@@ -9,7 +9,7 @@ import { useProfiles, type Profile } from "../../hooks/useProfiles";
 import { useAdminRole } from "../../hooks/useAdminRole";
 import { usePermissions, type AdminScope, type AppRole } from "../../hooks/usePermissions";
 import { Checkbox } from "../ui/checkbox";
-import { getInitials } from "../../state/authStore";
+import { getInitials } from "@/lib/utils";
 
 interface EditContactDialogProps {
   open: boolean;

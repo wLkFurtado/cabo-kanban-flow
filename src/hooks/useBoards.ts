@@ -9,6 +9,10 @@ import { useBoardsStore } from '../state/boards/store';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { postWebhook } from '../lib/webhook';
 
+// Debug helper - só loga em desenvolvimento
+const DEBUG = import.meta.env.DEV;
+const debug = (...args: unknown[]) => DEBUG && console.log(...args);
+
 // Cliente leve para operações fora do escopo do tipo Database
 const sb = supabase as SupabaseClient;
 
@@ -108,7 +112,7 @@ export function useBoards() {
       }
       // Admins: fetch all boards directly (RLS allows)
       if (isAdmin) {
-        console.log('🔍 [DEBUG] Admin detected. Fetching ALL boards');
+        debug('🔍 [DEBUG] Admin detected. Fetching ALL boards');
         const { data, error } = await supabase
           .from('boards')
           .select('id, title, description, created_at, owner_id, visibility')
@@ -127,7 +131,7 @@ export function useBoards() {
       }
 
       // Non-admins: fetch owned boards and boards where user is a member, then merge uniquely
-      console.log('🔍 [DEBUG] Fetching owned boards for user:', currentUserId);
+      debug('🔍 [DEBUG] Fetching owned boards for user:', currentUserId);
       const ownedResult = await supabase
         .from('boards')
         .select('id, title, description, created_at, owner_id, visibility')
@@ -145,9 +149,9 @@ export function useBoards() {
         cover_image_url: (row as BoardRowExtras).cover_image_url ?? undefined,
         cover_color: (row as BoardRowExtras).cover_color ?? undefined,
       })) as Board[];
-      console.log('✅ [DEBUG] Owned boards count:', ownedBoards.length);
+      debug('✅ [DEBUG] Owned boards count:', ownedBoards.length);
 
-      console.log('🔍 [DEBUG] Fetching membership ids for user:', currentUserId);
+      debug('🔍 [DEBUG] Fetching membership ids for user:', currentUserId);
       const membershipIdsResult = await supabase
         .from('board_members')
         .select('board_id')
@@ -159,11 +163,11 @@ export function useBoards() {
       }
 
       const membershipIds = (membershipIdsResult.data || []).map((m: { board_id: string }) => m.board_id);
-      console.log('✅ [DEBUG] Membership board ids count:', membershipIds.length);
+      debug('✅ [DEBUG] Membership board ids count:', membershipIds.length);
 
       let memberBoards: Board[] = [];
       if (membershipIds.length > 0) {
-        console.log('🔍 [DEBUG] Fetching member boards via ids:', membershipIds.length);
+        debug('🔍 [DEBUG] Fetching member boards via ids:', membershipIds.length);
         const memberBoardsResult = await supabase
           .from('boards')
           .select('id, title, description, created_at, owner_id, visibility')
@@ -189,7 +193,7 @@ export function useBoards() {
       const merged = Array.from(allBoardsMap.values())
         .sort((a: Board, b: Board) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-      console.log('✅ [DEBUG] Merged visible boards count:', merged.length);
+      debug('✅ [DEBUG] Merged visible boards count:', merged.length);
       return merged;
     },
     {
@@ -198,7 +202,7 @@ export function useBoards() {
       staleTime: 300000,
       keepPreviousData: true,
       retry: (failureCount, error) => {
-        console.log(`🔄 [useBoards] Retry attempt ${failureCount} for error:`, error instanceof Error ? error.message : String(error));
+        debug(`🔄 [useBoards] Retry attempt ${failureCount} for error:`, error instanceof Error ? error.message : String(error));
         return failureCount < 2; // Only retry twice
       },
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
@@ -660,7 +664,7 @@ export function useBoardDetails(boardId: string) {
   const cardsQuery = useQuery({
     queryKey: ['board-cards', boardId],
     queryFn: async () => {
-      console.log('🔍 [DEBUG] Buscando cards do board (join por listas):', boardId);
+      debug('🔍 [DEBUG] Buscando cards do board (join por listas):', boardId);
 
       // Buscar cards diretamente via join com board_lists, filtrando por board_id
       const { data, error } = await supabase
@@ -675,11 +679,11 @@ export function useBoardDetails(boardId: string) {
         .limit(100); // Limitar a 100 cards por board para performance
 
       if (error) {
-        console.log('❌ [DEBUG] Erro ao buscar cards:', error);
+        debug('❌ [DEBUG] Erro ao buscar cards:', error);
         throw error;
       }
 
-      console.log('📋 [DEBUG] Cards encontrados:', data);
+      debug('📋 [DEBUG] Cards encontrados:', data);
       const rows = (data ?? []) as unknown as Array<{
         id: string;
         list_id: string;
@@ -1032,17 +1036,17 @@ export function useBoardDetails(boardId: string) {
       if (!isOnline) {
         throw new Error('Sem conexão. Tente novamente quando estiver online.');
       }
-      console.log('🔍 [DEBUG] Iniciando moveCardMutation:', { cardId, sourceListId, destinationListId, newPosition });
+      debug('🔍 [DEBUG] Iniciando moveCardMutation:', { cardId, sourceListId, destinationListId, newPosition });
       
       if (!user) {
-        console.log('❌ [DEBUG] Usuário não autenticado');
+        debug('❌ [DEBUG] Usuário não autenticado');
         throw new Error('Usuário não autenticado');
       }
 
-      console.log('👤 [DEBUG] Usuário autenticado:', user.id);
+      debug('👤 [DEBUG] Usuário autenticado:', user.id);
 
       // Buscar o card atual
-      console.log('🔍 [DEBUG] Buscando card atual...');
+      debug('🔍 [DEBUG] Buscando card atual...');
       const { data: currentCard, error: fetchError } = await supabase
         .from('cards')
         .select('*')
@@ -1050,24 +1054,24 @@ export function useBoardDetails(boardId: string) {
         .single();
 
       if (fetchError) {
-        console.log('❌ [DEBUG] Erro ao buscar card:', fetchError);
+        debug('❌ [DEBUG] Erro ao buscar card:', fetchError);
         throw fetchError;
       }
       if (!currentCard) {
-        console.log('❌ [DEBUG] Card não encontrado');
+        debug('❌ [DEBUG] Card não encontrado');
         throw new Error('Card não encontrado');
       }
 
-      console.log('📋 [DEBUG] Card encontrado:', currentCard);
+      debug('📋 [DEBUG] Card encontrado:', currentCard);
 
       // Atualizar o card com a nova lista e posição
-      console.log('💾 [DEBUG] Tentando atualizar card...');
+      debug('💾 [DEBUG] Tentando atualizar card...');
       const updateData = { 
         list_id: destinationListId,
         position: newPosition,
         updated_at: new Date().toISOString()
       };
-      console.log('📝 [DEBUG] Dados para update:', updateData);
+      debug('📝 [DEBUG] Dados para update:', updateData);
 
       const { data: updateResult, error: updateError } = await supabase
         .from('cards')
@@ -1076,14 +1080,14 @@ export function useBoardDetails(boardId: string) {
         .select();
 
       if (updateError) {
-        console.log('❌ [DEBUG] Erro no update:', updateError);
+        debug('❌ [DEBUG] Erro no update:', updateError);
         throw updateError;
       }
 
-      console.log('✅ [DEBUG] Update realizado com sucesso:', updateResult);
+      debug('✅ [DEBUG] Update realizado com sucesso:', updateResult);
 
       // Normalizar posições nas listas afetadas para refletir a ordem desejada
-      console.log('🧮 [DEBUG] Normalizando posições nas listas afetadas...');
+      debug('🧮 [DEBUG] Normalizando posições nas listas afetadas...');
       if (sourceListId === destinationListId) {
         // Reordenar dentro da mesma lista
         const { data: destCards, error: destErr } = await supabase
@@ -1160,14 +1164,14 @@ export function useBoardDetails(boardId: string) {
       return { cardId, sourceListId, destinationListId, newPosition };
     },
     onMutate: async ({ cardId, sourceListId, destinationListId, newPosition }) => {
-      console.log('🔄 [DEBUG] onMutate iniciado:', { cardId, sourceListId, destinationListId, newPosition });
+      debug('🔄 [DEBUG] onMutate iniciado:', { cardId, sourceListId, destinationListId, newPosition });
       
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ['board-cards', boardId] });
       
       // Snapshot the previous value
       const previousCards = queryClient.getQueryData<Card[]>(['board-cards', boardId]);
-      console.log('📸 [DEBUG] Snapshot dos cards anteriores:', previousCards);
+      debug('📸 [DEBUG] Snapshot dos cards anteriores:', previousCards);
       
       // Optimistic update
       if (previousCards) {
@@ -1210,8 +1214,8 @@ export function useBoardDetails(boardId: string) {
       return { previousCards };
     },
     onError: (err, variables, context) => {
-      console.log('❌ [DEBUG] Erro na mutation:', err);
-      console.log('🔄 [DEBUG] Fazendo rollback...');
+      debug('❌ [DEBUG] Erro na mutation:', err);
+      debug('🔄 [DEBUG] Fazendo rollback...');
       
       // Rollback on error
       if (context?.previousCards) {
@@ -1225,7 +1229,7 @@ export function useBoardDetails(boardId: string) {
       });
     },
     onSuccess: async (data) => {
-      console.log('✅ [DEBUG] Mutation bem-sucedida:', data);
+      debug('✅ [DEBUG] Mutation bem-sucedida:', data);
       
       // Refetch to ensure consistency
       queryClient.invalidateQueries({ queryKey: ['board-cards', boardId] });
@@ -1498,7 +1502,7 @@ export function useBoardDetails(boardId: string) {
       });
     },
     onError: (error: Error) => {
-      console.log('❌ [DEBUG] Erro na mutation updateCard:', error);
+      debug('❌ [DEBUG] Erro na mutation updateCard:', error);
       toast({
         title: 'Erro ao atualizar card',
         description: error.message,
