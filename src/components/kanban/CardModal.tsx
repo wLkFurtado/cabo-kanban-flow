@@ -1,5 +1,15 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../ui/alert-dialog";
 
 import { Input } from "../ui/input";
 import { Textarea } from "../ui/textarea";
@@ -10,7 +20,7 @@ import { ScrollArea } from "../ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Checkbox } from "../ui/checkbox";
 import { cn } from "../../lib/utils";
-import { MessageSquare, Clock, User, Send, Calendar, Tag, Paperclip, ArrowRight, Plus, Image, CalendarDays, Users, Palette, Check, Trash, MoreHorizontal, FileText, FileArchive, Video, Music, FileCode, File, Link } from "lucide-react";
+import { MessageSquare, Clock, User, Send, Calendar, Tag, Paperclip, ArrowRight, Plus, Image, CalendarDays, Users, Palette, Check, Trash, MoreHorizontal, FileText, FileArchive, Video, Music, FileCode, File, Link, Download, Star, Upload } from "lucide-react";
 
 import { Card as TCard, Label as TLabel, LabelColor, Comment, Member } from "../../state/kanbanTypes";
 import { parseISO, format, formatDistanceToNow } from "date-fns";
@@ -60,7 +70,7 @@ interface CardModalProps {
 }
 
 export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps) {
-  const { updateCard, deleteCard: deleteCardMutation, deleteCardAsync } = useBoardDetails(boardId);
+  const { updateCard, updateCardAsync, deleteCard: deleteCardMutation, deleteCardAsync } = useBoardDetails(boardId);
   const deleteCard = useBoardsStore((s) => s.deleteCard);
   const addComment = useBoardsStore((s) => s.addComment);
   const addActivity = useBoardsStore((s) => s.addActivity);
@@ -71,6 +81,17 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
   const { user } = useAuth();
   const sb = supabase as SupabaseClient;
   const [boardOwnerName, setBoardOwnerName] = useState<string | null>(null);
+  
+  // Função helper para atualizar cache de cards imediatamente
+  const refreshCards = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['board-cards', boardId] }),
+      queryClient.invalidateQueries({ queryKey: ['board-data', boardId] }),
+      queryClient.invalidateQueries({ queryKey: ['board-data-rpc', boardId] }),
+      queryClient.refetchQueries({ queryKey: ['board-cards', boardId] }),
+      queryClient.refetchQueries({ queryKey: ['board-data', boardId] }),
+    ]);
+  };
   
   // Hook para gerenciar comentários do Supabase
   const { 
@@ -107,6 +128,16 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
   const [commentFocused, setCommentFocused] = useState(false);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerSrc, setViewerSrc] = useState<string | null>(null);
+
+  // Estado para modal de confirmação de exclusão de imagem
+  const [deleteImageDialogOpen, setDeleteImageDialogOpen] = useState(false);
+  const [imageToDelete, setImageToDelete] = useState<{ 
+    type: 'cover' | 'attachment'; 
+    index?: number; 
+    id?: string; 
+    path?: string; 
+    name?: string;
+  } | null>(null);
 
   // Timers para autosave (debounce por campo)
   const titleTimerRef = useRef<number | null>(null);
@@ -449,29 +480,131 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
     }
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    
-    files.forEach((file) => {
-      if (file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          if (event.target?.result) {
-            setCoverImages((prev) => [...prev, event.target!.result as string]);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const IMAGES_BUCKET = (import.meta.env.VITE_ATTACHMENTS_BUCKET as string) || 'attachments';
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []).filter(f => f.type.startsWith('image/'));
+    if (files.length === 0) return;
+
+    setIsUploadingImage(true);
+    const authorName = (user?.user_metadata?.full_name as string) || (user?.email as string) || "Usuário";
+
+    try {
+      for (const file of files) {
+        // Limite de 13MB
+        if (file.size > 13 * 1024 * 1024) {
+          toast({ title: "Imagem muito grande", description: `O limite é de 13 MB.`, variant: "destructive" });
+          continue;
+        }
+
+        // Upload para Supabase Storage
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const path = `boards/${boardId}/cards/${card.id}/cover_${Date.now()}_${safeName}`;
+        
+        let uploadOk = false;
+        let publicUrl = '';
+        
+        for (const bucketName of [IMAGES_BUCKET, 'attachments', 'perfil']) {
+          const bucket = sb.storage.from(bucketName);
+          const { error: uploadErr } = await bucket.upload(path, file, { contentType: file.type });
+          if (!uploadErr) {
+            const { data: pub } = bucket.getPublicUrl(path);
+            publicUrl = pub?.publicUrl || '';
+            if (!publicUrl) {
+              try {
+                const { data: signed } = await bucket.createSignedUrl(path, 60 * 60 * 24 * 365);
+                publicUrl = signed?.signedUrl || '';
+              } catch (_) { /* ignore */ }
+            }
+            uploadOk = true;
+            break;
           }
-        };
-        reader.readAsDataURL(file);
+        }
+
+        if (!uploadOk || !publicUrl) {
+          toast({ title: "Falha ao enviar imagem", description: "Verifique se o bucket está configurado.", variant: "destructive" });
+          continue;
+        }
+
+        // Atualizar cover_images no banco
+        const newImages = [...(coverImages || []), publicUrl];
+        setCoverImages(newImages);
+        await updateCardAsync({ cardId: card.id, updates: { cover_images: newImages } });
+
+        // Forçar atualização do cache para refletir as imagens imediatamente
+        await refreshCards();
+
+        // Registrar atividade
+        addActivity(boardId, card.id, authorName, 'image_added', `adicionou uma imagem: ${safeName}`);
+
+        toast({ title: "Imagem adicionada", description: safeName });
       }
-    });
-    
-    // Clear the input
-    e.target.value = '';
+    } catch (err) {
+      console.error('Erro ao fazer upload de imagem:', err);
+      toast({ title: "Erro ao enviar imagem", variant: "destructive" });
+    } finally {
+      setIsUploadingImage(false);
+      e.target.value = '';
+    }
   };
 
-  const removeImage = (index: number) => {
+  const removeImage = async (index: number) => {
+    const imageUrl = (coverImages || [])[index];
     const next = (coverImages || []).filter((_, i) => i !== index);
     setCoverImages(next);
-    updateCard({ cardId: card.id, updates: { cover_images: next } });
+    
+    try {
+      await updateCardAsync({ cardId: card.id, updates: { cover_images: next } });
+      // Forçar atualização do cache
+      await refreshCards();
+    } catch (err) {
+      console.error('Erro ao remover imagem:', err);
+    }
+
+    const authorName = (user?.user_metadata?.full_name as string) || (user?.email as string) || "Usuário";
+    
+    // Registrar atividade de remoção
+    addActivity(boardId, card.id, authorName, 'image_removed', `removeu uma imagem`);
+
+    // Tentar deletar a imagem do Supabase Storage se for uma URL do Supabase
+    if (imageUrl && imageUrl.includes('supabase') && imageUrl.includes('/storage/')) {
+      try {
+        // Extrair o path do arquivo da URL
+        // Formato típico: https://xxx.supabase.co/storage/v1/object/public/bucket/path/to/file.jpg
+        const url = new URL(imageUrl);
+        const pathMatch = url.pathname.match(/\/storage\/v1\/object\/(?:public|sign)\/([^/]+)\/(.+)/);
+        if (pathMatch) {
+          const bucket = pathMatch[1];
+          const filePath = pathMatch[2];
+          const { error } = await sb.storage.from(bucket).remove([filePath]);
+          if (error) {
+            console.warn('Falha ao deletar imagem do Storage:', error);
+          }
+        }
+      } catch (err) {
+        console.warn('Erro ao tentar deletar imagem do Storage:', err);
+      }
+    }
+  };
+
+  // Função para processar a exclusão confirmada da imagem
+  const confirmDeleteImage = async () => {
+    if (!imageToDelete) return;
+
+    if (imageToDelete.type === 'cover' && imageToDelete.index !== undefined) {
+      await removeImage(imageToDelete.index);
+      toast({ title: 'Imagem removida', description: 'A imagem foi excluída com sucesso.' });
+    } else if (imageToDelete.type === 'attachment' && imageToDelete.id && imageToDelete.path) {
+      if (relationMissing) {
+        handleAttachmentRemove(imageToDelete.path, imageToDelete.name || '');
+      } else {
+        remove(imageToDelete.id, imageToDelete.path);
+      }
+    }
+
+    setImageToDelete(null);
+    setDeleteImageDialogOpen(false);
   };
 
   const MAX_FILE_SIZE = 13 * 1024 * 1024; // 13 MB
@@ -614,12 +747,19 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
     });
   };
 
-  const setCoverFromUrl = (url: string) => {
+  const setCoverFromUrl = async (url: string) => {
     const prev = coverImages || [];
     const next = [url, ...prev.filter((u) => u !== url)];
     setCoverImages(next);
-    updateCard({ cardId: card.id, updates: { cover_images: next } });
-    toast({ title: "Capa definida", description: "Imagem definida como capa do cartão." });
+    try {
+      await updateCardAsync({ cardId: card.id, updates: { cover_images: next } });
+      // Forçar atualização do cache
+      await refreshCards();
+      toast({ title: "Capa definida", description: "Imagem definida como capa do cartão." });
+    } catch (err) {
+      console.error('Erro ao definir capa:', err);
+      toast({ title: "Erro ao definir capa", variant: "destructive" });
+    }
   };
 
   const isCoverUrl = (url: string) => {
@@ -833,13 +973,15 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
   }, [dataset]);
 
   const galleryImages: AttachmentItem[] = React.useMemo(() => {
-    if (imageAttachments.length > 0) return imageAttachments;
-    const srcs = coverImages || [];
-    return srcs.map((url, idx) => ({
+    // Combinar coverImages (estado local, inclui uploads recentes) com imageAttachments (servidor)
+    const localUrls = new Set(coverImages || []);
+    
+    // Converter coverImages para AttachmentItem (inclui uploads recentes)
+    const localImages: AttachmentItem[] = (coverImages || []).map((url, idx) => ({
       id: `cover_${idx}`,
       board_id: boardId,
       card_id: card.id,
-      name: `capa_${idx + 1}`,
+      name: `Imagem`,
       description: null,
       size: 0,
       type: 'image/*',
@@ -847,6 +989,12 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
       path: url,
       created_at: new Date().toISOString(),
     }));
+    
+    // Filtrar imagens do servidor que já estão no estado local (evitar duplicatas)
+    const serverImages = imageAttachments.filter(att => !localUrls.has(att.url));
+    
+    // Retornar imagens locais primeiro, depois as do servidor que não estão duplicadas
+    return [...localImages, ...serverImages];
   }, [imageAttachments, coverImages, boardId, card.id]);
 
   const fileAttachments: AttachmentItem[] = React.useMemo(() => {
@@ -1107,13 +1255,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                       value={description}
                       onChange={(e) => { const v = e.target.value; setDescription(v); }}
                       placeholder="Descrição do cartão"
-                      className="min-h-[80px] resize-none"
                     />
-                    <div className="mt-2 flex gap-2">
-                      <Button size="sm" onClick={() => updateCard({ cardId: card.id, updates: { title: (title || '').trim() || 'Sem título', description: (description || '').trim() } })}>
-                        Salvar alterações
-                      </Button>
-                    </div>
                   </div>
 
                   {/* 3. Vencimento */}
@@ -1452,11 +1594,6 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                       placeholder="Adicionar uma descrição mais detalhada..."
                       className="min-h-[120px] resize-none"
                     />
-                    <div className="mt-2 flex gap-2">
-                      <Button size="sm" onClick={() => updateCard({ cardId: card.id, updates: { title: (title || '').trim() || 'Sem título', description: (description || '').trim() } })}>
-                        Salvar alterações
-                      </Button>
-                    </div>
                   </div>
 
                   {/* Imagens (miniaturas com overlay) */}
@@ -1470,7 +1607,7 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                         {galleryImages.map((att) => (
                           <div key={att.path} className="flex items-center justify-between p-2 border rounded-md">
                             <div className="flex items-center gap-3 min-w-0">
-                              <div className="relative h-8 w-8 rounded overflow-hidden border bg-muted shrink-0">
+                              <div className="relative h-10 w-10 rounded overflow-hidden border bg-muted shrink-0">
                                 <button
                                   type="button"
                                   className="absolute inset-0"
@@ -1479,33 +1616,70 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                                 />
                                 <LazyImage
                                   src={att.url}
-                                  alt={att.name}
+                                  alt="Imagem"
                                   className="h-full w-full object-cover"
                                   placeholderClassName="bg-muted"
                                 />
                               </div>
-                              <div className="min-w-0">
-                                <a href={att.url} target="_blank" rel="noreferrer" className="truncate hover:underline block">{att.name}</a>
-                                <div className="text-xs text-muted-foreground truncate flex items-center gap-2">
-                                  <span>Imagem</span>
-                                  {isCoverUrl(att.url) && <Badge variant="secondary">Capa</Badge>}
-                                </div>
+                              <div className="min-w-0 flex items-center gap-2">
+                                <span className="text-sm text-muted-foreground">Imagem</span>
+                                {isCoverUrl(att.url) && <Badge variant="secondary" className="text-xs">Capa</Badge>}
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <Button variant="ghost" size="sm" onClick={() => window.open(att.url, '_blank')}>Abrir</Button>
-                              <Button variant="outline" size="sm" onClick={() => handleDownload(att.url, att.name)}>Baixar</Button>
-                              <Button variant={isCoverUrl(att.url) ? "default" : "secondary"} size="sm" onClick={() => setCoverFromUrl(att.url)}>
-                                {isCoverUrl(att.url) ? 'Capa definida' : 'Definir capa'}
+                            <div className="flex items-center gap-1">
+                              {/* Baixar */}
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8"
+                                onClick={() => handleDownload(att.url, att.name)}
+                                title="Baixar imagem"
+                              >
+                                <Download className="h-4 w-4" />
                               </Button>
+                              {/* Definir/Remover capa */}
+                              <Button 
+                                variant={isCoverUrl(att.url) ? "default" : "ghost"} 
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => setCoverFromUrl(att.url)}
+                                title={isCoverUrl(att.url) ? 'Capa definida' : 'Definir como capa'}
+                              >
+                                <Star className={`h-4 w-4 ${isCoverUrl(att.url) ? 'fill-current' : ''}`} />
+                              </Button>
+                              {/* Excluir - anexos */}
                               {(!String(att.id || '').startsWith('cover_')) && (
                                 <Button
                                   variant="ghost"
-                                  size="sm"
-                                  onClick={() => { if (window.confirm('Excluir anexo?')) { if (relationMissing) { handleAttachmentRemove(att.path, att.name); } else { remove(att.id, att.path); } } }}
-                                  className="text-red-600 hover:text-red-700"
+                                  size="icon"
+                                  className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  onClick={(e) => { 
+                                    e.stopPropagation();
+                                    setImageToDelete({ type: 'attachment', id: att.id, path: att.path, name: att.name });
+                                    setDeleteImageDialogOpen(true);
+                                  }}
+                                  title="Excluir anexo"
                                 >
-                                  Excluir
+                                  <Trash className="h-4 w-4" />
+                                </Button>
+                              )}
+                              {/* Excluir - imagens de capa */}
+                              {String(att.id || '').startsWith('cover_') && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  onClick={(e) => { 
+                                    e.stopPropagation();
+                                    const idx = parseInt(String(att.id).replace('cover_', ''), 10);
+                                    if (!isNaN(idx)) {
+                                      setImageToDelete({ type: 'cover', index: idx });
+                                      setDeleteImageDialogOpen(true);
+                                    }
+                                  }}
+                                  title="Excluir imagem"
+                                >
+                                  <Trash className="h-4 w-4" />
                                 </Button>
                               )}
                             </div>
@@ -1519,58 +1693,55 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                   {(attachments.length > 0 || showAttachments) && (
                   <div className="border rounded-lg p-4 space-y-4 animate-fade-in">
                     <h3 className="font-semibold flex items-center gap-2">
-                      <Paperclip className="h-4 w-4" />
-                      Arquivos
+                      <Image className="h-4 w-4" />
+                      Adicionar Imagem
                     </h3>
                     <div>
                       <input
                         type="file"
                         multiple
-                        onChange={handleAttachmentUpload}
+                        accept="image/*"
+                        onChange={handleImageUpload}
                         className="hidden"
-                        id="file-upload-clean"
+                        id="image-upload-simple"
+                        disabled={isUploadingImage}
                       />
                       <div
-                        className="flex items-center justify-center w-full h-12 border-2 border-dashed border-muted-foreground/25 rounded-lg cursor-pointer hover:border-muted-foreground/50 transition-colors"
-                        onClick={() => setAttachmentsDialogOpen(true)}
+                        className={cn(
+                          "flex items-center justify-center w-full h-16 border-2 border-dashed rounded-lg transition-all",
+                          isUploadingImage 
+                            ? "border-muted-foreground/30 bg-muted/50 cursor-wait" 
+                            : "border-primary/30 cursor-pointer hover:border-primary/60 hover:bg-primary/5"
+                        )}
+                        onClick={() => !isUploadingImage && document.getElementById('image-upload-simple')?.click()}
+                        onDragOver={(e) => { if (!isUploadingImage) { e.preventDefault(); e.currentTarget.classList.add('border-primary', 'bg-primary/10'); } }}
+                        onDragLeave={(e) => { e.currentTarget.classList.remove('border-primary', 'bg-primary/10'); }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          e.currentTarget.classList.remove('border-primary', 'bg-primary/10');
+                          if (isUploadingImage) return;
+                          const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+                          if (files.length) {
+                            const fakeEvent = { target: { files, value: '' } } as unknown as React.ChangeEvent<HTMLInputElement>;
+                            handleImageUpload(fakeEvent);
+                          }
+                        }}
                       >
                         <div className="text-center">
-                          <div className="text-muted-foreground text-sm">Clique para anexar arquivos (ou links)</div>
+                          {isUploadingImage ? (
+                            <div className="text-muted-foreground text-sm flex items-center gap-2">
+                              <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
+                              Enviando imagem...
+                            </div>
+                          ) : (
+                            <div className="text-muted-foreground text-sm flex items-center gap-2">
+                              <Upload className="h-4 w-4" />
+                              Clique ou arraste imagens aqui
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
-                    {isUploadingAttachment && (
-                      <div className="text-xs text-muted-foreground">Enviando...</div>
-                    )}
-                    {fileAttachments.length > 0 && (
-                      <div className="space-y-2">
-                        {fileAttachments.map((att) => (
-                          <div key={att.path} className="flex items-center justify-between p-2 border rounded-md">
-                            <div className="flex items-center gap-3 min-w-0">
-                              <span className="shrink-0">{attachmentIcon(att.type)}</span>
-                              <a href={att.url} target="_blank" rel="noreferrer" className="truncate hover:underline">{att.name}</a>
-                              <span className="text-xs text-muted-foreground truncate">{formatBytes(att.size || 0)} • {friendlyTypeLabel(att.type)}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Button variant="ghost" size="sm" onClick={() => window.open(att.url, '_blank')}>
-                                Abrir
-                              </Button>
-                              <Button variant="outline" size="sm" onClick={() => handleDownload(att.url, att.name)}>
-                                Baixar
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => { if (window.confirm('Excluir anexo?')) { if (relationMissing) { handleAttachmentRemove(att.path, att.name); } else { remove(att.id, att.path); } } }}
-                                className="text-red-600 hover:text-red-700"
-                              >
-                                <Trash className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
                   </div>
                   )}
 
@@ -1770,10 +1941,38 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
                       </Button>
                     </div>
                   )}
-                </div>
+              </div>
               </div>
             </div>
           </div>
+        </div>
+        
+        {/* Botão Salvar Alterações - Final do Modal (fora do grid) */}
+        <div className="border-t pt-6 pb-4 mt-4 px-1">
+          <Button 
+            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-3 text-base"
+            size="lg"
+            onClick={async () => {
+              try {
+                await updateCardAsync({ 
+                  cardId: card.id, 
+                  updates: { 
+                    title: (title || '').trim() || 'Sem título', 
+                    description: (description || '').trim(),
+                    cover_images: coverImages
+                  } 
+                });
+                await refreshCards();
+                toast({ title: "Alterações salvas", description: "Todas as alterações foram salvas com sucesso!" });
+              } catch (err) {
+                console.error('Erro ao salvar:', err);
+                toast({ title: "Erro ao salvar", description: "Tente novamente.", variant: "destructive" });
+              }
+            }}
+          >
+            <Check className="h-5 w-5 mr-2" />
+            Salvar Alterações
+          </Button>
         </div>
       </DialogContent>
       {/* Image Viewer Dialog */}
@@ -1824,6 +2023,32 @@ export function CardModal({ open, onOpenChange, boardId, card }: CardModalProps)
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* AlertDialog para confirmação de exclusão de imagem - com z-index alto */}
+      <AlertDialog open={deleteImageDialogOpen} onOpenChange={setDeleteImageDialogOpen}>
+        <AlertDialogContent className="z-[9999]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir imagem?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. A imagem será removida permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setImageToDelete(null);
+              setDeleteImageDialogOpen(false);
+            }}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteImage}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

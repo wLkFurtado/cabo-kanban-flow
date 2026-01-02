@@ -563,16 +563,114 @@ export function useBoardDetails(boardId: string) {
     }
   };
 
+  // Query RPC consolidada - busca board, listas e cards em UMA chamada
+  // Reduz de 3 queries para 1, economizando egress significativamente
+  type BoardRpcResponse = {
+    board: {
+      id: string;
+      title: string;
+      description: string | null;
+      visibility: string | null;
+      owner_id: string;
+      created_at: string | null;
+      updated_at: string | null;
+    };
+    lists: Array<{
+      id: string;
+      title: string;
+      position: number;
+      color: string;
+    }>;
+    cards: Array<{
+      id: string;
+      list_id: string;
+      title: string;
+      position: number;
+      priority: string | null;
+      completed: boolean | null;
+      due_date: string | null;
+      description: string | null;
+      cover_color: string | null;
+      cover_images: string[] | null;
+    }>;
+  };
+
+  const boardDataRpcQuery = useQuery({
+    queryKey: ['board-data-rpc', boardId],
+    queryFn: async () => {
+      if (!user?.id) {
+        throw new Error('Usuário não autenticado');
+      }
+
+      debug('🚀 [RPC] Tentando carregar board via get_board_data...');
+      
+      try {
+        // Tenta usar a função RPC otimizada
+        const rpcFnName = 'get_board_data';
+        const rpcRes = await (supabase.rpc as unknown as (fn: string, params: Record<string, unknown>) => Promise<{ data: BoardRpcResponse | null; error: { message: string; code?: string } | null }>)(
+          rpcFnName,
+          { board_uuid: boardId }
+        );
+
+        if (rpcRes.error) {
+          // Se a função não existe, lança erro para usar fallback
+          if (rpcRes.error.code === '42883' || rpcRes.error.message.includes('does not exist')) {
+            debug('⚠️ [RPC] Função get_board_data não existe, usando fallback...');
+            throw new Error('RPC_NOT_AVAILABLE');
+          }
+          throw new Error(rpcRes.error.message);
+        }
+
+        if (!rpcRes.data) {
+          throw new Error('Board não encontrado');
+        }
+
+        debug('✅ [RPC] Dados carregados com sucesso:', rpcRes.data);
+        return rpcRes.data;
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        if (errMsg === 'RPC_NOT_AVAILABLE') {
+          throw err; // Propaga para usar fallback
+        }
+        debug('❌ [RPC] Erro:', err);
+        throw err;
+      }
+    },
+    enabled: !!user && !!boardId && isOnline,
+    staleTime: 5 * 60 * 1000, // 5 minutos
+    keepPreviousData: true,
+    retry: false, // Não tentar novamente se RPC não existir
+  });
+
+  // Flag: RPC disponível e com dados?
+  const rpcAvailable = !!boardDataRpcQuery.data && !boardDataRpcQuery.error;
+
+  // boardQuery - usa dados do RPC se disponível, senão faz query tradicional
   const boardQuery = useQuery({
     queryKey: ['board', boardId],
     queryFn: async () => {
+      // Se RPC funcionou, retorna dados já carregados
+      if (boardDataRpcQuery.data?.board) {
+        const b = boardDataRpcQuery.data.board;
+        return {
+          id: b.id,
+          title: b.title,
+          description: b.description ?? undefined,
+          visibility: (b.visibility ?? 'private') as 'private' | 'team' | 'public',
+          owner_id: b.owner_id,
+          created_at: b.created_at ?? new Date().toISOString(),
+          updated_at: b.updated_at ?? new Date().toISOString(),
+        } as Board;
+      }
+
+      // Fallback: query tradicional
       if (!user?.id) {
         throw new Error('Usuário não autenticado');
       }
 
       const { data, error } = await supabase
         .from('boards')
-        .select('*')
+        .select('id, title, description, visibility, owner_id, created_at, updated_at')
         .eq('id', boardId)
         .single();
 
@@ -580,15 +678,26 @@ export function useBoardDetails(boardId: string) {
         throw error;
       }
 
+      if (!data) {
+        throw new Error('Board não encontrado');
+      }
+
+      const boardData = data as typeof data & { cover_image_url?: string | null; cover_color?: string | null };
+
       return {
-        ...data,
-        description: (data as BoardRowExtras)?.description ?? undefined,
-        cover_image_url: (data as BoardRowExtras)?.cover_image_url ?? undefined,
-        cover_color: (data as BoardRowExtras)?.cover_color ?? undefined,
+        id: boardData.id,
+        title: boardData.title,
+        description: boardData.description ?? undefined,
+        visibility: (boardData.visibility ?? 'private') as 'private' | 'team' | 'public',
+        owner_id: boardData.owner_id,
+        created_at: boardData.created_at ?? new Date().toISOString(),
+        updated_at: boardData.updated_at ?? new Date().toISOString(),
+        cover_image_url: boardData.cover_image_url ?? undefined,
+        cover_color: boardData.cover_color ?? undefined,
       } as Board;
     },
-    enabled: !!user && !!boardId && isOnline,
-    staleTime: 60000,
+    enabled: !!user && !!boardId && isOnline && (rpcAvailable || boardDataRpcQuery.isError),
+    staleTime: 5 * 60 * 1000,
     keepPreviousData: true,
   });
 
@@ -633,9 +742,25 @@ export function useBoardDetails(boardId: string) {
     },
   });
 
+  // listsQuery - usa dados do RPC se disponível, senão faz query tradicional
   const listsQuery = useQuery({
     queryKey: ['board-lists', boardId],
     queryFn: async () => {
+      // Se RPC funcionou, retorna dados já carregados
+      if (boardDataRpcQuery.data?.lists) {
+        debug('✅ [RPC] Usando listas do cache RPC');
+        return boardDataRpcQuery.data.lists.map((l) => ({
+          id: l.id,
+          board_id: boardId,
+          title: l.title,
+          position: l.position,
+          color: l.color ?? '#6366f1',
+          created_at: '',
+          updated_at: '',
+        })) as BoardList[];
+      }
+
+      // Fallback: query tradicional
       if (!user?.id) {
         throw new Error('Usuário não autenticado');
       }
@@ -655,18 +780,35 @@ export function useBoardDetails(boardId: string) {
         color: row.color ?? '#6366f1',
       })) as BoardList[];
     },
-    enabled: !!user && !!boardId && isOnline && !!boardQuery.data,
-    staleTime: 60000,
+    enabled: !!user && !!boardId && isOnline && (rpcAvailable || boardDataRpcQuery.isError) && !!boardQuery.data,
+    staleTime: 5 * 60 * 1000,
     keepPreviousData: true,
   });
 
-  // Query para buscar cards do board
+  // cardsQuery - usa dados do RPC se disponível, senão faz query tradicional
   const cardsQuery = useQuery({
     queryKey: ['board-cards', boardId],
     queryFn: async () => {
+      // Se RPC funcionou, retorna dados já carregados
+      if (boardDataRpcQuery.data?.cards) {
+        debug('✅ [RPC] Usando cards do cache RPC');
+        return boardDataRpcQuery.data.cards.map((c) => ({
+          id: c.id,
+          list_id: c.list_id,
+          title: c.title,
+          position: c.position,
+          description: c.description ?? undefined,
+          due_date: c.due_date ?? undefined,
+          completed: !!c.completed,
+          priority: (c.priority ?? 'medium') as 'low' | 'medium' | 'high' | 'urgent',
+          cover_color: c.cover_color ?? undefined,
+          cover_images: c.cover_images ?? [],
+        })) as Card[];
+      }
+
+      // Fallback: query tradicional
       debug('🔍 [DEBUG] Buscando cards do board (join por listas):', boardId);
 
-      // Buscar cards diretamente via join com board_lists, filtrando por board_id
       const { data, error } = await supabase
         .from('cards')
         .select(`
@@ -676,7 +818,7 @@ export function useBoardDetails(boardId: string) {
         `)
         .eq('board_lists.board_id', boardId)
         .order('position')
-        .limit(100); // Limitar a 100 cards por board para performance
+        .limit(100);
 
       if (error) {
         debug('❌ [DEBUG] Erro ao buscar cards:', error);
@@ -711,8 +853,8 @@ export function useBoardDetails(boardId: string) {
       })) as Card[];
       return normalized;
     },
-    enabled: !!user && !!boardId && isOnline,
-    staleTime: 60000,
+    enabled: !!user && !!boardId && isOnline && (rpcAvailable || boardDataRpcQuery.isError),
+    staleTime: 5 * 60 * 1000,
     keepPreviousData: true,
   });
 
@@ -1045,11 +1187,11 @@ export function useBoardDetails(boardId: string) {
 
       debug('👤 [DEBUG] Usuário autenticado:', user.id);
 
-      // Buscar o card atual
+      // Buscar o card atual - apenas campos necessários para movimentação
       debug('🔍 [DEBUG] Buscando card atual...');
       const { data: currentCard, error: fetchError } = await supabase
         .from('cards')
-        .select('*')
+        .select('id, list_id, position')
         .eq('id', cardId)
         .single();
 
@@ -1354,10 +1496,10 @@ export function useBoardDetails(boardId: string) {
       if (!isOnline) {
         throw new Error('Sem conexão. Tente novamente quando estiver online.');
       }
-      // Obter snapshot antes da exclusão para enviar ao webhook
+      // Obter snapshot antes da exclusão para enviar ao webhook - apenas campos do webhook
       const { data: prevCard } = await supabase
         .from('cards')
-        .select('*')
+        .select('id, list_id, title, description, priority, due_date, completed, position, cover_color, cover_images')
         .eq('id', cardId)
         .maybeSingle();
       const { error } = await supabase
@@ -1538,6 +1680,7 @@ export function useBoardDetails(boardId: string) {
     // Expor também a versão assíncrona para permitir await em fluxos de UI
     deleteCardAsync: deleteCardMutation.mutateAsync,
     updateCard: updateCardMutation.mutate,
+    updateCardAsync: updateCardMutation.mutateAsync,
     renameList: renameListMutation.mutate,
     deleteList: deleteListMutation.mutate,
   };

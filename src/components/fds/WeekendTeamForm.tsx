@@ -101,6 +101,7 @@ export function WeekendTeamForm({ weekendDate }: WeekendTeamFormProps) {
           <RoleUserSelect
             label="Filmmaker"
             cargo="filmmaker"
+            cargoFilter={["filmmaker", "cinematografista", "videomaker"]}
             value={team?.filmmaker}
             onChange={(id: string | undefined) => handleSingle("filmmaker", id || undefined)}
             disabled={!canEdit}
@@ -108,6 +109,7 @@ export function WeekendTeamForm({ weekendDate }: WeekendTeamFormProps) {
           <RoleUserSelect
             label="Edição"
             cargo="edicao"
+            cargoFilter={["filmmaker", "cinematografista", "videomaker", "editor", "edição"]}
             value={team?.edicao}
             onChange={(id: string | undefined) => handleSingle("edicao", id || undefined)}
             disabled={!canEdit}

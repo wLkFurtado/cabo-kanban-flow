@@ -5,6 +5,16 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../ui/alert-dialog';
 import { Evento } from '../../state/pautasTypes';
 import { usePautas } from '../../hooks/usePautas';
 import { RoleUserSelect } from './RoleUserSelect';
@@ -39,6 +49,7 @@ export const EventModal: React.FC<EventModalProps> = ({
     rede: ''
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   // Cores predefinidas
   // (UI simplificada não usa cores/tags/participantes)
@@ -158,9 +169,14 @@ export const EventModal: React.FC<EventModalProps> = ({
   const handleDelete = () => {
     if (!evento) return;
     if (!canEdit) return;
-    const confirmed = window.confirm('Tem certeza que deseja excluir esta pauta? Esta ação não pode ser desfeita.');
-    if (!confirmed) return;
+    // Abre o modal de confirmação de exclusão
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (!evento) return;
     deleteEvent(evento.id);
+    setDeleteConfirmOpen(false);
     onClose();
   };
 
@@ -168,6 +184,7 @@ export const EventModal: React.FC<EventModalProps> = ({
   // Nenhuma lógica adicional de participantes/tags/cores no modal simplificado
 
   return (
+    <>
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -311,5 +328,29 @@ export const EventModal: React.FC<EventModalProps> = ({
         </form>
       </DialogContent>
     </Dialog>
+
+    {/* Modal de confirmação de exclusão */}
+    <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Excluir pauta?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Tem certeza que deseja excluir esta pauta? Esta ação não pode ser desfeita e o evento será removido permanentemente.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={() => setDeleteConfirmOpen(false)}>
+            Cancelar
+          </AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            onClick={confirmDelete}
+          >
+            Excluir
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 };

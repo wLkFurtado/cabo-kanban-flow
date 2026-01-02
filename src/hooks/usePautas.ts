@@ -145,7 +145,7 @@ export function usePautas() {
 
       const { data: originalEvent, error: fetchError } = await supabase
         .from('pautas_events')
-        .select('*')
+        .select('id, titulo, descricao, data_inicio, data_fim, tipo, prioridade, status, recorrencia, cor, local, responsavel_id, criado_por, created_at, updated_at')
         .eq('id', eventId)
         .single();
 

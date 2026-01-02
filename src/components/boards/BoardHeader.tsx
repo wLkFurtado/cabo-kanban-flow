@@ -228,7 +228,7 @@ export function BoardHeader({ board, onDeleted }: BoardHeaderProps) {
                         toast({
                           title: 'Erro ao adicionar',
                           description: isRlsDenied
-                            ? 'Permissão negada pela política de segurança. Apenas o dono do board ou um admin pode adicionar membros.'
+                            ? 'Permissão negada. Você precisa ser membro do board para adicionar outros usuários.'
                             : msg,
                           variant: 'destructive'
                         });

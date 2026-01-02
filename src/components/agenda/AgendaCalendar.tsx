@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { format, startOfWeek as startOfWeekFn, addDays, isSameDay, startOfMonth, isSameMonth, isToday, startOfDay, addMonths, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "../../lib/utils";
@@ -16,7 +17,9 @@ interface AgendaCalendarProps {
 
 export function AgendaCalendar({ selectedDate, onDateSelect, events = [] }: AgendaCalendarProps) {
   const { getDatesWithDemands, getDemandsByDate } = useUserDemands();
-
+  
+  // Estado interno para controlar o mês visualizado (separado da data selecionada)
+  const [viewingMonth, setViewingMonth] = useState<Date>(new Date());
 
   // Get dates that have demands
   const datesWithDemands = getDatesWithDemands();
@@ -40,9 +43,22 @@ export function AgendaCalendar({ selectedDate, onDateSelect, events = [] }: Agen
     return map;
   })();
 
+  // Navegação de mês (não abre o Sheet)
+  const goToPreviousMonth = () => {
+    setViewingMonth(prev => subMonths(prev, 1));
+  };
+
+  const goToNextMonth = () => {
+    setViewingMonth(prev => addMonths(prev, 1));
+  };
+
+  const goToToday = () => {
+    setViewingMonth(new Date());
+  };
+
   // Month grid renderer
   const renderMonthGrid = () => {
-    const baseDate = selectedDate ?? new Date();
+    const baseDate = viewingMonth;
     const monthStart = startOfMonth(baseDate);
     // Iniciar semana na segunda-feira (Brasil) para reduzir confusão
     const gridStart = startOfWeekFn(monthStart, { weekStartsOn: 1 });
@@ -68,7 +84,7 @@ export function AgendaCalendar({ selectedDate, onDateSelect, events = [] }: Agen
             <Button
               variant="outline"
               size="sm"
-              onClick={() => onDateSelect(startOfMonth(subMonths(baseDate, 1)))}
+              onClick={goToPreviousMonth}
               aria-label="Mês anterior"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -76,14 +92,14 @@ export function AgendaCalendar({ selectedDate, onDateSelect, events = [] }: Agen
             <Button
               variant="outline"
               size="sm"
-              onClick={() => onDateSelect(startOfMonth(new Date()))}
+              onClick={goToToday}
             >
               Hoje
             </Button>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => onDateSelect(startOfMonth(addMonths(baseDate, 1)))}
+              onClick={goToNextMonth}
               aria-label="Próximo mês"
             >
               <ChevronRight className="w-4 h-4" />

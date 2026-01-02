@@ -75,10 +75,10 @@ export function useEvents() {
         .order('start_date', { ascending: true });
 
       if (error) {
-        // Fallback: se RLS impedir joins, busca eventos sem relações
+        // Fallback: se RLS impedir joins, busca eventos sem relações - campos específicos
         const { data: plainData, error: plainErr } = await sb
           .from('events')
-          .select('*')
+          .select('id, title, description, start_date, end_date, all_day, location, created_by, created_at, updated_at')
           .order('start_date', { ascending: true });
         if (plainErr) throw plainErr;
         return plainData || [];
@@ -280,7 +280,7 @@ export function useEvents() {
     created_by: string;
   };
 
-  const deleteEventMutation = useMutation<EventRowForDelete | null, Error, string>({
+  const deleteEventMutation = useMutation<EventRowForDelete | null, Error, string, { previousEvents: AgendaEvent[] | undefined }>({
     mutationFn: async (id) => {
       if (!isOnline) throw new Error('Sem conexão. Tente novamente quando estiver online.');
       // Busca dados do evento antes de excluir, para fallback na remoção em pautas
@@ -305,7 +305,34 @@ export function useEvents() {
       if (error) throw error;
       return eventRow;
     },
+    // Optimistic update: remove o evento da UI imediatamente
+    onMutate: async (deletedId) => {
+      // Cancela queries em andamento para evitar sobrescrever nossa mudança otimista
+      await queryClient.cancelQueries({ queryKey: ['events'] });
+      
+      // Salva o estado anterior para rollback em caso de erro
+      const previousEvents = queryClient.getQueryData<AgendaEvent[]>(['events']);
+      
+      // Remove otimisticamente o evento da lista
+      queryClient.setQueryData<AgendaEvent[]>(['events'], (old) => 
+        old ? old.filter(event => event.id !== deletedId) : []
+      );
+      
+      return { previousEvents };
+    },
+    onError: (_err, _deletedId, context) => {
+      // Rollback em caso de erro
+      if (context?.previousEvents) {
+        queryClient.setQueryData(['events'], context.previousEvents);
+      }
+      toast({
+        title: 'Erro ao excluir evento',
+        description: 'Não foi possível excluir o evento. Tente novamente.',
+        variant: 'destructive',
+      });
+    },
     onSuccess: async (eventRow, id) => {
+      // Invalida para garantir sincronização com o servidor
       queryClient.invalidateQueries({ queryKey: ['events'] });
       toast({
         title: 'Evento excluído',
@@ -356,10 +383,10 @@ export function useEvents() {
   const syncAgendaToPautas = async () => {
     if (!isOnline) throw new Error('Sem conexão. Tente novamente quando estiver online.');
     if (!user) throw new Error('User not authenticated');
-    // Busca todos os eventos acessíveis ao usuário pela RLS (criados ou convidados)
+    // Busca todos os eventos acessíveis ao usuário pela RLS (criados ou convidados) - campos específicos
     const { data: myEvents, error: evErr } = await sb
       .from('events')
-      .select('*')
+      .select('id, title, description, start_date, end_date, location, created_by')
       .order('start_date', { ascending: true });
     if (evErr) throw evErr;
 

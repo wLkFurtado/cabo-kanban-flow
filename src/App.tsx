@@ -22,11 +22,16 @@ import { AdminRoute } from "./components/layout/AdminRoute";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
 // Create QueryClient outside component to prevent recreation
+// Configuração otimizada para reduzir egress do Supabase
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 1,
       refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      refetchOnMount: false,
+      staleTime: 5 * 60 * 1000, // 5 minutos - dados são considerados fresh por 5min
+      cacheTime: 10 * 60 * 1000, // 10 minutos - cache mantido por 10min
     },
     mutations: {
       retry: 1,

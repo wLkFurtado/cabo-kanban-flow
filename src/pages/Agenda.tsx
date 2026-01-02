@@ -4,6 +4,16 @@ import { ptBR } from "date-fns/locale";
 import { Calendar, AlertTriangle, Clock, Pencil, Trash } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useUserDemands } from "@/hooks/useUserDemands";
 import { useBoardsStore } from "@/state/boards/store";
 import { AgendaCalendar } from "@/components/agenda/AgendaCalendar";
@@ -24,6 +34,10 @@ export default function Agenda() {
   const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [eventBeingEdited, setEventBeingEdited] = useState<import("@/hooks/useEvents").AgendaEvent | null>(null);
+  
+  // Estado para modal de confirmação de exclusão
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [eventToDelete, setEventToDelete] = useState<string | null>(null);
 
   const { getDemandsByDate, getOverdueDemands, getDueSoonDemands } = useUserDemands();
   const { boards } = useBoardsStore();
@@ -45,9 +59,9 @@ export default function Agenda() {
   const handleDateSelect = (date: Date | undefined) => {
     setSelectedDate(date);
     if (date) {
-      // KISS: Clique na data abre diretamente o modal de criação de evento
-      setIsEventModalOpen(true);
-      setIsSheetOpen(false);
+      // Abre o painel lateral mostrando todos os eventos do dia
+      // O usuário pode editar, excluir ou criar novo evento a partir dali
+      setIsSheetOpen(true);
     }
   };
 
@@ -168,6 +182,16 @@ export default function Agenda() {
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="font-medium">Eventos ({dayEvents.length})</h3>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setEventBeingEdited(null);
+                      setIsEventModalOpen(true);
+                    }}
+                  >
+                    + Novo Evento
+                  </Button>
                 </div>
                 {dayEvents.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Nenhum evento para este dia.</p>
@@ -197,10 +221,12 @@ export default function Agenda() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => {
-                              if (window.confirm('Excluir este evento?')) {
-                                deleteEvent(ev.id);
-                              }
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              // Abre o modal de confirmação
+                              setEventToDelete(ev.id);
+                              setDeleteConfirmOpen(true);
                             }}
                             aria-label="Excluir evento"
                           >
@@ -259,6 +285,38 @@ export default function Agenda() {
           selectedDate={selectedDate}
           eventToEdit={eventBeingEdited}
         />
+
+        {/* Modal de confirmação de exclusão */}
+        <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir evento?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta ação não pode ser desfeita. O evento será removido permanentemente da agenda.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => {
+                setDeleteConfirmOpen(false);
+                setEventToDelete(null);
+              }}>
+                Cancelar
+              </AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={() => {
+                  if (eventToDelete) {
+                    deleteEvent(eventToDelete);
+                  }
+                  setDeleteConfirmOpen(false);
+                  setEventToDelete(null);
+                }}
+              >
+                Excluir
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </>
   );

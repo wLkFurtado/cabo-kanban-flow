@@ -6,7 +6,7 @@ import { Calendar, MessageSquare, Tag } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar';
 import { ImageViewerDialog } from './ImageViewerDialog';
 import LazyImage from '../ui/lazy-image';
- 
+
 
 const coverColorClass: Record<LabelColor, string> = {
   green: 'bg-[hsl(var(--label-green))]',
@@ -111,6 +111,7 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
                 className="w-full h-full object-cover cursor-zoom-in"
                 onClick={(e) => {
                   e.stopPropagation();
+                  // Abre viewer com imagem original (full quality)
                   const firstCover = card.coverImages && card.coverImages.length > 0 
                     ? (card.coverImages[0] ?? null)
                     : null;
