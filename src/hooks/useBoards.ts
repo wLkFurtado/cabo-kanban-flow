@@ -637,8 +637,7 @@ export function useBoardDetails(boardId: string) {
       }
     },
     enabled: !!user && !!boardId && isOnline,
-    staleTime: 5 * 60 * 1000, // 5 minutos
-    keepPreviousData: true,
+    staleTime: 0, // Sempre considerar dados como stale para forçar refetch
     retry: false, // Não tentar novamente se RPC não existir
   });
 
@@ -697,8 +696,7 @@ export function useBoardDetails(boardId: string) {
       } as Board;
     },
     enabled: !!user && !!boardId && isOnline && (rpcAvailable || boardDataRpcQuery.isError),
-    staleTime: 5 * 60 * 1000,
-    keepPreviousData: true,
+    staleTime: 0, // Sempre buscar dados frescos
   });
 
   // Garante que o dono do board tenha membership para evitar bloqueios de RLS nas tabelas filhas
@@ -781,33 +779,15 @@ export function useBoardDetails(boardId: string) {
       })) as BoardList[];
     },
     enabled: !!user && !!boardId && isOnline && (rpcAvailable || boardDataRpcQuery.isError) && !!boardQuery.data,
-    staleTime: 5 * 60 * 1000,
-    keepPreviousData: true,
+    staleTime: 0, // Sempre buscar dados frescos
   });
 
-  // cardsQuery - usa dados do RPC se disponível, senão faz query tradicional
+  // cardsQuery - Configuração otimizada para produção
   const cardsQuery = useQuery({
     queryKey: ['board-cards', boardId],
     queryFn: async () => {
-      // Se RPC funcionou, retorna dados já carregados
-      if (boardDataRpcQuery.data?.cards) {
-        debug('✅ [RPC] Usando cards do cache RPC');
-        return boardDataRpcQuery.data.cards.map((c) => ({
-          id: c.id,
-          list_id: c.list_id,
-          title: c.title,
-          position: c.position,
-          description: c.description ?? undefined,
-          due_date: c.due_date ?? undefined,
-          completed: !!c.completed,
-          priority: (c.priority ?? 'medium') as 'low' | 'medium' | 'high' | 'urgent',
-          cover_color: c.cover_color ?? undefined,
-          cover_images: c.cover_images ?? [],
-        })) as Card[];
-      }
-
-      // Fallback: query tradicional
-      debug('🔍 [DEBUG] Buscando cards do board (join por listas):', boardId);
+      // SEMPRE buscar direto do servidor, nunca usar cache do RPC
+      debug('🔍 [DEBUG] Buscando cards do board diretamente do servidor:', boardId);
 
       const { data, error } = await supabase
         .from('cards')
@@ -853,9 +833,10 @@ export function useBoardDetails(boardId: string) {
       })) as Card[];
       return normalized;
     },
-    enabled: !!user && !!boardId && isOnline && (rpcAvailable || boardDataRpcQuery.isError),
-    staleTime: 5 * 60 * 1000,
-    keepPreviousData: true,
+    enabled: !!user && !!boardId && isOnline,
+    staleTime: 10 * 1000, // 10 segundos - balance entre performance e dados frescos
+    refetchOnMount: true, // Sempre pegar dados frescos ao abrir o board
+    refetchInterval: 15000, // Refetch a cada 15 segundos para manter sincronizado em produção
   });
 
   // KISS: adiar dados secundários (labels, comentários e membros) após a renderização básica
@@ -865,6 +846,149 @@ export function useBoardDetails(boardId: string) {
     const t = setTimeout(() => setEnableSecondary(true), 300);
     return () => clearTimeout(t);
   }, [boardId]);
+
+  // ============================================
+  // REALTIME SUBSCRIPTIONS - Sincronização em tempo real
+  // ============================================
+  // Subscription para mudanças na tabela 'cards' deste board
+  useEffect(() => {
+    if (!boardId || !user?.id || !isOnline) return;
+
+    // Canal para escutar mudanças em cards do board
+    // Precisamos escutar todas as listas do board
+    const listsIds = listsQuery.data?.map(l => l.id) || [];
+    if (listsIds.length === 0) return;
+
+    debug('🔄 [Realtime] Configurando subscription para cards do board:', boardId);
+
+    const cardsChannel = sb
+      .channel(`board-cards-${boardId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'cards',
+        },
+        (payload) => {
+          // Verificar se o card pertence a uma lista deste board
+          const cardListId = (payload.new as { list_id?: string })?.list_id || 
+                            (payload.old as { list_id?: string })?.list_id;
+          
+          if (cardListId && listsIds.includes(cardListId)) {
+            debug('🔄 [Realtime] Mudança detectada em card:', payload.eventType, payload);
+            // Invalidar queries de cards para refletir mudança
+            queryClient.invalidateQueries({ queryKey: ['board-cards', boardId] });
+            queryClient.invalidateQueries({ queryKey: ['board-data-rpc', boardId] });
+          }
+        }
+      )
+      .subscribe((status) => {
+        debug('🔄 [Realtime] Cards channel status:', status);
+      });
+
+    return () => {
+      debug('🔄 [Realtime] Removendo subscription de cards');
+      sb.removeChannel(cardsChannel);
+    };
+  }, [boardId, user?.id, isOnline, listsQuery.data, queryClient]);
+
+  // Subscription para mudanças na tabela 'board_lists' deste board
+  useEffect(() => {
+    if (!boardId || !user?.id || !isOnline) return;
+
+    debug('🔄 [Realtime] Configurando subscription para listas do board:', boardId);
+
+    const listsChannel = sb
+      .channel(`board-lists-${boardId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'board_lists',
+          filter: `board_id=eq.${boardId}`,
+        },
+        (payload) => {
+          debug('🔄 [Realtime] Mudança detectada em lista:', payload.eventType, payload);
+          // Invalidar queries de listas
+          queryClient.invalidateQueries({ queryKey: ['board-lists', boardId] });
+          queryClient.invalidateQueries({ queryKey: ['board-data-rpc', boardId] });
+        }
+      )
+      .subscribe((status) => {
+        debug('🔄 [Realtime] Lists channel status:', status);
+      });
+
+    return () => {
+      debug('🔄 [Realtime] Removendo subscription de listas');
+      sb.removeChannel(listsChannel);
+    };
+  }, [boardId, user?.id, isOnline, queryClient]);
+
+  // Subscription para mudanças em labels de cards
+  useEffect(() => {
+    if (!boardId || !user?.id || !isOnline || !cardsQuery.data?.length) return;
+
+    const cardIds = cardsQuery.data.map(c => c.id);
+
+    const labelsChannel = sb
+      .channel(`card-labels-${boardId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'card_labels',
+        },
+        (payload) => {
+          const labelCardId = (payload.new as { card_id?: string })?.card_id || 
+                              (payload.old as { card_id?: string })?.card_id;
+          
+          if (labelCardId && cardIds.includes(labelCardId)) {
+            debug('🔄 [Realtime] Mudança detectada em label:', payload.eventType);
+            queryClient.invalidateQueries({ queryKey: ['card-labels', boardId] });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      sb.removeChannel(labelsChannel);
+    };
+  }, [boardId, user?.id, isOnline, cardsQuery.data, queryClient]);
+
+  // Subscription para mudanças em membros de cards
+  useEffect(() => {
+    if (!boardId || !user?.id || !isOnline || !cardsQuery.data?.length) return;
+
+    const cardIds = cardsQuery.data.map(c => c.id);
+
+    const membersChannel = sb
+      .channel(`card-members-${boardId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'card_members',
+        },
+        (payload) => {
+          const memberCardId = (payload.new as { card_id?: string })?.card_id || 
+                               (payload.old as { card_id?: string })?.card_id;
+          
+          if (memberCardId && cardIds.includes(memberCardId)) {
+            debug('🔄 [Realtime] Mudança detectada em membro:', payload.eventType);
+            queryClient.invalidateQueries({ queryKey: ['card-members', boardId] });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      sb.removeChannel(membersChannel);
+    };
+  }, [boardId, user?.id, isOnline, cardsQuery.data, queryClient]);
 
   // Buscar labels dos cards para exibir cores e contagem
   const cardLabelsQuery = useQuery({
@@ -1096,7 +1220,13 @@ export function useBoardDetails(boardId: string) {
       return data;
     },
     onSuccess: async (card) => {
-      queryClient.invalidateQueries({ queryKey: ['board-cards', boardId] });
+      // FORÇAR atualização imediata para mostrar o novo card
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['board-cards', boardId] }),
+        queryClient.invalidateQueries({ queryKey: ['board-data-rpc', boardId] }),
+        queryClient.refetchQueries({ queryKey: ['board-cards', boardId] }),
+      ]);
+      
       if (card?.id) {
         // Vincular automaticamente o criador como membro do card
         try {
@@ -1315,42 +1445,18 @@ export function useBoardDetails(boardId: string) {
       const previousCards = queryClient.getQueryData<Card[]>(['board-cards', boardId]);
       debug('📸 [DEBUG] Snapshot dos cards anteriores:', previousCards);
       
-      // Optimistic update
+      // Simplified optimistic update - APENAS move o card, deixa servidor normalizar posições
       if (previousCards) {
         const updatedCards = previousCards.map((card) => {
           if (card.id === cardId) {
+            // Apenas atualiza o card movido com nova lista e posição
             return { ...card, list_id: destinationListId, position: newPosition } as Card;
           }
           return card;
-        }).map((card) => {
-          // Ajustar posições dentro das listas afetadas
-          if (card.list_id === sourceListId) {
-            // Se veio da lista origem, compactar posições
-            return {
-              ...card,
-              position: card.position > newPosition && sourceListId === destinationListId
-                ? card.position - 1
-                : card.position,
-            };
-          }
-          return card;
         });
 
-        // Após alterar list_id do card movido, precisamos reordenar posições em ambas listas
-        const normalizePositions = (cardsArr: Card[]) =>
-          cardsArr
-            .sort((a, b) => a.position - b.position)
-            .map((c, idx) => ({ ...c, position: idx }));
-
-        const cardsByList: Record<string, Card[]> = {};
-        updatedCards.forEach((c) => {
-          cardsByList[c.list_id] = cardsByList[c.list_id] || [];
-          cardsByList[c.list_id].push(c);
-        });
-        const recomposed: Card[] = Object.values(cardsByList)
-          .flatMap((arr) => normalizePositions(arr));
-
-        queryClient.setQueryData(['board-cards', boardId], recomposed);
+        queryClient.setQueryData(['board-cards', boardId], updatedCards);
+        debug('✅ [DEBUG] Cache atualizado otimisticamente (simplificado)');
       }
       
       return { previousCards };
@@ -1373,8 +1479,18 @@ export function useBoardDetails(boardId: string) {
     onSuccess: async (data) => {
       debug('✅ [DEBUG] Mutation bem-sucedida:', data);
       
-      // Refetch to ensure consistency
-      queryClient.invalidateQueries({ queryKey: ['board-cards', boardId] });
+      // Invalidar queries para forçar refetch
+      await queryClient.invalidateQueries({ queryKey: ['board-cards', boardId] });
+      await queryClient.invalidateQueries({ queryKey: ['board-data-rpc', boardId] });
+      
+      // Aguardar o refetch completar para garantir UI atualizada
+      await queryClient.refetchQueries({ 
+        queryKey: ['board-cards', boardId],
+        type: 'active'
+      });
+      
+      debug('🔄 [DEBUG] Refetch concluído, UI deve estar atualizada');
+      
       
       // Registrar atividade: card movido para determinada lista
       try {
@@ -1511,7 +1627,13 @@ export function useBoardDetails(boardId: string) {
       return { cardId, prevCard };
     },
     onSuccess: async ({ cardId, prevCard }) => {
-      queryClient.invalidateQueries({ queryKey: ['board-cards', boardId] });
+      // FORÇAR remoção imediata do card da UI
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['board-cards', boardId] }),
+        queryClient.invalidateQueries({ queryKey: ['board-data-rpc', boardId] }),
+        queryClient.refetchQueries({ queryKey: ['board-cards', boardId] }),
+      ]);
+      
       await logActivity(cardId as string, 'card_deleted', 'excluiu este cartão');
       // Webhook: exclusão de card
       await postWebhook({
@@ -1532,7 +1654,12 @@ export function useBoardDetails(boardId: string) {
     },
   });
 
-  const updateCardMutation = useMutation<Card, Error, { cardId: string; updates: Partial<Card> | CardUpdateData }>({
+  const updateCardMutation = useMutation<
+    Card, 
+    Error, 
+    { cardId: string; updates: Partial<Card> | CardUpdateData },
+    { previousCards: Card[] | undefined }
+  >({
     mutationFn: async ({ cardId, updates }: { cardId: string; updates: Partial<Card> | CardUpdateData }): Promise<Card> => {
       if (!isOnline) {
         throw new Error('Sem conexão. Tente novamente quando estiver online.');
@@ -1585,9 +1712,76 @@ export function useBoardDetails(boardId: string) {
 
       return data as Card;
     },
+    onMutate: async ({ cardId, updates }) => {
+      // Cancelar refetches pendentes
+      await queryClient.cancelQueries({ queryKey: ['board-cards', boardId] });
+      
+      // Snapshot dos dados anteriores
+      const previousCards = queryClient.getQueryData<Card[]>(['board-cards', boardId]);
+      
+      // Optimistic update - atualizar cache imediatamente
+      if (previousCards) {
+        const updatedCards = previousCards.map(card => {
+          if (card.id === cardId) {
+            // Aplicar todas as atualizações ao card
+            const mergedUpdates: Partial<Card> = {};
+            
+            // Mapear campos camelCase para snake_case se necessário
+            if ('title' in updates) mergedUpdates.title = updates.title as string;
+            if ('description' in updates) mergedUpdates.description = updates.description as string;
+            if ('position' in updates) mergedUpdates.position = updates.position as number;
+            if ('list_id' in updates) mergedUpdates.list_id = updates.list_id as string;
+            if ('priority' in updates) mergedUpdates.priority = updates.priority as 'low' | 'medium' | 'high' | 'urgent';
+            if ('completed' in updates) mergedUpdates.completed = updates.completed as boolean;
+            
+            if ('due_date' in updates) {
+              mergedUpdates.due_date = updates.due_date as string;
+            } else if ('dueDate' in (updates as CardUpdateData)) {
+              mergedUpdates.due_date = (updates as CardUpdateData).dueDate as string;
+            }
+            
+            if ('cover_color' in updates) {
+              mergedUpdates.cover_color = updates.cover_color as string;
+            } else if ('coverColor' in (updates as CardUpdateData)) {
+              mergedUpdates.cover_color = (updates as CardUpdateData).coverColor as string;
+            }
+            
+            if ('cover_images' in updates) {
+              mergedUpdates.cover_images = updates.cover_images as string[];
+            } else if ('coverImages' in (updates as CardUpdateData)) {
+              mergedUpdates.cover_images = (updates as CardUpdateData).coverImages as string[];
+            }
+            
+            return { ...card, ...mergedUpdates };
+          }
+          return card;
+        });
+        
+        queryClient.setQueryData(['board-cards', boardId], updatedCards);
+      }
+      
+      return { previousCards };
+    },
+    onError: (err, variables, context) => {
+      // Rollback em caso de erro
+      if (context?.previousCards) {
+        queryClient.setQueryData(['board-cards', boardId], context.previousCards);
+      }
+      
+      toast({
+        title: 'Erro ao atualizar card',
+        description: err instanceof Error ? err.message : 'Erro desconhecido',
+        variant: 'destructive',
+      });
+    },
     onSuccess: async (updated, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['board-cards', boardId] });
-      queryClient.refetchQueries({ queryKey: ['board-cards', boardId] });
+      // FORÇAR atualização imediata de todas as queries relacionadas
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['board-cards', boardId] }),
+        queryClient.invalidateQueries({ queryKey: ['board-data-rpc', boardId] }),
+        queryClient.refetchQueries({ queryKey: ['board-cards', boardId] }),
+      ]);
+      
       const { cardId, updates } = variables;
       const tasks: Promise<void>[] = [];
       if (cardId) {
@@ -1641,14 +1835,6 @@ export function useBoardDetails(boardId: string) {
       toast({
         title: 'Card atualizado',
         description: tasks.length ? 'Alterações registradas na atividade.' : 'As alterações foram salvas com sucesso.',
-      });
-    },
-    onError: (error: Error) => {
-      debug('❌ [DEBUG] Erro na mutation updateCard:', error);
-      toast({
-        title: 'Erro ao atualizar card',
-        description: error.message,
-        variant: 'destructive',
       });
     },
     onSettled: async (data, error, variables) => {

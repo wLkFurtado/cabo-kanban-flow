@@ -22,7 +22,7 @@ import { AdminRoute } from "./components/layout/AdminRoute";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
 // Create QueryClient outside component to prevent recreation
-// Configuração otimizada para reduzir egress do Supabase
+// Configuração otimizada para reduzir egress do Supabase e melhorar responsividade
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -30,11 +30,13 @@ const queryClient = new QueryClient({
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,
       refetchOnMount: false,
-      staleTime: 5 * 60 * 1000, // 5 minutos - dados são considerados fresh por 5min
+      staleTime: 30 * 1000, // 30 segundos - balance entre performance e dados frescos
       cacheTime: 10 * 60 * 1000, // 10 minutos - cache mantido por 10min
     },
     mutations: {
       retry: 1,
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
+      networkMode: 'online', // Somente executar mutations quando online
     },
   },
 });
