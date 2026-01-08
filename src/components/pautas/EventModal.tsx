@@ -65,7 +65,7 @@ export const EventModal: React.FC<EventModalProps> = ({
         horaFim: format(evento.dataFim, 'HH:mm'),
         filmmaker: evento.filmmaker || '',
         fotografo: evento.fotografo || '',
-        jornalista: '',
+        jornalista: evento.jornalista || '',
         rede: evento.rede || ''
       });
     } else if (initialDate) {
@@ -147,6 +147,10 @@ export const EventModal: React.FC<EventModalProps> = ({
         id: evento.id,
         data_inicio: dataInicio.toISOString(),
         data_fim: dataFim.toISOString(),
+        filmmaker_id: formData.filmmaker || null,
+        fotografo_id: formData.fotografo || null,
+        jornalista_id: formData.jornalista || null,
+        rede_id: formData.rede || null,
       });
     } else {
       createEvent({
@@ -160,6 +164,10 @@ export const EventModal: React.FC<EventModalProps> = ({
         recorrencia: 'nenhuma',
         cor: '#3b82f6',
         local: '',
+        filmmaker_id: formData.filmmaker || null,
+        fotografo_id: formData.fotografo || null,
+        jornalista_id: formData.jornalista || null,
+        rede_id: formData.rede || null,
       });
     }
     

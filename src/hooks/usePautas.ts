@@ -16,6 +16,10 @@ export interface PautasEvent {
   cor: string;
   local?: string;
   responsavel_id?: string;
+  filmmaker_id?: string;
+  fotografo_id?: string;
+  jornalista_id?: string;
+  rede_id?: string;
   criado_por: string;
   created_at: string;
   updated_at: string;

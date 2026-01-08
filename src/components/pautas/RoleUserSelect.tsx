@@ -53,7 +53,7 @@ export function RoleUserSelect({ label, cargo, cargoFilter, value, onChange, pla
       const email = (p.email || "").toLowerCase(); // keep email case-insensitive only
       return name.includes(term) || email.includes(term);
     });
-  }, [profiles, cargo, search]);
+  }, [profiles, cargo, cargoFilter, search]);
 
   const selected = useMemo<Profile | undefined>(() => (profiles || []).find((p: Profile) => p.id === value), [profiles, value]);
 
@@ -80,7 +80,7 @@ export function RoleUserSelect({ label, cargo, cargoFilter, value, onChange, pla
             )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-80" align="start">
+        <PopoverContent className="w-80 pointer-events-auto" align="start">
           <div className="space-y-3">
             <Input
               placeholder="Buscar por nome ou email"
