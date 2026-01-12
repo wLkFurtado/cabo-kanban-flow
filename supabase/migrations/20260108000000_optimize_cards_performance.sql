@@ -9,10 +9,7 @@
 -- Index for fetching cards by board with position ordering
 -- This is the most common query pattern in the app
 CREATE INDEX IF NOT EXISTS idx_cards_board_list_position 
-ON public.cards (list_id, position)
-WHERE list_id IN (
-  SELECT id FROM public.board_lists
-);
+ON public.cards (list_id, position);
 
 -- Index for filtering cards by board_id through board_lists join
 -- Optimizes the query pattern: SELECT * FROM cards JOIN board_lists ON ...
@@ -23,11 +20,11 @@ ON public.board_lists (board_id, id);
 -- Indexes for Array and JSON Operations
 -- ============================================
 
--- GIN index for cover_images array searches
--- Enables fast lookups like: WHERE cover_images @> ARRAY['url']
+-- GIN index for cover_images JSONB searches
+-- Enables fast lookups on the JSONB array
 CREATE INDEX IF NOT EXISTS idx_cards_cover_images_gin 
 ON public.cards USING GIN (cover_images)
-WHERE cover_images IS NOT NULL AND array_length(cover_images, 1) > 0;
+WHERE cover_images IS NOT NULL AND jsonb_array_length(cover_images) > 0;
 
 -- ============================================
 -- Indexes for Sorting and Filtering
@@ -54,12 +51,12 @@ WHERE due_date IS NOT NULL;
 -- Index for cards with attachments/cover images (reduces index size)
 CREATE INDEX IF NOT EXISTS idx_cards_with_images 
 ON public.cards (list_id, id)
-WHERE cover_images IS NOT NULL AND array_length(cover_images, 1) > 0;
+WHERE cover_images IS NOT NULL AND jsonb_array_length(cover_images) > 0;
 
 -- Index for high priority cards
 CREATE INDEX IF NOT EXISTS idx_cards_priority_high 
 ON public.cards (list_id, position)
-WHERE priority IN ('high', 'urgent');
+WHERE priority = 'high';
 
 -- ============================================
 -- Optimize Existing Tables
