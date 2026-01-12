@@ -176,30 +176,16 @@ export default function BoardView() {
   };
 
   const handleMoveCard = (cardId: string, sourceListId: string, destinationListId: string, destinationIndex: number) => {
-    console.log('🎯 [DEBUG] handleMoveCard chamado:', { cardId, sourceListId, destinationListId, destinationIndex });
+  console.log('🎯 [DEBUG] handleMoveCard chamado:', { cardId, sourceListId, destinationListId, destinationIndex });
 
-    const currentCard = kanbanData.cards.find((c) => c.id === cardId);
-    if (currentCard) {
-      const titleOk = currentCard.title && currentCard.title.trim().length > 0;
-      const descriptionOk = currentCard.description && currentCard.description.trim().length > 0;
-
-      if (!titleOk || !descriptionOk) {
-        toast({
-          title: 'Campos obrigatórios',
-          description: 'Preencha o título e a descrição do card para avançar para a próxima etapa.',
-          variant: 'destructive'
-        });
-        return;
-      }
-    }
-
-    moveCard({
-      cardId,
-      sourceListId,
-      destinationListId,
-      newPosition: destinationIndex
-    });
-  };
+  // Permitir movimento livre sem vali dação de campos
+  moveCard({
+    cardId,
+    sourceListId,
+    destinationListId,
+    newPosition: destinationIndex
+  });
+};
 
   const handleMoveList = (listId: string, destinationIndex: number) => {
     // TODO: Implement list movement

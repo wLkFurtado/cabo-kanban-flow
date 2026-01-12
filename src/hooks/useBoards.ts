@@ -792,7 +792,7 @@ export function useBoardDetails(boardId: string) {
       const { data, error } = await supabase
         .from('cards')
         .select(`
-          id, list_id, title, position, priority, completed, due_date, description,
+          id, list_id, title, position, priority, completed, due_date,
           cover_color, cover_images,
           board_lists!inner ( board_id )
         `)
@@ -814,7 +814,6 @@ export function useBoardDetails(boardId: string) {
         priority: 'low' | 'medium' | 'high' | 'urgent' | null;
         completed: boolean | null;
         due_date: string | null;
-        description: string | null;
         cover_color?: string | null;
         cover_images?: string[] | null;
       }>;
@@ -824,7 +823,7 @@ export function useBoardDetails(boardId: string) {
         list_id: row.list_id,
         title: row.title,
         position: row.position,
-        description: row.description ?? undefined,
+        description: undefined, // Description loaded on demand when opening card
         due_date: row.due_date ?? undefined,
         completed: !!row.completed,
         priority: (row.priority ?? 'medium') as 'low' | 'medium' | 'high' | 'urgent',
@@ -833,10 +832,19 @@ export function useBoardDetails(boardId: string) {
       })) as Card[];
       return normalized;
     },
+    // Optimize data returned - only keep first cover image for preview
+    select: (data) => {
+      return data.map(card => ({
+        ...card,
+        // Keep only first image for card preview to reduce memory
+        cover_images: card.cover_images?.slice(0, 1) ?? [],
+      }));
+    },
     enabled: !!user && !!boardId && isOnline,
-    staleTime: 10 * 1000, // 10 segundos - balance entre performance e dados frescos
+    staleTime: 30 * 1000, // 30 segundos - melhor cache para reduzir requisições
+    cacheTime: 5 * 60 * 1000, // 5 minutos de cache em memória (React Query v4)
     refetchOnMount: true, // Sempre pegar dados frescos ao abrir o board
-    refetchInterval: 15000, // Refetch a cada 15 segundos para manter sincronizado em produção
+    refetchInterval: 30000, // Refetch a cada 30 segundos (reduzido de 15s para economizar banda)
   });
 
   // KISS: adiar dados secundários (labels, comentários e membros) após a renderização básica

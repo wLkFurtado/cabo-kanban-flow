@@ -93,7 +93,7 @@ export default function Agenda() {
     <>
       <Seo 
         title="Agenda - Kanban Board" 
-        description="Gerencie seus eventos e compromissos diários com nossa agenda interativa."
+        description="Gerencie suas pautas e compromissos diários com nossa agenda interativa."
       />
       
       <div className="min-h-screen bg-background">
@@ -102,7 +102,7 @@ export default function Agenda() {
             <div>
               <h1 className="text-2xl font-semibold text-foreground">Agenda</h1>
               <p className="text-sm text-muted-foreground">
-                Gerencie seus eventos e compromissos
+                Gerencie suas pautas e compromissos
               </p>
             </div>
           </div>
@@ -181,7 +181,7 @@ export default function Agenda() {
               {/* Eventos do dia */}
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-medium">Eventos ({dayEvents.length})</h3>
+                  <h3 className="font-medium">Pautas ({dayEvents.length})</h3>
                   <Button
                     variant="outline"
                     size="sm"
@@ -190,7 +190,7 @@ export default function Agenda() {
                       setIsEventModalOpen(true);
                     }}
                   >
-                    + Novo Evento
+                    + Nova Pauta
                   </Button>
                 </div>
                 {dayEvents.length === 0 ? (
@@ -214,7 +214,7 @@ export default function Agenda() {
                               setIsEventModalOpen(true);
                               setIsSheetOpen(false);
                             }}
-                            aria-label="Editar evento"
+                            aria-label="Editar pauta"
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
@@ -228,7 +228,7 @@ export default function Agenda() {
                               setEventToDelete(ev.id);
                               setDeleteConfirmOpen(true);
                             }}
-                            aria-label="Excluir evento"
+                            aria-label="Excluir pauta"
                           >
                             <Trash className="h-4 w-4" />
                           </Button>
@@ -290,9 +290,9 @@ export default function Agenda() {
         <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Excluir evento?</AlertDialogTitle>
+              <AlertDialogTitle>Excluir pauta?</AlertDialogTitle>
               <AlertDialogDescription>
-                Esta ação não pode ser desfeita. O evento será removido permanentemente da agenda.
+                Esta ação não pode ser desfeita. A pauta será removida permanentemente da agenda.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

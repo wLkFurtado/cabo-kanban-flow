@@ -6,6 +6,8 @@ interface LazyImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   alt: string;
   className?: string;
   placeholderClassName?: string;
+  /** Base64-encoded blur placeholder image (optional) */
+  blurDataURL?: string;
   onLoad?: () => void;
   onError?: () => void;
 }
@@ -15,6 +17,7 @@ export const LazyImage: React.FC<LazyImageProps> = React.memo(({
   alt,
   className,
   placeholderClassName,
+  blurDataURL,
   onLoad,
   onError,
   ...props
@@ -124,15 +127,25 @@ export const LazyImage: React.FC<LazyImageProps> = React.memo(({
 
   return (
     <div className="relative w-full h-full">
-      {/* Placeholder - sempre montado e com transição suave de opacidade */}
+      {/* Placeholder com blur opcional */}
       <div
         ref={placeholderRef}
         className={cn(
-          "absolute inset-0 bg-muted transition-opacity duration-300",
+          "absolute inset-0 transition-opacity duration-300",
           isLoading ? "opacity-100" : "opacity-0 pointer-events-none",
+          !blurDataURL && "bg-muted",
           placeholderClassName
         )}
-        style={{ willChange: 'opacity' }}
+        style={{
+          willChange: 'opacity',
+          ...(blurDataURL && {
+            backgroundImage: `url(${blurDataURL})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            filter: 'blur(20px)',
+            transform: 'scale(1.1)', // Evita bordas do blur
+          }),
+        }}
       />
       
       {/* Imagem real */}

@@ -4,7 +4,6 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Calendar } from "../ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { CalendarIcon, Trash } from "lucide-react";
@@ -13,6 +12,7 @@ import { ptBR } from "date-fns/locale";
 import { cn } from "../../lib/utils";
 import { useEvents } from "../../hooks/useEvents";
 import type { AgendaEvent } from "../../hooks/useEvents";
+import { SecretariaCombobox } from "./SecretariaCombobox";
 
 interface EventModalProps {
   open: boolean;
@@ -30,19 +30,7 @@ interface EventFormData {
   horaFim: string;
 }
 
-const secretarias = [
-  "Secretaria de Educação",
-  "Secretaria de Saúde",
-  "Secretaria de Obras",
-  "Secretaria de Meio Ambiente",
-  "Secretaria de Cultura",
-  "Secretaria de Esportes",
-  "Secretaria de Assistência Social",
-  "Secretaria de Administração",
-  "Secretaria de Finanças",
-  "Gabinete do Prefeito",
-  "Outras"
-];
+
 
 export function EventModal({ open, onOpenChange, selectedDate, eventToEdit }: EventModalProps) {
   const { createEvent, updateEvent, deleteEvent, isCreating, isUpdating } = useEvents();
@@ -62,17 +50,17 @@ export function EventModal({ open, onOpenChange, selectedDate, eventToEdit }: Ev
     const newErrors: {[key: string]: string} = {};
 
     if (!formData.nome.trim()) {
-      newErrors.nome = "Nome do evento é obrigatório";
+      newErrors.nome = "Nome da pauta é obrigatório";
     }
 
     // Secretaria opcional para edição/uso geral
 
     if (!formData.descricao.trim()) {
-      newErrors.descricao = "Descrição do evento é obrigatória";
+      newErrors.descricao = "Descrição da pauta é obrigatória";
     }
 
     if (!formData.data) {
-      newErrors.data = "Data do evento é obrigatória";
+      newErrors.data = "Data da pauta é obrigatória";
     }
 
     setErrors(newErrors);
@@ -168,19 +156,19 @@ export function EventModal({ open, onOpenChange, selectedDate, eventToEdit }: Ev
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>{eventToEdit ? "Editar Evento" : "Criar Novo Evento"}</DialogTitle>
+          <DialogTitle>{eventToEdit ? "Editar Pauta" : "Criar Nova Pauta"}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="nome">Nome do Evento *</Label>
+            <Label htmlFor="nome">Nome da Pauta *</Label>
               <Input
                 id="nome"
                 value={formData.nome}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("nome", e.target.value)}
-                placeholder="Digite o nome do evento"
+                placeholder="Digite o nome da pauta"
                 className={errors.nome ? "border-red-500" : ""}
               />
             {errors.nome && (
@@ -190,28 +178,18 @@ export function EventModal({ open, onOpenChange, selectedDate, eventToEdit }: Ev
 
           <div className="space-y-2">
             <Label htmlFor="secretaria">Secretaria Responsável *</Label>
-            <Select
+            <SecretariaCombobox
               value={formData.secretaria}
-              onValueChange={(value: string) => handleInputChange("secretaria", value)}
-            >
-              <SelectTrigger className={errors.secretaria ? "border-red-500" : ""}>
-                <SelectValue placeholder="Selecione a secretaria" />
-              </SelectTrigger>
-              <SelectContent>
-                {secretarias.map((secretaria) => (
-                  <SelectItem key={secretaria} value={secretaria}>
-                    {secretaria}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              onChange={(value: string) => handleInputChange("secretaria", value)}
+              error={!!errors.secretaria}
+            />
             {errors.secretaria && (
               <p className="text-sm text-red-500">{errors.secretaria}</p>
             )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="data">Data do Evento *</Label>
+            <Label htmlFor="data">Data da Pauta *</Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -267,12 +245,12 @@ export function EventModal({ open, onOpenChange, selectedDate, eventToEdit }: Ev
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="descricao">Descrição do Evento *</Label>
+            <Label htmlFor="descricao">Descrição da Pauta *</Label>
             <Textarea
               id="descricao"
               value={formData.descricao}
               onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange("descricao", e.target.value)}
-              placeholder="Descreva o evento..."
+              placeholder="Descreva a pauta..."
               rows={4}
               className={errors.descricao ? "border-red-500" : ""}
             />
@@ -289,7 +267,7 @@ export function EventModal({ open, onOpenChange, selectedDate, eventToEdit }: Ev
                 type="button"
                 variant="destructive"
                 onClick={() => {
-                  if (eventToEdit && window.confirm('Excluir este evento?')) {
+                  if (eventToEdit && window.confirm('Excluir esta pauta?')) {
                     deleteEvent(eventToEdit.id);
                     onOpenChange(false);
                   }
@@ -312,7 +290,7 @@ export function EventModal({ open, onOpenChange, selectedDate, eventToEdit }: Ev
                 type="submit"
                 disabled={isCreating || isUpdating}
               >
-                {eventToEdit ? "Salvar" : "Criar Evento"}
+                {eventToEdit ? "Salvar" : "Criar Pauta"}
               </Button>
             </div>
           </div>
