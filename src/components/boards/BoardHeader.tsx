@@ -37,6 +37,7 @@ export function BoardHeader({ board, onDeleted }: BoardHeaderProps) {
   const titleRef = useRef<HTMLHeadingElement>(null);
   const { toast } = useToast();
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [membersModalOpen, setMembersModalOpen] = useState(false);
   const [members, setMembers] = useState<Array<{ id: string; name: string; avatar: string | null }>>([]);
   const [allUsers, setAllUsers] = useState<Array<{ id: string; name: string; email: string | null; avatar: string | null }>>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -138,7 +139,12 @@ export function BoardHeader({ board, onDeleted }: BoardHeaderProps) {
           {/* Team members */}
           <div className="flex items-center gap-1">
             {members.slice(0, 3).map((member, index) => (
-              <Avatar key={member.id} className="h-8 w-8 border-2 border-background" style={{ marginLeft: index > 0 ? '-8px' : '0' }}>
+              <Avatar 
+                key={member.id} 
+                className="h-8 w-8 border-2 border-background cursor-pointer hover:opacity-80 transition-opacity" 
+                style={{ marginLeft: index > 0 ? '-8px' : '0' }}
+                onClick={() => setMembersModalOpen(true)}
+              >
                 <AvatarImage src={member.avatar || undefined} />
                 <AvatarFallback className="text-xs bg-primary text-primary-foreground">
                   {getInitials(member.name)}
@@ -253,6 +259,78 @@ export function BoardHeader({ board, onDeleted }: BoardHeaderProps) {
             </div>
             <div className="flex justify-end">
               <Button variant="outline" onClick={() => setInviteOpen(false)}>Fechar</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Members Management Modal */}
+      <Dialog open={membersModalOpen} onOpenChange={setMembersModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Membros do Board</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {members.length === 0 ? (
+              <div className="text-sm text-muted-foreground text-center py-6">
+                Nenhum membro neste board
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {members.map((member) => (
+                  <div
+                    key={member.id}
+                    className="flex items-center justify-between p-3 border rounded-md hover:bg-accent/50 transition-colors"
+                  >
+                    <div className="flex items-center gap-3 flex-1">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={member.avatar || undefined} />
+                        <AvatarFallback className="text-sm">
+                          {getInitials(member.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{member.name}</p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={async () => {
+                        try {
+                          const { error } = await supabase
+                            .from('board_members')
+                            .delete()
+                            .eq('board_id', board.id)
+                            .eq('user_id', member.id);
+                          
+                          if (error) throw error;
+                          
+                          toast({ 
+                            title: 'Membro removido', 
+                            description: `${member.name} foi removido do board.` 
+                          });
+                          
+                          setMembers((prev) => prev.filter((m) => m.id !== member.id));
+                        } catch (err) {
+                          console.error('Erro ao remover membro:', err);
+                          toast({
+                            title: 'Erro ao remover membro',
+                            description: getErrorMessage(err),
+                            variant: 'destructive'
+                          });
+                        }
+                      }}
+                      className="hover:bg-destructive hover:text-destructive-foreground"
+                    >
+                      Remover
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex justify-end pt-2">
+              <Button variant="outline" onClick={() => setMembersModalOpen(false)}>Fechar</Button>
             </div>
           </div>
         </DialogContent>

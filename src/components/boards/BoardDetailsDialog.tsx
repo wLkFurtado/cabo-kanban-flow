@@ -8,6 +8,7 @@ import { useBoards } from "../../hooks/useBoards";
 import { useToast } from "../../components/ui/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { CustomFieldsManager } from "./CustomFieldsManager";
+import { BoardMembersManager } from "./BoardMembersManager";
 import { supabase } from "../../integrations/supabase/client";
 import { Upload, X, Image, Download } from "lucide-react";
 
@@ -138,6 +139,7 @@ export function BoardDetailsDialog({ boardId, open, onOpenChange }: BoardDetails
         <Tabs defaultValue="details" className="w-full">
           <TabsList className="mb-4">
             <TabsTrigger value="details">Detalhes</TabsTrigger>
+            <TabsTrigger value="members">Membros</TabsTrigger>
             <TabsTrigger value="fields">Campos personalizados</TabsTrigger>
           </TabsList>
 
@@ -274,6 +276,9 @@ export function BoardDetailsDialog({ boardId, open, onOpenChange }: BoardDetails
             </div>
           </TabsContent>
 
+          <TabsContent value="members">
+            <BoardMembersManager boardId={boardId} />
+          </TabsContent>
 
           <TabsContent value="fields">
             <CustomFieldsManager boardId={boardId} />
