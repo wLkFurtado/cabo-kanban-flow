@@ -3,12 +3,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Separator } from "../ui/separator";
 import { Textarea } from "../ui/textarea";
 import { Label } from "../ui/label";
-import { useFdsStore, weekendKeyFromDate, WeekendTeam, type FdsState } from "../../state/fdsStore";
+import { weekendKeyFromDate, WeekendTeam } from "../../state/fdsStore";
 import { RoleUserSelect } from "../pautas/RoleUserSelect";
 import { RoleUsersMultiSelect } from "./RoleUsersMultiSelect";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useAdminRole } from "../../hooks/useAdminRole";
+import { useWeekendTeam } from "../../hooks/useFdsTeams";
+import { Loader2 } from "lucide-react";
 
 interface WeekendTeamFormProps {
   weekendDate?: Date;
@@ -16,8 +18,7 @@ interface WeekendTeamFormProps {
 
 export function WeekendTeamForm({ weekendDate }: WeekendTeamFormProps) {
   const key = useMemo(() => (weekendDate ? weekendKeyFromDate(weekendDate) : undefined), [weekendDate]);
-  const team = useFdsStore((s: FdsState) => (key ? s.getTeam(key) : undefined));
-  const updateRole = useFdsStore((s: FdsState) => s.updateRole);
+  const { team, isLoading, updateRole, isUpdating } = useWeekendTeam(key);
   const { isAdmin, hasScope } = useAdminRole();
   const canEdit = isAdmin || hasScope("escala_fds_admin");
 
@@ -40,12 +41,27 @@ export function WeekendTeamForm({ weekendDate }: WeekendTeamFormProps) {
     role: Exclude<keyof WeekendTeam, "jornalistas" | "tamoios" | "notes">,
     userId?: string
   ) => {
-    updateRole(weekendKey, role, userId);
+    updateRole(role, userId);
   };
 
   const handleMulti = (role: "jornalistas" | "tamoios", ids: string[]) => {
-    updateRole(key, role, ids);
+    updateRole(role, ids);
   };
+
+  if (isLoading) {
+    return (
+      <Card className="w-full">
+        <CardHeader>
+          <CardTitle>
+            Equipe do FDS – {format(weekendDate, "dd/MM/yyyy", { locale: ptBR })}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-center justify-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="w-full">
@@ -138,8 +154,8 @@ export function WeekendTeamForm({ weekendDate }: WeekendTeamFormProps) {
           <Textarea
             placeholder="Notas gerais para a equipe do final de semana"
             value={team?.notes || ""}
-            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => updateRole(weekendKey, "notes", e.target.value)}
-            disabled={!canEdit}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => updateRole("notes", e.target.value)}
+            disabled={!canEdit || isUpdating}
           />
         </div>
       </CardContent>
