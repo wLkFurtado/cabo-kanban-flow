@@ -27,24 +27,24 @@ CREATE POLICY "weekend_teams_select" ON weekend_teams
 CREATE POLICY "weekend_teams_insert" ON weekend_teams
   FOR INSERT TO authenticated
   WITH CHECK (
-    is_admin(auth.uid()) OR 
-    has_scope(auth.uid(), 'escala_fds_admin')
+    public.get_current_user_role() = 'admin' OR 
+    public.has_scope('escala_fds_admin')
   );
 
 -- Only admins and users with escala_fds_admin scope can update
 CREATE POLICY "weekend_teams_update" ON weekend_teams
   FOR UPDATE TO authenticated
   USING (
-    is_admin(auth.uid()) OR 
-    has_scope(auth.uid(), 'escala_fds_admin')
+    public.get_current_user_role() = 'admin' OR 
+    public.has_scope('escala_fds_admin')
   );
 
 -- Only admins and users with escala_fds_admin scope can delete
 CREATE POLICY "weekend_teams_delete" ON weekend_teams
   FOR DELETE TO authenticated
   USING (
-    is_admin(auth.uid()) OR 
-    has_scope(auth.uid(), 'escala_fds_admin')
+    public.get_current_user_role() = 'admin' OR 
+    public.has_scope('escala_fds_admin')
   );
 
 -- Create index for fast lookups by weekend_key
