@@ -280,32 +280,19 @@ export function useProfiles() {
         toast({ title: 'Sem conexão', description: 'Tente novamente quando estiver online.' });
         return { success: false, error: new Error('Offline') } as { success: false; error: unknown };
       }
-      // Solicita retorno do registro excluído para confirmar que a operação ocorreu
-      const { data, error } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', id)
-        .select('id');
 
-      if (error) {
-        console.error('Error deleting profile:', error);
+      // IMPORTANTE: Excluir do auth.users ao invés de profiles
+      // A exclusão em cascata (ON DELETE CASCADE) vai excluir automaticamente de profiles
+      const { data: { user }, error: authError } = await supabase.auth.admin.deleteUser(id);
+
+      if (authError) {
+        console.error('Error deleting user from auth:', authError);
         toast({
           title: "Erro",
-          description: "Erro ao excluir perfil",
+          description: `Erro ao excluir usuário: ${authError.message}`,
           variant: "destructive",
         });
-        return { success: false, error };
-      }
-
-      // Se não houve erro mas também não houve registros retornados,
-      // muito provavelmente a operação foi bloqueada por RLS/permissão
-      if (!data || data.length === 0) {
-        toast({
-          title: 'Sem permissão',
-          description: 'Você precisa ser admin ou o dono do perfil para excluir.',
-          variant: 'destructive',
-        });
-        return { success: false, error: new Error('Permission denied or no rows deleted') } as { success: false; error: unknown };
+        return { success: false, error: authError };
       }
 
       // Update local state
@@ -313,15 +300,15 @@ export function useProfiles() {
 
       toast({
         title: "Sucesso",
-        description: "Perfil excluído com sucesso",
+        description: "Usuário excluído com sucesso",
       });
 
       return { success: true };
     } catch (error) {
-      console.error('Error deleting profile:', error);
+      console.error('Error deleting user:', error);
       toast({
         title: "Erro",
-        description: "Erro ao excluir perfil",
+        description: "Erro ao excluir usuário",
         variant: "destructive",
       });
       return { success: false, error };

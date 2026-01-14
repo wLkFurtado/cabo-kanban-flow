@@ -39,6 +39,7 @@ export const EventModal: React.FC<EventModalProps> = ({
   const { isAdmin, hasScope, loading: adminLoading } = useAdminRole();
   const canEdit = isAdmin || hasScope('pautas_admin');
   const [formData, setFormData] = useState({
+    titulo: '',
     dataInicio: '',
     horaInicio: '',
     dataFim: '',
@@ -59,6 +60,7 @@ export const EventModal: React.FC<EventModalProps> = ({
     if (evento) {
       // Edição
       setFormData({
+        titulo: evento.titulo || 'Evento',
         dataInicio: format(evento.dataInicio, 'yyyy-MM-dd'),
         horaInicio: format(evento.dataInicio, 'HH:mm'),
         dataFim: format(evento.dataFim, 'yyyy-MM-dd'),
@@ -74,6 +76,7 @@ export const EventModal: React.FC<EventModalProps> = ({
       const endHour = startHour + 1;
       
       setFormData({
+        titulo: '',
         dataInicio: format(initialDate, 'yyyy-MM-dd'),
         horaInicio: `${startHour.toString().padStart(2, '0')}:00`,
         dataFim: format(initialDate, 'yyyy-MM-dd'),
@@ -87,6 +90,7 @@ export const EventModal: React.FC<EventModalProps> = ({
       // Reset para novo evento
       const now = new Date();
       setFormData({
+        titulo: '',
         dataInicio: format(now, 'yyyy-MM-dd'),
         horaInicio: '09:00',
         dataFim: format(now, 'yyyy-MM-dd'),
@@ -145,6 +149,7 @@ export const EventModal: React.FC<EventModalProps> = ({
     if (evento) {
       updateEvent({
         id: evento.id,
+        titulo: formData.titulo || 'Evento',
         data_inicio: dataInicio.toISOString(),
         data_fim: dataFim.toISOString(),
         filmmaker_id: formData.filmmaker || null,
@@ -154,7 +159,7 @@ export const EventModal: React.FC<EventModalProps> = ({
       });
     } else {
       createEvent({
-        titulo: 'Evento',
+        titulo: formData.titulo || 'Evento',
         descricao: '',
         data_inicio: dataInicio.toISOString(),
         data_fim: dataFim.toISOString(),
@@ -203,6 +208,19 @@ export const EventModal: React.FC<EventModalProps> = ({
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-6">
+          
+          {/* Título da Pauta */}
+          <div className="space-y-2">
+            <Label htmlFor="titulo">Nome da Pauta</Label>
+            <Input
+              id="titulo"
+              type="text"
+              value={formData.titulo}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ ...prev, titulo: e.target.value }))}
+              placeholder="Ex: Cobertura Evento X"
+              disabled={!canEdit}
+            />
+          </div>
           
           {/* Data e hora */}
           <div className="grid grid-cols-2 gap-4">
