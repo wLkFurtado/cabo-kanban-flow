@@ -1007,16 +1007,16 @@ export function useBoardDetails(boardId: string) {
       const cardIds = (cardsQuery.data || []).map((c) => c.id);
       const { data, error } = await supabase
         .from('card_labels')
-        .select('id, card_id, name, color')
+        .select('id, card_id, board_label_id, name, color')
         .in('card_id', cardIds);
 
       if (error) throw error;
 
-      const grouped: Record<string, { id: string; name: string; color: string }[]> = {};
+      const grouped: Record<string, { id: string; board_label_id?: string; name: string; color: string }[]> = {};
       cardIds.forEach((id) => { grouped[id] = []; });
-      (data || []).forEach((row: { id: string; card_id: string; name: string; color: string }) => {
+      (data || []).forEach((row: { id: string; card_id: string; board_label_id?: string; name: string; color: string }) => {
         if (!grouped[row.card_id]) grouped[row.card_id] = [];
-        grouped[row.card_id].push({ id: row.id, name: row.name, color: row.color });
+        grouped[row.card_id].push({ id: row.id, board_label_id: row.board_label_id, name: row.name, color: row.color });
       });
       return grouped;
     },

@@ -1,9 +1,22 @@
 export type LabelColor = string;
 
-export interface Label {
+export interface BoardLabel {
   id: string;
+  board_id: string;
   name: string;
   color: LabelColor;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Label {
+  id: string;
+  card_id?: string;
+  board_label_id?: string; // Reference to BoardLabel
+  name: string;
+  color: LabelColor;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Member {

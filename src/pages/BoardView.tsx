@@ -64,7 +64,12 @@ export default function BoardView() {
         dueDate: c.due_date ?? undefined,
         coverColor: (c.cover_color ?? undefined) as 'green' | 'yellow' | 'orange' | 'red' | 'purple' | 'blue' | undefined,
         coverImages: c.cover_images ?? [],
-        labels: labelRows.map((l) => ({ id: l.id, name: l.name, color: l.color })),
+        labels: labelRows.map((l: any) => ({ 
+          id: l.id, 
+          board_label_id: l.board_label_id, 
+          name: l.name, 
+          color: l.color 
+        })),
         members: membersRows.map((m) => ({ id: m.id, name: m.name, avatar: m.avatar })),
         comments: Array.from({ length: commentsCount }).map((_, i) => ({
           id: `${c.id}-comment-${i}`,

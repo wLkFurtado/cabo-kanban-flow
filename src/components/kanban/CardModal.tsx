@@ -59,6 +59,7 @@ import {
   Star,
   Upload,
   ChevronDown,
+  Settings,
 } from "lucide-react";
 
 import {
@@ -67,6 +68,7 @@ import {
   LabelColor,
   Comment,
   Member,
+  BoardLabel,
 } from "../../state/kanbanTypes";
 import { parseISO, format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -95,6 +97,9 @@ import {
 import { useAttachments } from "../../hooks/useAttachments";
 import { Progress } from "../ui/progress";
 import AttachmentDialog from "./AttachmentDialog";
+import { useBoardLabels, useCreateBoardLabel } from "../../hooks/useBoardLabels";
+import { LabelSelector } from "./LabelSelector";
+import { BoardLabelsDialog } from "./BoardLabelsDialog";
 
 const labelColorClass: Record<LabelColor, string> = {
   green: "bg-[hsl(var(--label-green))] text-white",
@@ -321,6 +326,11 @@ export function CardModal({
   const [showAttachments, setShowAttachments] = useState(true);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false); // Mobile collapsible activity
+  
+  // Board Labels System
+  const { data: boardLabels = [] } = useBoardLabels(boardId);
+  const createBoardLabel = useCreateBoardLabel();
+  const [manageLabelsOpen, setManageLabelsOpen] = useState(false);
   const {
     attachments: storedAttachments,
     relationMissing,
@@ -615,6 +625,79 @@ export function CardModal({
     setAttachmentsDialogOpen(true);
   };
 
+  // New Board Labels System - Toggle label on/off for card
+  const toggleLabel = async (boardLabelId: string) => {
+    console.log('[toggleLabel] Called with boardLabelId:', boardLabelId);
+    console.log('[toggleLabel] Current labels:', labels);
+    console.log('[toggleLabel] Board labels:', boardLabels);
+    
+    const boardLabel = boardLabels.find(bl => bl.id === boardLabelId);
+    if (!boardLabel) {
+      console.error('[toggleLabel] Board label not found:', boardLabelId);
+      return;
+    }
+
+    // Check if card already has this label
+    const existingLabel = labels.find(l => l.board_label_id === boardLabelId);
+    console.log('[toggleLabel] Existing label found:', existingLabel);
+
+    if (existingLabel) {
+      // Remove label from card
+      setLabels((prev) => prev.filter((l) => l.id !== existingLabel.id));
+      
+      const { error } = await supabase.from("card_labels").delete().eq("id", existingLabel.id);
+      
+      if (error) {
+        console.error('[toggleLabel] Error removing label:', error);
+        toast({
+          title: "Erro ao remover tag",
+          description: error.message,
+          variant: "destructive",
+        });
+        // Revert on error
+        setLabels((prev) => [...prev, existingLabel]);
+      } else {
+        console.log('[toggleLabel] Label removed successfully');
+        queryClient.invalidateQueries({ queryKey: ["card-labels", boardId] });
+      }
+    } else {
+      // Add label to card
+      console.log('[toggleLabel] Adding label to card');
+      const { data, error } = await supabase
+        .from("card_labels")
+        .insert({ 
+          card_id: card.id, 
+          board_label_id: boardLabelId,
+          name: boardLabel.name, 
+          color: boardLabel.color 
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('[toggleLabel] Error adding label:', error);
+        toast({
+          title: "Erro ao adicionar tag",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log('[toggleLabel] Label added successfully:', data);
+      const label: TLabel = { 
+        id: data.id, 
+        card_id: data.card_id,
+        board_label_id: data.board_label_id,
+        name: data.name, 
+        color: data.color 
+      };
+      setLabels((prev) => [...prev, label]);
+      queryClient.invalidateQueries({ queryKey: ["card-labels", boardId] });
+    }
+  };
+
+  // Legacy function - kept for backward compatibility with old manual tags
   const addLabel = async () => {
     const name = newTagName.trim();
     if (!name) return;
@@ -2777,90 +2860,64 @@ export function CardModal({
 
                   {/* Cover color selection moved to dialog */}
 
-                  {/* Tags Section */}
+                  {/* Tags Section - Using Board Labels System */}
                   {showTags && (
                     <div className="border rounded-lg p-4 space-y-4 animate-fade-in">
-                      <h3 className="font-semibold flex items-center gap-2">
-                        <Tag className="h-4 w-4" />
-                        Tags
-                      </h3>
-                      <div className="flex flex-wrap gap-2">
-                        {labels.map((l) => (
-                          <Badge
-                            key={l.id}
-                            className={cn(
-                              "cursor-pointer",
-                              labelColorClass[l.color as LabelColor] || ""
-                            )}
-                            style={
-                              labelColorClass[l.color as LabelColor]
-                                ? undefined
-                                : { backgroundColor: l.color, color: "#fff" }
-                            }
-                            onClick={() => removeLabel(l.id)}
-                            title={`Remover tag ${l.name}`}
-                          >
-                            {l.name}
-                          </Badge>
-                        ))}
-                      </div>
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder="Nome da tag"
-                          value={newTagName}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                            setNewTagName(e.target.value)
-                          }
-                          className="flex-1"
-                        />
-                        <Select
-                          value={selectedTagColor}
-                          onValueChange={(value: LabelColor) =>
-                            setSelectedTagColor(value)
-                          }
-                        >
-                          <SelectTrigger className="w-[100px]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="green">Verde</SelectItem>
-                            <SelectItem value="yellow">Amarelo</SelectItem>
-                            <SelectItem value="orange">Laranja</SelectItem>
-                            <SelectItem value="red">Vermelho</SelectItem>
-                            <SelectItem value="purple">Roxo</SelectItem>
-                            <SelectItem value="blue">Azul</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        {/* Color picker and HEX input for custom colors */}
-                        <input
-                          type="color"
-                          value={
-                            isHexColor(selectedTagColor)
-                              ? selectedTagColor
-                              : "#000000"
-                          }
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                            setSelectedTagColor(e.target.value)
-                          }
-                          className="w-9 h-9 p-0 border rounded"
-                          title="Escolher cor"
-                        />
-                        <Input
-                          placeholder="#HEX"
-                          value={
-                            isHexColor(selectedTagColor) ? selectedTagColor : ""
-                          }
-                          onChange={(e) => setSelectedTagColor(e.target.value)}
-                          className="w-[100px]"
-                        />
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-semibold flex items-center gap-2">
+                          <Tag className="h-4 w-4" />
+                          Etiquetas
+                        </h3>
                         <Button
+                          variant="ghost"
                           size="sm"
-                          onClick={addLabel}
-                          disabled={!newTagName.trim()}
+                          onClick={() => setManageLabelsOpen(true)}
+                          className="h-8"
                         >
-                          Adicionar
+                          <Settings className="h-4 w-4 mr-1" />
+                          Gerenciar
                         </Button>
                       </div>
+                      
+                      {/* Display applied labels */}
+                      {labels.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {labels.map((l) => (
+                            <Badge
+                              key={l.id}
+                              className="cursor-pointer"
+                              style={{ backgroundColor: l.color, color: "#fff" }}
+                              onClick={() => {
+                                if (l.board_label_id) {
+                                  toggleLabel(l.board_label_id);
+                                } else {
+                                  removeLabel(l.id);
+                                }
+                              }}
+                              title={`Remover tag ${l.name}`}
+                            >
+                              {l.name}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Label Selector */}
+                      <LabelSelector
+                        boardLabels={boardLabels}
+                        selectedLabelIds={labels
+                          .filter(l => l.board_label_id)
+                          .map(l => l.board_label_id!)}
+                        onToggleLabel={toggleLabel}
+                        onCreateLabel={async (name, color) => {
+                          await createBoardLabel.mutateAsync({
+                            boardId,
+                            name,
+                            color,
+                          });
+                        }}
+                        onManageLabels={() => setManageLabelsOpen(true)}
+                      />
                     </div>
                   )}
 
@@ -3302,6 +3359,13 @@ export function CardModal({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Board Labels Management Dialog */}
+      <BoardLabelsDialog
+        boardId={boardId}
+        open={manageLabelsOpen}
+        onOpenChange={setManageLabelsOpen}
+      />
     </Dialog>
   );
 }
