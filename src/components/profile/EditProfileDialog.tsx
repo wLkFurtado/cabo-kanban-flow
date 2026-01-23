@@ -131,26 +131,40 @@ export function EditProfileDialog({ open, onOpenChange }: EditProfileDialogProps
     try {
       const fullName = [firstName.trim(), lastName.trim()].filter(Boolean).join(" ") || firstName.trim();
 
-      // Nunca persistir blob: URLs; começar do avatar já existente
+      // Upload avatar para Cloudinary
       let finalAvatarUrl = existingAvatarUrl || null;
       if (avatarFile) {
-        const bucket = import.meta.env.VITE_PROFILE_BUCKET || 'perfil';
-        const ext = avatarFile.name.split(".").pop() || "png";
-        // Caminho relativo ao bucket "perfil" (não prefixar com o nome do bucket)
-        const path = `${user.id}/${Date.now()}.${ext}`;
-        const { error: uploadError } = await supabase.storage
-          .from(bucket)
-          .upload(path, avatarFile, { upsert: true });
-        if (uploadError) {
-          console.error("Avatar upload error:", uploadError);
-          setLastError(`Falha no upload do avatar: ${uploadError.message}`);
-          toast({ title: "Falha no upload", description: uploadError.message, variant: "destructive", duration: 8000 });
-        } else {
-          const { data: pub } = supabase.storage.from(bucket).getPublicUrl(path);
-          if (pub?.publicUrl) {
-            finalAvatarUrl = pub.publicUrl;
-            console.log("Avatar uploaded:", { path, publicUrl: pub.publicUrl });
+        try {
+          const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+          const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+          
+          if (!cloudName || !uploadPreset) {
+            throw new Error('Cloudinary não configurado. Verifique as variáveis de ambiente.');
           }
+
+          const formData = new FormData();
+          formData.append('file', avatarFile);
+          formData.append('upload_preset', uploadPreset);
+          formData.append('folder', 'avatars');
+          
+          const response = await fetch(
+            `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+            { method: 'POST', body: formData }
+          );
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error?.message || 'Erro ao fazer upload da imagem');
+          }
+          
+          const data = await response.json();
+          finalAvatarUrl = data.secure_url;
+          console.log('Avatar uploaded to Cloudinary:', { url: finalAvatarUrl });
+        } catch (uploadError: unknown) {
+          const errorMessage = uploadError instanceof Error ? uploadError.message : 'Erro desconhecido';
+          console.error('Cloudinary upload error:', uploadError);
+          setLastError(`Falha no upload do avatar: ${errorMessage}`);
+          toast({ title: 'Falha no upload', description: errorMessage, variant: 'destructive', duration: 8000 });
         }
       }
 
