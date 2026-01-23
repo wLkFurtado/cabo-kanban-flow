@@ -28,7 +28,7 @@ export function AppSidebar() {
       <div className={open ? "px-2 py-2" : "px-1 py-1"}>
         {open ? (
           <img
-            src="https://res.cloudinary.com/dhsgmhaak/image/upload/v1769125846/marca-horizontal-colorida_cuj9jt.png"
+            src="https://res.cloudinary.com/dhsgmhaak/image/upload/v1769126364/marca-horizontal-colorida2_btclms.png"
             alt="Coordenadoria de Comunicação"
             className="h-16 object-contain relative z-[70]"
             onError={(e) => {
