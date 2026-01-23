@@ -81,13 +81,34 @@ export function useAIChat() {
       });
 
       if (!response.ok) {
-        throw new Error(`Erro no webhook: ${response.status}`);
+        throw new Error(`Erro no webhook: ${response.status} ${response.statusText}`);
       }
 
-      const data = await response.json();
+      // Verificar se tem conteúdo
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        const text = await response.text();
+        console.error("Resposta não-JSON do webhook:", text);
+        throw new Error(`Webhook retornou tipo inválido: ${contentType}. Resposta: ${text.slice(0, 200)}`);
+      }
+
+      const text = await response.text();
+      if (!text || text.trim() === "") {
+        throw new Error("Webhook retornou resposta vazia");
+      }
+
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        console.error("Erro ao parsear JSON:", text);
+        throw new Error(`JSON inválido do webhook: ${text.slice(0, 200)}`);
+      }
+
+      console.log("Resposta do webhook:", data);
 
       if (!data.success || !data.response) {
-        throw new Error("Resposta inválida do webhook");
+        throw new Error(`Resposta inválida do webhook. Formato esperado: { success: true, response: "texto" }`);
       }
 
       // 4. Salvar resposta da IA no banco
