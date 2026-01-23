@@ -829,6 +829,9 @@ export function CardModal({
       (user?.user_metadata?.full_name as string) ||
       (user?.email as string) ||
       "Usuário";
+    
+    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+    const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET_COVERS;
 
     try {
       for (const originalFile of files) {
@@ -875,46 +878,77 @@ export function CardModal({
           }
         }
 
-        // Upload para Supabase Storage
-        const safeName = fileToUpload.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-        const path = `boards/${boardId}/cards/${
-          card.id
-        }/cover_${Date.now()}_${safeName}`;
-
-        let uploadOk = false;
         let publicUrl = "";
+        const safeName = fileToUpload.name.replace(/[^a-zA-Z0-9._-]/g, "_");
 
-        for (const bucketName of [IMAGES_BUCKET, "attachments", "perfil"]) {
-          const bucket = sb.storage.from(bucketName);
-          const { error: uploadErr } = await bucket.upload(path, fileToUpload, {
-            contentType: fileToUpload.type,
-          });
-          if (!uploadErr) {
-            const { data: pub } = bucket.getPublicUrl(path);
-            publicUrl = pub?.publicUrl || "";
-            if (!publicUrl) {
-              try {
-                const { data: signed } = await bucket.createSignedUrl(
-                  path,
-                  60 * 60 * 24 * 365
-                );
-                publicUrl = signed?.signedUrl || "";
-              } catch (_) {
-                /* ignore */
-              }
+        // Tentar upload para Cloudinary
+        if (cloudName && uploadPreset) {
+          try {
+            const formData = new FormData();
+            formData.append('file', fileToUpload);
+            formData.append('upload_preset', uploadPreset);
+            formData.append('folder', 'kanban/covers');
+            formData.append('public_id', `${boardId}_${card.id}_${Date.now()}_${safeName}`);
+
+            const response = await fetch(
+              `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+              { method: 'POST', body: formData }
+            );
+
+            if (response.ok) {
+              const data = await response.json();
+              publicUrl = data.secure_url;
+              
+              toast({
+                title: "Upload via Cloudinary ✓",
+                description: "Imagem enviada para CDN",
+              });
             }
-            uploadOk = true;
-            break;
+          } catch (err) {
+            console.warn("Cloudinary upload failed, falling back to Supabase:", err);
           }
         }
 
-        if (!uploadOk || !publicUrl) {
-          toast({
-            title: "Falha ao enviar imagem",
-            description: "Verifique se o bucket está configurado.",
-            variant: "destructive",
-          });
-          continue;
+        // Fallback para Supabase Storage se Cloudinary falhar
+        if (!publicUrl) {
+          const path = `boards/${boardId}/cards/${
+            card.id
+          }/cover_${Date.now()}_${safeName}`;
+
+          let uploadOk = false;
+
+          for (const bucketName of [IMAGES_BUCKET, "attachments", "perfil"]) {
+            const bucket = sb.storage.from(bucketName);
+            const { error: uploadErr } = await bucket.upload(path, fileToUpload, {
+              contentType: fileToUpload.type,
+            });
+            if (!uploadErr) {
+              const { data: pub } = bucket.getPublicUrl(path);
+              publicUrl = pub?.publicUrl || "";
+              if (!publicUrl) {
+                try {
+                  const { data: signed } = await bucket.createSignedUrl(
+                    path,
+                    60 * 60 * 24 * 365
+                  );
+                  publicUrl = signed?.signedUrl || "";
+                } catch (_) {
+                  /* ignore */
+                }
+              }
+              uploadOk = true;
+              break;
+            }
+          }
+
+          if (!uploadOk || !publicUrl) {
+            toast({
+              title: "Falha ao enviar imagem",
+              description: "Verifique se o bucket está configurado.",
+              variant: "destructive",
+            });
+            continue;
+          }
         }
 
         // Atualizar cover_images no banco

@@ -91,18 +91,51 @@ export function useAttachments(boardId: string, cardId: string) {
   const uploadMutation = useMutation({
     mutationFn: async (files: File[]) => {
       const results: CardAttachment[] = [];
+      const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+      const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET_ATTACHMENTS;
+
       for (const file of files) {
         const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-        const path = `boards/${boardId}/cards/${cardId}/${Date.now()}_${safeName}`;
-        const bucket = supabase.storage.from(bucketName);
-        const up = await bucket.upload(path, file, { contentType: file.type });
-        if (up.error) throw up.error;
-        const { data: pub } = bucket.getPublicUrl(path);
-        let publicUrl = pub?.publicUrl || "";
-        if (!publicUrl) {
-          const signed = await bucket.createSignedUrl(path, 60 * 60 * 24 * 7);
-          publicUrl = signed.data?.signedUrl || "";
+        let publicUrl = "";
+
+        // Tentar upload para Cloudinary
+        if (cloudName && uploadPreset) {
+          try {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('upload_preset', uploadPreset);
+            formData.append('folder', 'kanban/attachments');
+            formData.append('public_id', `${boardId}_${cardId}_${Date.now()}_${safeName}`);
+
+            const response = await fetch(
+              `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`,
+              { method: 'POST', body: formData }
+            );
+
+            if (response.ok) {
+              const data = await response.json();
+              publicUrl = data.secure_url;
+            }
+          } catch (err) {
+            console.warn('Cloudinary upload failed, falling back to Supabase:', err);
+          }
         }
+
+        // Fallback para Supabase se Cloudinary falhar
+        if (!publicUrl) {
+          const path = `boards/${boardId}/cards/${cardId}/${Date.now()}_${safeName}`;
+          const bucket = supabase.storage.from(bucketName);
+          const up = await bucket.upload(path, file, { contentType: file.type });
+          if (up.error) throw up.error;
+          const { data: pub } = bucket.getPublicUrl(path);
+          publicUrl = pub?.publicUrl || "";
+          if (!publicUrl) {
+            const signed = await bucket.createSignedUrl(path, 60 * 60 * 24 * 7);
+            publicUrl = signed.data?.signedUrl || "";
+          }
+        }
+
+        // Inserir no banco
         const insert = await supabase
           .from("card_attachments")
           .insert({
@@ -112,7 +145,7 @@ export function useAttachments(boardId: string, cardId: string) {
             size: file.size,
             type: file.type,
             url: publicUrl,
-            path,
+            path: publicUrl.includes('cloudinary') ? `cloudinary://${safeName}` : `boards/${boardId}/cards/${cardId}/${Date.now()}_${safeName}`,
           })
           .select("id, board_id, card_id, name, description, size, type, url, path, created_at, updated_at")
           .single();
