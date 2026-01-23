@@ -82,6 +82,14 @@ const Index = () => {
 
   return (
     <section>
+      <div className="mb-6 flex justify-center">
+        <img
+          src="https://res.cloudinary.com/dhsgmhaak/image/upload/v1769126364/marca-horizontal-colorida2_btclms.png"
+          alt="Logo Coordenadoria de Comunicação"
+          className="h-24 sm:h-28 md:h-32 max-w-full object-contain select-none"
+          draggable={false}
+        />
+      </div>
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Meus Boards</h1>

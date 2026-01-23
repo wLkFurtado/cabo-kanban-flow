@@ -73,7 +73,7 @@ export default function Login() {
       <Seo title="Entrar | Comunicação Cabo Frio" description="Acesse sua conta com e-mail e senha." />
       <div className="mb-6 flex justify-center">
         <img
-          src="https://res.cloudinary.com/dhsgmhaak/image/upload/v1769126364/marca-horizontal-colorida2_btclms.png"
+          src="https://res.cloudinary.com/dhsgmhaak/image/upload/v1769127630/Logotipo_Colorido_02_4_3x_dij5rs.png"
           alt="Logo Coordenadoria de Comunicação"
           className="h-28 sm:h-32 md:h-36 max-w-full object-contain select-none"
           draggable={false}
