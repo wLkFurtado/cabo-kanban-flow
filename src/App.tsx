@@ -14,6 +14,7 @@ import AdminContacts from "./pages/AdminContacts";
 import AgendaInstitucional from "./pages/AgendaInstitucional";
 import Roadmap from "./pages/Roadmap";
 import Melhorias from "./pages/Melhorias";
+import AITextGenerator from "./pages/AITextGenerator";
 import RootLayout from "./components/layout/RootLayout";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -62,6 +63,7 @@ const App = () => (
               <Route path="/agenda-institucional" element={<AgendaInstitucional />} />
               <Route path="/melhorias" element={<Melhorias />} />
               <Route path="/roadmap" element={<Roadmap />} />
+              <Route path="/gerador-texto" element={<AITextGenerator />} />
               <Route
                 path="/contatos"
                 element={
