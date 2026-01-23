@@ -93,53 +93,75 @@ export function useAIChat() {
 
       console.log("Resposta raw do webhook:", text.slice(0, 500));
 
-      // Tentar parsear como JSON
-      let data;
       let finalResponse = "";
 
+      // Tentar parsear como JSON
       try {
-        data = JSON.parse(text);
-        console.log("Resposta parseada:", data);
+        const data = JSON.parse(text);
+        console.log("Resposta parseada como JSON:", data);
 
-        // Validar estrutura básica
+        // Validar success
         if (data.success === false) {
           throw new Error(`Webhook retornou success=false`);
         }
 
-        // Extrair resposta de várias formas possíveis
-        if (data.response) {
-          finalResponse = data.response;
-          
-          // Se response for um JSON string, tentar parsear
-          if (typeof finalResponse === 'string' && finalResponse.trim().startsWith('{')) {
-            try {
-              const innerJson = JSON.parse(finalResponse);
-              // Tentar pegar TEXTO FINAL
-              finalResponse = innerJson['TEXTO FINAL'] || innerJson.response || finalResponse;
-            } catch {
-              // Se não conseguir parsear, usar como está
-            }
+        // Extrair resposta
+        let responseData = data.response || data.output || text;
+        
+        // Se response for um JSON string, parsear de novo
+        if (typeof responseData === 'string' && responseData.trim().startsWith('{')) {
+          try {
+            const innerJson = JSON.parse(responseData);
+            console.log("Response interna parseada:", innerJson);
+            
+            // Tentar pegar TEXTO FINAL
+            finalResponse = innerJson['TEXTO FINAL'] || 
+                          innerJson['texto'] || 
+                          innerJson['response'] || 
+                          responseData;
+          } catch {
+            // Se não conseguir parsear, usar como está
+            finalResponse = responseData;
           }
-        } else if (data['TEXTO FINAL']) {
-          finalResponse = data['TEXTO FINAL'];
         } else {
-          finalResponse = text;
+          finalResponse = responseData;
         }
 
       } catch (e) {
-        console.error("Erro ao parsear JSON:", text.slice(0, 500));
-        // Se não for JSON, usar o texto direto
+        console.log("Não é JSON, usando texto direto");
         finalResponse = text;
       }
 
-      // Extrair "TEXTO FINAL:" se estiver no texto
-      if (finalResponse.includes('TEXTO FINAL:')) {
-        const parts = finalResponse.split('TEXTO FINAL:');
-        if (parts.length > 1) {
-          finalResponse = parts[1].trim();
-          // Remover possíveis aspas e chaves
-          finalResponse = finalResponse.replace(/^["'\s{]+|["'\s}]+$/g, '');
+      // Limpar formatação de JSON que pode ter sobrado
+      if (typeof finalResponse === 'string') {
+        // Remover marcadores de JSON no início/fim
+        finalResponse = finalResponse.replace(/^[\s\n\r{}"]+|[\s\n\r{}"]+$/g, '');
+        
+        // Se ainda tiver "TEXTO FINAL:" no texto, extrair
+        if (finalResponse.includes('TEXTO FINAL:')) {
+          const parts = finalResponse.split('TEXTO FINAL:');
+          if (parts.length > 1) {
+            finalResponse = parts[1];
+          }
         }
+
+        // Se ainda tiver "OBSERVAÇÕES:" no final, remover
+        if (finalResponse.includes('OBSERVAÇÕES:')) {
+          finalResponse = finalResponse.split('OBSERVAÇÕES:')[0];
+        }
+
+        // Se ainda tiver "STATUS:" no começo, pegar só depois de "TEXTO FINAL:"
+        if (finalResponse.includes('STATUS:') && finalResponse.includes('TEXTO FINAL')) {
+          const match = finalResponse.match(/TEXTO FINAL[:"]\s*(.+?)(?:OBSERVAÇÕES|$)/s);
+          if (match && match[1]) {
+            finalResponse = match[1];
+          }
+        }
+
+        // Limpar aspas extras, vírgulas e chaves que sobraram
+        finalResponse = finalResponse
+          .replace(/^["':,\s{}\n\r]+|["':,\s{}\n\r]+$/g, '')
+          .trim();
       }
 
       // Validar se tem conteúdo
@@ -147,7 +169,7 @@ export function useAIChat() {
         throw new Error(`Não foi possível extrair resposta válida. Resposta original: ${text.slice(0, 300)}`);
       }
 
-      console.log("Resposta final extraída:", finalResponse.slice(0, 200));
+      console.log("✅ Resposta final limpa:", finalResponse.slice(0, 200));
 
       // 4. Salvar resposta da IA no banco
       const { error: saveAIError } = await supabase
