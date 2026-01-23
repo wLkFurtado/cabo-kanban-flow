@@ -84,31 +84,33 @@ export function useAIChat() {
         throw new Error(`Erro no webhook: ${response.status} ${response.statusText}`);
       }
 
-      // Verificar se tem conteúdo
-      const contentType = response.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        const text = await response.text();
-        console.error("Resposta não-JSON do webhook:", text);
-        throw new Error(`Webhook retornou tipo inválido: ${contentType}. Resposta: ${text.slice(0, 200)}`);
-      }
-
+      // Pegar resposta como texto primeiro
       const text = await response.text();
+      
       if (!text || text.trim() === "") {
         throw new Error("Webhook retornou resposta vazia");
       }
 
+      console.log("Resposta raw do webhook:", text);
+
+      // Tentar parsear como JSON
       let data;
       try {
         data = JSON.parse(text);
       } catch (e) {
         console.error("Erro ao parsear JSON:", text);
-        throw new Error(`JSON inválido do webhook: ${text.slice(0, 200)}`);
+        throw new Error(`JSON inválido do webhook. Resposta: ${text.slice(0, 300)}`);
       }
 
-      console.log("Resposta do webhook:", data);
+      console.log("Resposta parseada:", data);
 
-      if (!data.success || !data.response) {
-        throw new Error(`Resposta inválida do webhook. Formato esperado: { success: true, response: "texto" }`);
+      // Validar estrutura
+      if (!data.success) {
+        throw new Error(`Webhook retornou success=false. Resposta: ${JSON.stringify(data)}`);
+      }
+
+      if (!data.response || typeof data.response !== 'string') {
+        throw new Error(`Campo 'response' ausente ou inválido. Resposta: ${JSON.stringify(data)}`);
       }
 
       // 4. Salvar resposta da IA no banco
