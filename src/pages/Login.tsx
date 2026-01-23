@@ -73,7 +73,7 @@ export default function Login() {
       <Seo title="Entrar | Comunicação Cabo Frio" description="Acesse sua conta com e-mail e senha." />
       <div className="mb-6 flex justify-center">
         <img
-          src="https://ankliiywmcpncymdlvaa.supabase.co/storage/v1/object/sign/images/marca-horizontal-colorida2.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV80YzhjY2FlYS1lYTVkLTRiMzYtOWJiZS03NmRkYmRkNjhlYTUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJpbWFnZXMvbWFyY2EtaG9yaXpvbnRhbC1jb2xvcmlkYTIucG5nIiwiaWF0IjoxNzYwNjUzNzcyLCJleHAiOjE5MTgzMzM3NzJ9.NzLnTCYxbAqS7H9JOsTaBL6kLME6tRpklss2R5rVuh0"
+          src="https://res.cloudinary.com/dhsgmhaak/image/upload/v1769126364/marca-horizontal-colorida2_btclms.png"
           alt="Logo Coordenadoria de Comunicação"
           className="h-28 sm:h-32 md:h-36 max-w-full object-contain select-none"
           draggable={false}

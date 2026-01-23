@@ -28,7 +28,7 @@ export function AppSidebar() {
       <div className={open ? "px-2 py-2" : "px-1 py-1"}>
         {open ? (
           <img
-            src="https://ankliiywmcpncymdlvaa.supabase.co/storage/v1/object/sign/images/marca-horizontal-colorida.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV80YzhjY2FlYS1lYTVkLTRiMzYtOWJiZS03NmRkYmRkNjhlYTUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJpbWFnZXMvbWFyY2EtaG9yaXpvbnRhbC1jb2xvcmlkYS5wbmciLCJpYXQiOjE3NjA2NTMwMzcsImV4cCI6MTg4Njc5NzAzN30.z64jgDXzJIaXWUpdmL_lbDE69CPWXjbUVDaT8lW1p9k"
+            src="https://res.cloudinary.com/dhsgmhaak/image/upload/v1769125846/marca-horizontal-colorida_cuj9jt.png"
             alt="Coordenadoria de Comunicação"
             className="h-16 object-contain relative z-[70]"
             onError={(e) => {
@@ -38,7 +38,7 @@ export function AppSidebar() {
           />
         ) : (
           <img
-            src="https://ankliiywmcpncymdlvaa.supabase.co/storage/v1/object/sign/images/logo-minimizada.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV80YzhjY2FlYS1lYTVkLTRiMzYtOWJiZS03NmRkYmRkNjhlYTUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJpbWFnZXMvbG9nby1taW5pbWl6YWRhLnBuZyIsImlhdCI6MTc2MjY0NjM1MiwiZXhwIjoxODI1NzE4MzUyfQ.-TmFnLhVW8oz3fNIt9SjcWPG-1YmNcRz1ksT5mcq0mE"
+            src="https://res.cloudinary.com/dhsgmhaak/image/upload/v1769125813/logo-minimizada_tawhu5.png"
             alt="Logo reduzida"
             className="h-[3.75rem] w-[3.75rem] object-contain relative z-[70]"
             onError={(e) => {

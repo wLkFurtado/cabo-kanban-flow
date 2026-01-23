@@ -11,7 +11,7 @@ export function AppHeader() {
       <div className="container mx-auto flex h-14 items-center justify-between">
         <a href="/" className="flex items-center gap-2" aria-label="Coordenadoria de Comunicação">
           <img
-            src="https://ankliiywmcpncymdlvaa.supabase.co/storage/v1/object/sign/images/marca-horizontal-colorida.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV80YzhjY2FlYS1lYTVkLTRiMzYtOWJiZS03NmRkYmRkNjhlYTUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJpbWFnZXMvbWFyY2EtaG9yaXpvbnRhbC1jb2xvcmlkYS5wbmciLCJpYXQiOjE3NjA2NTMwMzcsImV4cCI6MTg4Njc5NzAzN30.z64jgDXzJIaXWUpdmL_lbDE69CPWXjbUVDaT8lW1p9k"
+            src="https://res.cloudinary.com/dhsgmhaak/image/upload/v1769125846/marca-horizontal-colorida_cuj9jt.png"
             alt="Coordenadoria de Comunicação"
             className="h-12 object-contain select-none"
             onError={(e) => {
