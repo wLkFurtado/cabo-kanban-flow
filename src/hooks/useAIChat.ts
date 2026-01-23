@@ -91,27 +91,63 @@ export function useAIChat() {
         throw new Error("Webhook retornou resposta vazia");
       }
 
-      console.log("Resposta raw do webhook:", text);
+      console.log("Resposta raw do webhook:", text.slice(0, 500));
 
       // Tentar parsear como JSON
       let data;
+      let finalResponse = "";
+
       try {
         data = JSON.parse(text);
+        console.log("Resposta parseada:", data);
+
+        // Validar estrutura básica
+        if (data.success === false) {
+          throw new Error(`Webhook retornou success=false`);
+        }
+
+        // Extrair resposta de várias formas possíveis
+        if (data.response) {
+          finalResponse = data.response;
+          
+          // Se response for um JSON string, tentar parsear
+          if (typeof finalResponse === 'string' && finalResponse.trim().startsWith('{')) {
+            try {
+              const innerJson = JSON.parse(finalResponse);
+              // Tentar pegar TEXTO FINAL
+              finalResponse = innerJson['TEXTO FINAL'] || innerJson.response || finalResponse;
+            } catch {
+              // Se não conseguir parsear, usar como está
+            }
+          }
+        } else if (data['TEXTO FINAL']) {
+          finalResponse = data['TEXTO FINAL'];
+        } else {
+          finalResponse = text;
+        }
+
       } catch (e) {
-        console.error("Erro ao parsear JSON:", text);
-        throw new Error(`JSON inválido do webhook. Resposta: ${text.slice(0, 300)}`);
+        console.error("Erro ao parsear JSON:", text.slice(0, 500));
+        // Se não for JSON, usar o texto direto
+        finalResponse = text;
       }
 
-      console.log("Resposta parseada:", data);
-
-      // Validar estrutura
-      if (!data.success) {
-        throw new Error(`Webhook retornou success=false. Resposta: ${JSON.stringify(data)}`);
+      // Extrair "TEXTO FINAL:" se estiver no texto
+      if (finalResponse.includes('TEXTO FINAL:')) {
+        const parts = finalResponse.split('TEXTO FINAL:');
+        if (parts.length > 1) {
+          finalResponse = parts[1].trim();
+          // Remover possíveis aspas e chaves
+          finalResponse = finalResponse.replace(/^["'\s{]+|["'\s}]+$/g, '');
+        }
       }
 
-      if (!data.response || typeof data.response !== 'string') {
-        throw new Error(`Campo 'response' ausente ou inválido. Resposta: ${JSON.stringify(data)}`);
+      // Validar se tem conteúdo
+      if (!finalResponse || finalResponse.trim() === '' || finalResponse === '[undefined]') {
+        throw new Error(`Não foi possível extrair resposta válida. Resposta original: ${text.slice(0, 300)}`);
       }
+
+      console.log("Resposta final extraída:", finalResponse.slice(0, 200));
 
       // 4. Salvar resposta da IA no banco
       const { error: saveAIError } = await supabase
@@ -119,12 +155,12 @@ export function useAIChat() {
         .insert({
           user_id: userId,
           role: "assistant",
-          content: data.response,
+          content: finalResponse,
         });
 
       if (saveAIError) throw saveAIError;
 
-      return data.response;
+      return finalResponse;
     },
     onSuccess: () => {
       // Atualizar lista de mensagens
