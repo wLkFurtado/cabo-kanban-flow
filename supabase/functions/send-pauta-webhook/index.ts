@@ -12,6 +12,7 @@ interface TeamMember {
 
 interface WebhookPayload {
   nome_pauta: string
+  descricao?: string
   data: string
   equipe: TeamMember[]
 }
@@ -44,7 +45,7 @@ serve(async (req) => {
     // Buscar dados da pauta
     const { data: pauta, error: pautaError } = await supabase
       .from('pautas_events')
-      .select('id, titulo, data_inicio, filmmaker_id, fotografo_id, jornalista_id, rede_id')
+      .select('id, titulo, descricao, data_inicio, filmmaker_id, fotografo_id, jornalista_id, rede_id')
       .eq('id', pauta_id)
       .single()
 
@@ -100,6 +101,7 @@ serve(async (req) => {
     // Montar payload do webhook
     const payload: WebhookPayload = {
       nome_pauta: pauta.titulo || 'Evento',
+      descricao: pauta.descricao || '',
       data: pauta.data_inicio,
       equipe
     }

@@ -24,7 +24,6 @@ interface EventModalProps {
 interface EventFormData {
   nome: string;
   secretaria: string;
-  descricao: string;
   data: Date;
   horaInicio: string;
   horaFim: string;
@@ -38,7 +37,6 @@ export function EventModal({ open, onOpenChange, selectedDate, eventToEdit }: Ev
   const [formData, setFormData] = useState<EventFormData>({
     nome: "",
     secretaria: "",
-    descricao: "",
     data: selectedDate || new Date(),
     horaInicio: "09:00",
     horaFim: "10:00",
@@ -54,10 +52,6 @@ export function EventModal({ open, onOpenChange, selectedDate, eventToEdit }: Ev
     }
 
     // Secretaria opcional para edição/uso geral
-
-    if (!formData.descricao.trim()) {
-      newErrors.descricao = "Descrição da pauta é obrigatória";
-    }
 
     if (!formData.data) {
       newErrors.data = "Data da pauta é obrigatória";
@@ -91,7 +85,7 @@ export function EventModal({ open, onOpenChange, selectedDate, eventToEdit }: Ev
     // Criar evento para salvar no banco (tabela events)
     const payload = {
       title: formData.nome,
-      description: `${formData.descricao}\n\nSecretaria: ${formData.secretaria}`,
+      description: `Secretaria: ${formData.secretaria}`,
       start_date: dataInicio.toISOString(),
       end_date: dataFim.toISOString(),
       all_day: false,
@@ -108,7 +102,6 @@ export function EventModal({ open, onOpenChange, selectedDate, eventToEdit }: Ev
     setFormData({
       nome: "",
       secretaria: "",
-      descricao: "",
       data: selectedDate || new Date(),
       horaInicio: "09:00",
       horaFim: "10:00",
@@ -142,7 +135,6 @@ export function EventModal({ open, onOpenChange, selectedDate, eventToEdit }: Ev
       setFormData(prev => ({
         ...prev,
         nome: eventToEdit.title || "",
-        descricao: eventToEdit.description || "",
         secretaria: prev.secretaria || "",
         data: new Date(start.getFullYear(), start.getMonth(), start.getDate()),
         horaInicio: startTime,
@@ -242,21 +234,6 @@ export function EventModal({ open, onOpenChange, selectedDate, eventToEdit }: Ev
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("horaFim", e.target.value)}
               />
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="descricao">Descrição da Pauta *</Label>
-            <Textarea
-              id="descricao"
-              value={formData.descricao}
-              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange("descricao", e.target.value)}
-              placeholder="Descreva a pauta..."
-              rows={4}
-              className={errors.descricao ? "border-red-500" : ""}
-            />
-            {errors.descricao && (
-              <p className="text-sm text-red-500">{errors.descricao}</p>
-            )}
           </div>
 
           {/* Seção de equipe removida conforme solicitado */}

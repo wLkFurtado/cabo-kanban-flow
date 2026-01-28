@@ -4,6 +4,7 @@ import { Calendar, Save, Trash2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
+import { Textarea } from '../ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import {
   AlertDialog,
@@ -44,6 +45,7 @@ export const EventModal: React.FC<EventModalProps> = ({
     horaInicio: '',
     dataFim: '',
     horaFim: '',
+    descricao: '',
     filmmaker: '',
     fotografo: '',
     jornalista: '',
@@ -65,6 +67,7 @@ export const EventModal: React.FC<EventModalProps> = ({
         horaInicio: format(evento.dataInicio, 'HH:mm'),
         dataFim: format(evento.dataFim, 'yyyy-MM-dd'),
         horaFim: format(evento.dataFim, 'HH:mm'),
+        descricao: evento.descricao || '',
         filmmaker: evento.filmmaker || '',
         fotografo: evento.fotografo || '',
         jornalista: evento.jornalista || '',
@@ -81,6 +84,7 @@ export const EventModal: React.FC<EventModalProps> = ({
         horaInicio: `${startHour.toString().padStart(2, '0')}:00`,
         dataFim: format(initialDate, 'yyyy-MM-dd'),
         horaFim: `${endHour.toString().padStart(2, '0')}:00`,
+        descricao: '',
         filmmaker: '',
         fotografo: '',
         jornalista: '',
@@ -95,6 +99,7 @@ export const EventModal: React.FC<EventModalProps> = ({
         horaInicio: '09:00',
         dataFim: format(now, 'yyyy-MM-dd'),
         horaFim: '10:00',
+        descricao: '',
         filmmaker: '',
         fotografo: '',
         jornalista: '',
@@ -150,6 +155,7 @@ export const EventModal: React.FC<EventModalProps> = ({
       updateEvent({
         id: evento.id,
         titulo: formData.titulo || 'Evento',
+        descricao: formData.descricao || '',
         data_inicio: dataInicio.toISOString(),
         data_fim: dataFim.toISOString(),
         filmmaker_id: formData.filmmaker || null,
@@ -160,7 +166,7 @@ export const EventModal: React.FC<EventModalProps> = ({
     } else {
       createEvent({
         titulo: formData.titulo || 'Evento',
-        descricao: '',
+        descricao: formData.descricao || '',
         data_inicio: dataInicio.toISOString(),
         data_fim: dataFim.toISOString(),
         tipo: 'evento',
@@ -318,6 +324,20 @@ export const EventModal: React.FC<EventModalProps> = ({
               onChange={(userId?: string) => setFormData(prev => ({ ...prev, rede: userId || '' }))}
               placeholder="Selecionar responsável de redes"
               disabled={!canEdit}
+            />
+          </div>
+          
+          {/* Descrição da Pauta - posicionada após seleção de equipe */}
+          <div className="space-y-2">
+            <Label htmlFor="descricao">Descrição da Pauta</Label>
+            <Textarea
+              id="descricao"
+              value={formData.descricao}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setFormData(prev => ({ ...prev, descricao: e.target.value }))}
+              placeholder="Adicione uma descrição detalhada da pauta..."
+              rows={4}
+              disabled={!canEdit}
+              className="resize-none"
             />
           </div>
           
