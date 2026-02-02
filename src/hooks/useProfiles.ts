@@ -21,12 +21,13 @@ export function useProfiles() {
         return;
       }
       setLoading(true);
-      const { data, error } = await supabase
+      const { data, error} = await supabase
         .from('profiles')
         .select(`
           *,
           user_roles (
-            role
+            role,
+            scopes
           )
         `)
         .order('created_at', { ascending: false });
@@ -315,6 +316,84 @@ export function useProfiles() {
     }
   };
 
+  const toggleScope = async (userId: string, scope: string, add: boolean) => {
+    try {
+      if (!isOnline) {
+        toast({ title: 'Sem conexão', description: 'Tente novamente quando estiver online.' });
+        return { success: false, error: new Error('Offline') };
+      }
+
+      // Buscar user_roles atual
+      const { data: userRole, error: fetchError } = await supabase
+        .from('user_roles')
+        .select('role, scopes')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (fetchError) {
+        console.error('Error fetching user role:', fetchError);
+        toast({
+          title: "Erro",
+          description: "Erro ao buscar permissões do usuário",
+          variant: "destructive",
+        });
+        return { success: false, error: fetchError };
+      }
+
+      const currentScopes = userRole?.scopes || [];
+      let newScopes: string[];
+
+      if (add) {
+        // Adicionar scope se não existir
+        newScopes = currentScopes.includes(scope) 
+          ? currentScopes 
+          : [...currentScopes, scope];
+      } else {
+        // Remover scope
+        newScopes = currentScopes.filter((s: string) => s !== scope);
+      }
+
+      // Upsert - cria se não existir, atualiza se existir
+      const { error: upsertError } = await supabase
+        .from('user_roles')
+        .upsert({ 
+          user_id: userId,
+          role: userRole?.role || 'user', // Default to 'user' if no role exists
+          scopes: newScopes 
+        }, {
+          onConflict: 'user_id'
+        });
+
+      if (upsertError) {
+        console.error('Error upserting scopes:', upsertError);
+        toast({
+          title: "Erro",
+          description: "Erro ao atualizar permissões",
+          variant: "destructive",
+        });
+        return { success: false, error: upsertError };
+      }
+
+      // Atualizar estado local
+      await fetchProfiles();
+
+      toast({
+        title: "Sucesso",
+        description: add ? "Permissão concedida" : "Permissão removida",
+      });
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error toggling scope:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao modificar permissões",
+        variant: "destructive",
+      });
+      return { success: false, error };
+    }
+  };
+
   useEffect(() => {
     fetchProfiles();
   }, [isOnline]);
@@ -327,5 +406,6 @@ export function useProfiles() {
     createUserWithProfile,
     updateProfile,
     deleteProfile,
+    toggleScope,
   };
 }

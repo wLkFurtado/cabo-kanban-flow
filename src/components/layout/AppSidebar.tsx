@@ -1,16 +1,17 @@
 import { SidebarBody, SidebarLink, useSidebar } from "../ui/sidebar";
-import { LayoutDashboard, Calendar, FileText, PenTool, Users, Milestone } from "lucide-react";
+import { Calendar, FileText, PenTool, Users, Milestone, Package, Car } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { useAdminRole } from "../../hooks/useAdminRole";
 const menuItems = [
-  { title: "Boards", url: "/", icon: LayoutDashboard },
   { title: "Agenda", url: "/agenda", icon: Calendar },
   { title: "Pautas", url: "/pautas", icon: FileText },
   { title: "Escala FDS", url: "/escala-fds", icon: Calendar },
-  { title: "Contatos", url: "/contatos", icon: Users },
   { title: "Agenda Institucional", url: "/agenda-institucional", icon: Calendar },
+  { title: "Equipamentos", url: "/equipamentos", icon: Package },
+  { title: "Carros", url: "/carros", icon: Car },
   { title: "Gerador de texto", url: "/gerador-texto", icon: PenTool },
   { title: "Sugestões de melhoria", url: "/melhorias", icon: Milestone },
+  { title: "Contatos", url: "/contatos", icon: Users, adminOnly: true },
 ];
 
 export function AppSidebar() {
@@ -21,7 +22,7 @@ export function AppSidebar() {
 
   const itemsToRender = isAdmin
     ? menuItems
-    : menuItems.filter((item) => item.url !== "/contatos");
+    : menuItems.filter((item) => !item.adminOnly);
 
   return (
     <SidebarBody className="gap-4">

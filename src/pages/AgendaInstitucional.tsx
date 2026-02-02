@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
-import { Calendar } from "lucide-react";
+import { Calendar, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Seo } from "../components/seo/Seo";
 import { formatPhoneBR } from "../lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Button } from "../components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../components/ui/alert-dialog";
 import { Input } from "../components/ui/input";
-import { useAdminRole } from "../hooks/useAdminRole";
+import { useAgendaInstitucionalScope } from "../hooks/useAgendaInstitucionalScope";
 import { useAuth } from "../hooks/useAuth";
 import { supabase } from "../integrations/supabase/client";
+import { toast } from "sonner";
 
 type Contact = {
   id?: string;
@@ -19,10 +21,12 @@ type Contact = {
 };
 
 export default function AgendaInstitucional() {
-  const { isAdmin } = useAdminRole();
+  const { hasScope } = useAgendaInstitucionalScope();
   const { user } = useAuth();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [contactToDelete, setContactToDelete] = useState<string | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [form, setForm] = useState<Contact>({ instituicao: "", responsavel: "", telefone: "" });
   const [loading, setLoading] = useState(true);
@@ -36,14 +40,40 @@ export default function AgendaInstitucional() {
   };
 
   const openEditDialog = (index: number) => {
-    if (!isAdmin) return;
+    if (!hasScope) return;
     setEditingIndex(index);
     setForm(contacts[index]);
     setDialogOpen(true);
   };
 
+  const openDeleteDialog = (id: string) => {
+    if (!hasScope) return;
+    setContactToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!hasScope || !contactToDelete) return;
+    
+    const { error } = await supabase
+      .from('institutional_contacts')
+      .delete()
+      .eq('id', contactToDelete);
+
+    if (error) {
+      toast.error('Erro ao excluir contato');
+      console.error('Error deleting contact:', error);
+    } else {
+      setContacts(prev => prev.filter(c => c.id !== contactToDelete));
+      toast.success('Contato excluído com sucesso');
+    }
+    
+    setDeleteDialogOpen(false);
+    setContactToDelete(null);
+  };
+
   const handleSave = () => {
-    if (!isAdmin) return;
+    if (!hasScope) return;
     const persist = async () => {
       if (isEditing && editingIndex !== null) {
         const current = contacts[editingIndex];
@@ -114,7 +144,7 @@ export default function AgendaInstitucional() {
             <Calendar className="w-5 h-5" />
             <span>Agenda Institucional</span>
           </CardTitle>
-          {isAdmin && (
+          {hasScope && (
             <Button className="ml-auto" onClick={openAddDialog}>Adicionar contato</Button>
           )}
         </CardHeader>
@@ -126,17 +156,17 @@ export default function AgendaInstitucional() {
                   <TableHead>Instituição</TableHead>
                   <TableHead>Responsável</TableHead>
                   <TableHead>Telefone</TableHead>
-                  {isAdmin && <TableHead className="w-28">Ações</TableHead>}
+                  {hasScope && <TableHead className="w-40">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={isAdmin ? 4 : 3} className="text-center py-6">Carregando...</TableCell>
+                    <TableCell colSpan={hasScope ? 4 : 3} className="text-center py-6">Carregando...</TableCell>
                   </TableRow>
                 ) : contacts.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={isAdmin ? 4 : 3} className="text-center py-6">Nenhum contato cadastrado</TableCell>
+                    <TableCell colSpan={hasScope ? 4 : 3} className="text-center py-6">Nenhum contato cadastrado</TableCell>
                   </TableRow>
                 ) : (
                   contacts.map((item, idx) => (
@@ -144,9 +174,14 @@ export default function AgendaInstitucional() {
                       <TableCell>{item.instituicao || "—"}</TableCell>
                       <TableCell>{item.responsavel || "—"}</TableCell>
                       <TableCell>{formatPhoneBR(item.telefone) || "—"}</TableCell>
-                      {isAdmin && (
+                      {hasScope && (
                         <TableCell>
-                          <Button variant="outline" size="sm" onClick={() => openEditDialog(idx)}>Editar</Button>
+                          <div className="flex gap-2">
+                            <Button variant="outline" size="sm" onClick={() => openEditDialog(idx)}>Editar</Button>
+                            <Button variant="destructive" size="sm" onClick={() => item.id && openDeleteDialog(item.id)}>
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       )}
                     </TableRow>
@@ -183,6 +218,23 @@ export default function AgendaInstitucional() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este contato? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -15,6 +15,8 @@ import AgendaInstitucional from "./pages/AgendaInstitucional";
 import Roadmap from "./pages/Roadmap";
 import Melhorias from "./pages/Melhorias";
 import AITextGenerator from "./pages/AITextGenerator";
+import Equipamentos from "./pages/Equipamentos";
+import Carros from "./pages/Carros";
 import RootLayout from "./components/layout/RootLayout";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -55,7 +57,7 @@ const App = () => (
                 <RootLayout />
               </ProtectedRoute>
             }>
-              <Route path="/" element={<Index />} />
+              <Route path="/" element={<Agenda />} />
               <Route path="/board/:boardId" element={<BoardView />} />
               <Route path="/agenda" element={<Agenda />} />
               <Route path="/pautas" element={<Pautas />} />
@@ -64,6 +66,8 @@ const App = () => (
               <Route path="/melhorias" element={<Melhorias />} />
               <Route path="/roadmap" element={<Roadmap />} />
               <Route path="/gerador-texto" element={<AITextGenerator />} />
+              <Route path="/equipamentos" element={<Equipamentos />} />
+              <Route path="/carros" element={<Carros />} />
               <Route
                 path="/contatos"
                 element={

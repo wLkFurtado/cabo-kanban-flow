@@ -3,6 +3,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import { Badge } from "../components/ui/badge";
+import { Checkbox } from "../components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import {
   Table,
@@ -32,7 +33,7 @@ import { getInitials } from "@/lib/utils";
 import { Seo } from "../components/seo/Seo";
 
 export default function AdminContacts() {
-  const { profiles, loading, deleteProfile } = useProfiles();
+  const { profiles, loading, deleteProfile, toggleScope } = useProfiles();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedContact, setSelectedContact] = useState<Profile | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -82,6 +83,22 @@ export default function AdminContacts() {
       default:
         return 'Não definido';
     }
+  };
+
+  const handleTogglePautasScope = async (userId: string, hasScope: boolean) => {
+    await toggleScope(userId, 'pautas_admin', !hasScope);
+  };
+
+  const handleToggleEquipmentScope = async (userId: string, hasScope: boolean) => {
+    await toggleScope(userId, 'equipments_admin', !hasScope);
+  };
+
+  const handleToggleVehicleScope = async (userId: string, hasScope: boolean) => {
+    await toggleScope(userId, 'vehicles_admin', !hasScope);
+  };
+
+  const handleToggleAgendaInstitucionalScope = async (userId: string, hasScope: boolean) => {
+    await toggleScope(userId, 'agenda_institucional_admin', !hasScope);
   };
 
   if (loading) {
@@ -151,6 +168,10 @@ export default function AdminContacts() {
                     <TableHead>Contato</TableHead>
                     <TableHead>Cargo</TableHead>
                     <TableHead>Função</TableHead>
+                    <TableHead className="text-center">Pautas</TableHead>
+                    <TableHead className="text-center">Equipamentos</TableHead>
+                    <TableHead className="text-center">Carros</TableHead>
+                    <TableHead className="text-center">Agenda Inst.</TableHead>
                     <TableHead>Criado em</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
@@ -158,7 +179,7 @@ export default function AdminContacts() {
                 <TableBody>
                   {filteredProfiles.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8">
+                      <TableCell colSpan={8} className="text-center py-8">
                         {searchTerm ? "Nenhum contato encontrado" : "Nenhum contato cadastrado"}
                       </TableCell>
                     </TableRow>
@@ -202,6 +223,78 @@ export default function AdminContacts() {
                           <Badge variant={getRoleBadgeVariant(profile.role)}>
                             {getRoleLabel(profile.role)}
                           </Badge>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {(() => {
+                            const userRole = Array.isArray(profile.user_roles) 
+                              ? profile.user_roles[0] 
+                              : profile.user_roles;
+                            const scopes = userRole?.scopes || [];
+                            const isUserAdmin = userRole?.role === 'admin';
+                            const hasPautasScope = scopes.includes('pautas_admin');
+                            
+                            return (
+                              <Checkbox
+                                checked={hasPautasScope}
+                                onCheckedChange={() => handleTogglePautasScope(profile.id, hasPautasScope)}
+                                disabled={isUserAdmin}
+                              />
+                            );
+                          })()}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {(() => {
+                            const userRole = Array.isArray(profile.user_roles) 
+                              ? profile.user_roles[0] 
+                              : profile.user_roles;
+                            const scopes = userRole?.scopes || [];
+                            const isUserAdmin = userRole?.role === 'admin';
+                            const hasEquipmentScope = scopes.includes('equipments_admin');
+                            
+                            return (
+                              <Checkbox
+                                checked={hasEquipmentScope}
+                                onCheckedChange={() => handleToggleEquipmentScope(profile.id, hasEquipmentScope)}
+                                disabled={isUserAdmin}
+                              />
+                            );
+                          })()}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {(() => {
+                            const userRole = Array.isArray(profile.user_roles) 
+                              ? profile.user_roles[0] 
+                              : profile.user_roles;
+                            const scopes = userRole?.scopes || [];
+                            const isUserAdmin = userRole?.role === 'admin';
+                            const hasVehicleScope = scopes.includes('vehicles_admin');
+                            
+                            return (
+                              <Checkbox
+                                checked={hasVehicleScope}
+                                onCheckedChange={() => handleToggleVehicleScope(profile.id, hasVehicleScope)}
+                                disabled={isUserAdmin}
+                              />
+                            );
+                          })()}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {(() => {
+                            const userRole = Array.isArray(profile.user_roles) 
+                              ? profile.user_roles[0] 
+                              : profile.user_roles;
+                            const scopes = userRole?.scopes || [];
+                            const isUserAdmin = userRole?.role === 'admin';
+                            const hasAgendaInstitucionalScope = scopes.includes('agenda_institucional_admin');
+                            
+                            return (
+                              <Checkbox
+                                checked={hasAgendaInstitucionalScope}
+                                onCheckedChange={() => handleToggleAgendaInstitucionalScope(profile.id, hasAgendaInstitucionalScope)}
+                                disabled={isUserAdmin}
+                              />
+                            );
+                          })()}
                         </TableCell>
                         <TableCell>
                           {profile.created_at ? 
