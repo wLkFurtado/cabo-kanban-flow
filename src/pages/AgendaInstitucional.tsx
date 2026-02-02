@@ -16,6 +16,7 @@ import { toast } from "sonner";
 type Contact = {
   id?: string;
   instituicao: string;
+  sigla: string;
   responsavel: string;
   telefone: string;
 };
@@ -35,7 +36,7 @@ export default function AgendaInstitucional() {
 
   const openAddDialog = () => {
     setEditingIndex(null);
-    setForm({ instituicao: "", responsavel: "", telefone: "" });
+    setForm({ instituicao: "", sigla: "", responsavel: "", telefone: "" });
     setDialogOpen(true);
   };
 
@@ -86,6 +87,7 @@ export default function AgendaInstitucional() {
           .from('institutional_contacts')
           .update({
             instituicao: form.instituicao,
+            sigla: form.sigla,
             responsavel: form.responsavel,
             telefone: form.telefone,
             updated_at: new Date().toISOString(),
@@ -101,6 +103,7 @@ export default function AgendaInstitucional() {
           .from('institutional_contacts')
           .insert({
             instituicao: form.instituicao,
+            sigla: form.sigla,
             responsavel: form.responsavel,
             telefone: form.telefone,
             created_by: user?.id ?? null,
@@ -120,12 +123,13 @@ export default function AgendaInstitucional() {
     const fetchContacts = async () => {
       const { data, error } = await supabase
         .from('institutional_contacts')
-        .select('id, instituicao, responsavel, telefone, created_at, updated_at')
+        .select('id, instituicao, sigla, responsavel, telefone, created_at, updated_at')
         .order('instituicao', { ascending: true });
       if (!error) {
         setContacts((data || []).map((d) => ({
           id: d.id,
           instituicao: d.instituicao,
+          sigla: d.sigla ?? '',
           responsavel: d.responsavel,
           telefone: d.telefone ?? '',
         })));
@@ -153,7 +157,8 @@ export default function AgendaInstitucional() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Instituição</TableHead>
+                  <TableHead>Secretaria</TableHead>
+                  <TableHead>Sigla</TableHead>
                   <TableHead>Responsável</TableHead>
                   <TableHead>Telefone</TableHead>
                   {hasScope && <TableHead className="w-40">Ações</TableHead>}
@@ -162,16 +167,17 @@ export default function AgendaInstitucional() {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={hasScope ? 4 : 3} className="text-center py-6">Carregando...</TableCell>
+                    <TableCell colSpan={hasScope ? 5 : 4} className="text-center py-6">Carregando...</TableCell>
                   </TableRow>
                 ) : contacts.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={hasScope ? 4 : 3} className="text-center py-6">Nenhum contato cadastrado</TableCell>
+                    <TableCell colSpan={hasScope ? 5 : 4} className="text-center py-6">Nenhum contato cadastrado</TableCell>
                   </TableRow>
                 ) : (
                   contacts.map((item, idx) => (
                     <TableRow key={idx}>
                       <TableCell>{item.instituicao || "—"}</TableCell>
+                      <TableCell>{item.sigla || "—"}</TableCell>
                       <TableCell>{item.responsavel || "—"}</TableCell>
                       <TableCell>{formatPhoneBR(item.telefone) || "—"}</TableCell>
                       {hasScope && (
@@ -201,8 +207,12 @@ export default function AgendaInstitucional() {
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <label htmlFor="instituicao" className="text-sm font-medium">Instituição</label>
+              <label htmlFor="instituicao" className="text-sm font-medium">Secretaria</label>
               <Input id="instituicao" value={form.instituicao} onChange={(e) => setForm({ ...form, instituicao: e.target.value })} />
+            </div>
+            <div className="grid gap-2">
+              <label htmlFor="sigla" className="text-sm font-medium">Sigla</label>
+              <Input id="sigla" value={form.sigla} onChange={(e) => setForm({ ...form, sigla: e.target.value })} placeholder="ex: IBGE, INEP, MEC" />
             </div>
             <div className="grid gap-2">
               <label htmlFor="responsavel" className="text-sm font-medium">Responsável</label>
