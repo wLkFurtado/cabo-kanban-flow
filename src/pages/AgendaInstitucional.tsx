@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Calendar, Trash2 } from "lucide-react";
+import { Calendar, Trash2, Search } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Seo } from "../components/seo/Seo";
 import { formatPhoneBR } from "../lib/utils";
@@ -29,10 +29,23 @@ export default function AgendaInstitucional() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [contactToDelete, setContactToDelete] = useState<string | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [form, setForm] = useState<Contact>({ instituicao: "", responsavel: "", telefone: "" });
+  const [form, setForm] = useState<Contact>({ instituicao: "", sigla: "", responsavel: "", telefone: "" });
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const isEditing = useMemo(() => editingIndex !== null, [editingIndex]);
+
+  const filteredContacts = useMemo(() => {
+    if (!searchTerm.trim()) return contacts;
+    
+    const search = searchTerm.toLowerCase();
+    return contacts.filter(contact => 
+      contact.instituicao.toLowerCase().includes(search) ||
+      contact.sigla.toLowerCase().includes(search) ||
+      contact.responsavel.toLowerCase().includes(search) ||
+      contact.telefone.toLowerCase().includes(search)
+    );
+  }, [contacts, searchTerm]);
 
   const openAddDialog = () => {
     setEditingIndex(null);
@@ -153,6 +166,15 @@ export default function AgendaInstitucional() {
           )}
         </CardHeader>
         <CardContent className="px-6">
+          <div className="mb-4 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+            <Input
+              placeholder="Buscar por secretaria, sigla, responsável ou telefone..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9"
+            />
+          </div>
           <div className="rounded-md border">
             <Table>
               <TableHeader>
@@ -169,12 +191,14 @@ export default function AgendaInstitucional() {
                   <TableRow>
                     <TableCell colSpan={hasScope ? 5 : 4} className="text-center py-6">Carregando...</TableCell>
                   </TableRow>
-                ) : contacts.length === 0 ? (
+                ) : filteredContacts.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={hasScope ? 5 : 4} className="text-center py-6">Nenhum contato cadastrado</TableCell>
+                    <TableCell colSpan={hasScope ? 5 : 4} className="text-center py-6">
+                      {searchTerm ? "Nenhum resultado encontrado para a busca" : "Nenhum contato cadastrado"}
+                    </TableCell>
                   </TableRow>
                 ) : (
-                  contacts.map((item, idx) => (
+                  filteredContacts.map((item, idx) => (
                     <TableRow key={idx}>
                       <TableCell>{item.instituicao || "—"}</TableCell>
                       <TableCell>{item.sigla || "—"}</TableCell>
