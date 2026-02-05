@@ -4,8 +4,21 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../components/ui/form";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "../components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
 import { useToast } from "../components/ui/use-toast";
 import { useAuth } from "../hooks/useAuth";
 import { useNavigate, Link } from "react-router-dom";
@@ -39,7 +52,14 @@ export default function Register() {
   ] as const;
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { name: "", email: "", phone: "", role: "", password: "", confirmPassword: "" },
+    defaultValues: {
+      name: "",
+      email: "",
+      phone: "",
+      role: "",
+      password: "",
+      confirmPassword: "",
+    },
   });
   const { signUp, user } = useAuth();
   const { toast } = useToast();
@@ -58,38 +78,47 @@ export default function Register() {
         full_name: values.name,
         phone: values.phone,
         cargo: values.role, // Passando o cargo preenchido pelo usuário
-        role: 'user', // Role padrão para novos usuários
+        role: "user", // Role padrão para novos usuários
       });
-      
+
       if (error) {
         throw error;
       }
-      
-      toast({ 
-        title: "Conta criada!", 
-        description: "Sua conta foi criada com sucesso. Verifique seu email para confirmar." 
+
+      toast({
+        title: "Conta criada!",
+        description:
+          "Sua conta foi criada com sucesso. Verifique seu email para confirmar.",
       });
       navigate("/login");
     } catch (e: unknown) {
-      const errorMessage = e instanceof Error ? e.message : "Erro interno. Tente novamente.";
-      toast({ 
-        title: "Erro ao cadastrar", 
-        description: errorMessage, 
-        variant: "destructive" 
+      const errorMessage =
+        e instanceof Error ? e.message : "Erro interno. Tente novamente.";
+      toast({
+        title: "Erro ao cadastrar",
+        description: errorMessage,
+        variant: "destructive",
       });
     }
   }
 
   return (
     <main className="container mx-auto max-w-md py-10">
-      <Seo title="Cadastrar | Comunicação Cabo Frio" description="Crie sua conta informando nome, e-mail, cargo e telefone." />
+      <Seo
+        title="Cadastrar | Comunicação Cabo Frio"
+        description="Crie sua conta informando nome, e-mail, cargo e telefone."
+      />
       <h1 className="text-2xl font-semibold mb-6">Cadastrar</h1>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <FormField
             control={form.control}
             name="name"
-            render={({ field }: { field: ControllerRenderProps<FormValues, "name"> }) => (
+            render={({
+              field,
+            }: {
+              field: ControllerRenderProps<FormValues, "name">;
+            }) => (
               <FormItem>
                 <FormLabel>Nome</FormLabel>
                 <FormControl>
@@ -102,7 +131,11 @@ export default function Register() {
           <FormField
             control={form.control}
             name="email"
-            render={({ field }: { field: ControllerRenderProps<FormValues, "email"> }) => (
+            render={({
+              field,
+            }: {
+              field: ControllerRenderProps<FormValues, "email">;
+            }) => (
               <FormItem>
                 <FormLabel>E-mail</FormLabel>
                 <FormControl>
@@ -115,11 +148,15 @@ export default function Register() {
           <FormField
             control={form.control}
             name="role"
-            render={({ field }: { field: ControllerRenderProps<FormValues, "role"> }) => (
+            render={({
+              field,
+            }: {
+              field: ControllerRenderProps<FormValues, "role">;
+            }) => (
               <FormItem>
                 <FormLabel>Cargo</FormLabel>
-                <Select 
-                  value={field.value || undefined} 
+                <Select
+                  value={field.value || undefined}
                   onValueChange={field.onChange}
                 >
                   <FormControl>
@@ -127,7 +164,7 @@ export default function Register() {
                       <SelectValue placeholder="Selecione seu cargo" />
                     </SelectTrigger>
                   </FormControl>
-                  <SelectContent position="popper" className="z-[9999]">
+                  <SelectContent>
                     {CARGOS.map((cargo) => (
                       <SelectItem key={cargo} value={cargo}>
                         {cargo}
@@ -142,7 +179,11 @@ export default function Register() {
           <FormField
             control={form.control}
             name="phone"
-            render={({ field }: { field: ControllerRenderProps<FormValues, "phone"> }) => (
+            render={({
+              field,
+            }: {
+              field: ControllerRenderProps<FormValues, "phone">;
+            }) => (
               <FormItem>
                 <FormLabel>Telefone</FormLabel>
                 <FormControl>
@@ -155,11 +196,19 @@ export default function Register() {
           <FormField
             control={form.control}
             name="password"
-            render={({ field }: { field: ControllerRenderProps<FormValues, "password"> }) => (
+            render={({
+              field,
+            }: {
+              field: ControllerRenderProps<FormValues, "password">;
+            }) => (
               <FormItem>
                 <FormLabel>Senha</FormLabel>
                 <FormControl>
-                  <Input type="password" placeholder="Crie uma senha" {...field} />
+                  <Input
+                    type="password"
+                    placeholder="Crie uma senha"
+                    {...field}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -168,23 +217,36 @@ export default function Register() {
           <FormField
             control={form.control}
             name="confirmPassword"
-            render={({ field }: { field: ControllerRenderProps<FormValues, "confirmPassword"> }) => (
+            render={({
+              field,
+            }: {
+              field: ControllerRenderProps<FormValues, "confirmPassword">;
+            }) => (
               <FormItem>
                 <FormLabel>Confirmar senha</FormLabel>
                 <FormControl>
-                  <Input type="password" placeholder="Repita a senha" {...field} />
+                  <Input
+                    type="password"
+                    placeholder="Repita a senha"
+                    {...field}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
 
-          <Button type="submit" className="w-full">Criar conta</Button>
+          <Button type="submit" className="w-full">
+            Criar conta
+          </Button>
         </form>
       </Form>
 
       <p className="mt-4 text-sm text-muted-foreground">
-        Já tem uma conta? <Link to="/login" className="underline">Entrar</Link>
+        Já tem uma conta?{" "}
+        <Link to="/login" className="underline">
+          Entrar
+        </Link>
       </p>
     </main>
   );
