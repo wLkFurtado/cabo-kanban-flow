@@ -216,8 +216,12 @@ export function useAuth(): AuthState & AuthActions {
       }
     };
 
-    // Fire and forget; keeps UI consistent for existing users
-    syncUserProfile();
+    // Delay execution to avoid rate limit during signup
+    const timeoutId = setTimeout(() => {
+      syncUserProfile();
+    }, 2000); // 2 second delay
+
+    return () => clearTimeout(timeoutId);
   }, [user, isOnline]);
 
   const signUp = async (email: string, password: string, userData: UserData = {}) => {

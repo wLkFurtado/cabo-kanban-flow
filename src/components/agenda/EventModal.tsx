@@ -24,6 +24,7 @@ interface EventModalProps {
 interface EventFormData {
   nome: string;
   secretaria: string;
+  descricao: string;
   data: Date;
   horaInicio: string;
   horaFim: string;
@@ -37,6 +38,7 @@ export function EventModal({ open, onOpenChange, selectedDate, eventToEdit }: Ev
   const [formData, setFormData] = useState<EventFormData>({
     nome: "",
     secretaria: "",
+    descricao: "",
     data: selectedDate || new Date(),
     horaInicio: "09:00",
     horaFim: "10:00",
@@ -85,7 +87,7 @@ export function EventModal({ open, onOpenChange, selectedDate, eventToEdit }: Ev
     // Criar evento para salvar no banco (tabela events)
     const payload = {
       title: formData.nome,
-      description: `Secretaria: ${formData.secretaria}`,
+      description: formData.descricao || `Secretaria: ${formData.secretaria}`,
       start_date: dataInicio.toISOString(),
       end_date: dataFim.toISOString(),
       all_day: false,
@@ -102,6 +104,7 @@ export function EventModal({ open, onOpenChange, selectedDate, eventToEdit }: Ev
     setFormData({
       nome: "",
       secretaria: "",
+      descricao: "",
       data: selectedDate || new Date(),
       horaInicio: "09:00",
       horaFim: "10:00",
@@ -136,6 +139,7 @@ export function EventModal({ open, onOpenChange, selectedDate, eventToEdit }: Ev
         ...prev,
         nome: eventToEdit.title || "",
         secretaria: prev.secretaria || "",
+        descricao: eventToEdit.description || "",
         data: new Date(start.getFullYear(), start.getMonth(), start.getDate()),
         horaInicio: startTime,
         horaFim: endTime,
@@ -178,6 +182,17 @@ export function EventModal({ open, onOpenChange, selectedDate, eventToEdit }: Ev
             {errors.secretaria && (
               <p className="text-sm text-red-500">{errors.secretaria}</p>
             )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="descricao">Descrição</Label>
+            <Textarea
+              id="descricao"
+              value={formData.descricao}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange("descricao", e.target.value)}
+              placeholder="Digite a descrição da pauta (opcional)"
+              rows={3}
+            />
           </div>
 
           <div className="space-y-2">
