@@ -25,6 +25,7 @@ import { Seo } from "@/components/seo/Seo";
 // Removido o toggle de visualização (Semana)
 import { useEvents } from "@/hooks/useEvents";
 import { cn } from "@/lib/utils";
+import { usePautasPermissions } from "@/hooks/usePautasPermissions";
 
 
 export default function Agenda() {
@@ -42,6 +43,7 @@ export default function Agenda() {
   const { getDemandsByDate, getOverdueDemands, getDueSoonDemands } = useUserDemands();
   const { boards } = useBoardsStore();
   const { events, deleteEvent } = useEvents();
+  const { canDelete } = usePautasPermissions();
 
   const selectedDateStr = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : '';
   const dayDemands = selectedDateStr ? getDemandsByDate(selectedDateStr) : [];
@@ -218,20 +220,22 @@ export default function Agenda() {
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              e.preventDefault();
-                              // Abre o modal de confirmação
-                              setEventToDelete(ev.id);
-                              setDeleteConfirmOpen(true);
-                            }}
-                            aria-label="Excluir pauta"
-                          >
-                            <Trash className="h-4 w-4" />
-                          </Button>
+                          {canDelete && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                // Abre o modal de confirmação
+                                setEventToDelete(ev.id);
+                                setDeleteConfirmOpen(true);
+                              }}
+                              aria-label="Excluir pauta"
+                            >
+                              <Trash className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </div>
                     ))}
