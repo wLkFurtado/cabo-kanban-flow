@@ -13,6 +13,7 @@ import { cn } from "../../lib/utils";
 import { useEvents } from "../../hooks/useEvents";
 import type { AgendaEvent } from "../../hooks/useEvents";
 import { SecretariaCombobox } from "./SecretariaCombobox";
+import { usePautasPermissions } from "../../hooks/usePautasPermissions";
 
 interface EventModalProps {
   open: boolean;
@@ -34,6 +35,7 @@ interface EventFormData {
 
 export function EventModal({ open, onOpenChange, selectedDate, eventToEdit }: EventModalProps) {
   const { createEvent, updateEvent, deleteEvent, isCreating, isUpdating } = useEvents();
+  const { canDelete } = usePautasPermissions();
 
   const [formData, setFormData] = useState<EventFormData>({
     nome: "",
@@ -254,7 +256,7 @@ export function EventModal({ open, onOpenChange, selectedDate, eventToEdit }: Ev
           {/* Seção de equipe removida conforme solicitado */}
 
           <div className="flex justify-between items-center pt-4">
-            {eventToEdit && (
+            {eventToEdit && canDelete && (
               <Button
                 type="button"
                 variant="destructive"
