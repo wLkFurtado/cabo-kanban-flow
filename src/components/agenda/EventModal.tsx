@@ -40,7 +40,7 @@ export function EventModal({ open, onOpenChange, selectedDate, eventToEdit }: Ev
     secretaria: "",
     descricao: "",
     data: selectedDate || new Date(),
-    horaInicio: "09:00",
+    horaInicio: "07:00",
     horaFim: "10:00",
   });
 
@@ -106,7 +106,7 @@ export function EventModal({ open, onOpenChange, selectedDate, eventToEdit }: Ev
       secretaria: "",
       descricao: "",
       data: selectedDate || new Date(),
-      horaInicio: "09:00",
+      horaInicio: "07:00",
       horaFim: "10:00",
     });
     setErrors({});
