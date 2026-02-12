@@ -32,8 +32,8 @@ export const WeeklyAgenda: React.FC<WeeklyAgendaProps> = ({
     return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   }, [weekStart]);
 
-  // Horários de trabalho (8h às 20h)
-  const workingHours = Array.from({ length: 13 }, (_, i) => i + 8);
+  // Horários de trabalho (7h às 20h)
+  const workingHours = Array.from({ length: 14 }, (_, i) => i + 7);
 
   // Filtrar eventos da semana atual
   const weekEvents = useMemo(() => {
