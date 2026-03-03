@@ -7,7 +7,7 @@ interface WeekendTeamRow {
   id: string;
   weekend_key: string;
   chefe: string | null;
-  redes: string[];
+  rede: string[];
   fotografo: string | null;
   filmmaker: string | null;
   edicao: string | null;
@@ -23,7 +23,7 @@ interface WeekendTeamRow {
 function rowToTeam(row: WeekendTeamRow): WeekendTeam {
   return {
     chefe: row.chefe || undefined,
-    redes: row.redes || [],
+    redes: row.rede || [],
     fotografo: row.fotografo || undefined,
     filmmaker: row.filmmaker || undefined,
     edicao: row.edicao || undefined,
@@ -39,7 +39,7 @@ function teamToRow(team: WeekendTeam, weekendKey: string) {
   return {
     weekend_key: weekendKey,
     chefe: team.chefe || null,
-    redes: team.redes || [],
+    rede: team.redes || [],
     fotografo: team.fotografo || null,
     filmmaker: team.filmmaker || null,
     edicao: team.edicao || null,
