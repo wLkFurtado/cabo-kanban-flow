@@ -4,7 +4,7 @@ import { persist } from "zustand/middleware";
 export type WeekendTeam = {
   chefe?: string;
   jornalistas: string[];
-  rede?: string;
+  redes: string[];
   fotografo?: string;
   filmmaker?: string;
   edicao?: string;
@@ -22,6 +22,7 @@ export interface FdsState {
 
 const emptyTeam: WeekendTeam = {
   jornalistas: [],
+  redes: [],
   tamoios: [],
 };
 

@@ -7,7 +7,7 @@ interface WeekendTeamRow {
   id: string;
   weekend_key: string;
   chefe: string | null;
-  rede: string | null;
+  redes: string[];
   fotografo: string | null;
   filmmaker: string | null;
   edicao: string | null;
@@ -23,7 +23,7 @@ interface WeekendTeamRow {
 function rowToTeam(row: WeekendTeamRow): WeekendTeam {
   return {
     chefe: row.chefe || undefined,
-    rede: row.rede || undefined,
+    redes: row.redes || [],
     fotografo: row.fotografo || undefined,
     filmmaker: row.filmmaker || undefined,
     edicao: row.edicao || undefined,
@@ -39,7 +39,7 @@ function teamToRow(team: WeekendTeam, weekendKey: string) {
   return {
     weekend_key: weekendKey,
     chefe: team.chefe || null,
-    rede: team.rede || null,
+    redes: team.redes || [],
     fotografo: team.fotografo || null,
     filmmaker: team.filmmaker || null,
     edicao: team.edicao || null,
@@ -115,6 +115,7 @@ export function useFdsTeams() {
       // First get current team or use empty
       const currentTeam = teams[weekendKey] || {
         jornalistas: [],
+        redes: [],
         tamoios: [],
       };
 
@@ -179,7 +180,7 @@ export function useWeekendTeam(weekendKey: string | undefined) {
   const team =
     weekendKey && teams[weekendKey]
       ? teams[weekendKey]
-      : { jornalistas: [], tamoios: [] };
+      : { jornalistas: [], redes: [], tamoios: [] };
 
   return {
     team,

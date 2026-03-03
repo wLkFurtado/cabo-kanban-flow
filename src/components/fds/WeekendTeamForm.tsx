@@ -38,13 +38,13 @@ export function WeekendTeamForm({ weekendDate }: WeekendTeamFormProps) {
   const weekendKey = key as string;
 
   const handleSingle = (
-    role: Exclude<keyof WeekendTeam, "jornalistas" | "tamoios" | "notes">,
+    role: Exclude<keyof WeekendTeam, "jornalistas" | "redes" | "tamoios" | "notes">,
     userId?: string
   ) => {
     updateRole(role, userId);
   };
 
-  const handleMulti = (role: "jornalistas" | "tamoios", ids: string[]) => {
+  const handleMulti = (role: "jornalistas" | "redes" | "tamoios", ids: string[]) => {
     updateRole(role, ids);
   };
 
@@ -97,11 +97,11 @@ export function WeekendTeamForm({ weekendDate }: WeekendTeamFormProps) {
         <Separator />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <RoleUserSelect
+          <RoleUsersMultiSelect
             label="Rede"
-            cargo="rede"
-            value={team?.rede}
-            onChange={(id: string | undefined) => handleSingle("rede", id || undefined)}
+            cargoFilter={["rede"]}
+            selectedIds={team?.redes || []}
+            onChange={(ids: string[]) => handleMulti("redes", ids)}
             disabled={!canEdit}
           />
           <RoleUserSelect
