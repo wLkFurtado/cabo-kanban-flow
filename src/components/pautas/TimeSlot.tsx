@@ -33,8 +33,21 @@ export const TimeSlot: React.FC<TimeSlotProps> = ({
 
   // Função auxiliar para obter os primeiros nomes de usuários por IDs
   const getFirstNames = (userIds: string | string[] | undefined): string => {
-    if (!userIds || (Array.isArray(userIds) && userIds.length === 0)) return '';
-    const ids = Array.isArray(userIds) ? userIds : [userIds];
+    if (!userIds) return '';
+    
+    // Tratamento para strings que representam arrays (ex: formato do PostgreSQL "{id1, id2}")
+    let ids: string[] = [];
+    if (typeof userIds === 'string') {
+      if (userIds.startsWith('{') && userIds.endsWith('}')) {
+        ids = userIds.slice(1, -1).split(',').map(id => id.trim()).filter(Boolean);
+      } else {
+        ids = [userIds];
+      }
+    } else if (Array.isArray(userIds)) {
+      ids = userIds;
+    }
+
+    if (ids.length === 0) return '';
     
     const names = ids.map(id => {
       const profile = profiles?.find(p => p.id === id);
