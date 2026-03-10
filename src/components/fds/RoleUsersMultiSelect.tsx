@@ -22,12 +22,24 @@ export function RoleUsersMultiSelect({ label, cargoFilter, selectedIds, onChange
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
 
+  const normalize = (str: string) =>
+    str
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/\p{Diacritic}/gu, "")
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+
   const candidates = useMemo(() => {
-    const filterList = Array.isArray(cargoFilter) ? cargoFilter.map((c) => c.toLowerCase()) : cargoFilter ? [cargoFilter.toLowerCase()] : [];
+    const filterList = Array.isArray(cargoFilter)
+      ? cargoFilter.map((c) => normalize(c))
+      : cargoFilter
+      ? [normalize(cargoFilter)]
+      : [];
     return (profiles || []).filter((p: Profile) => {
       const name = (p.full_name || p.display_name || "").toLowerCase();
       const email = (p.email || "").toLowerCase();
-      const cargo = (p.cargo || "").toLowerCase();
+      const cargo = normalize(p.cargo || p.role || "");
       const matchesSearch = name.includes(search.toLowerCase()) || email.includes(search.toLowerCase());
       const matchesCargo = filterList.length === 0 || filterList.some((f) => cargo.includes(f));
       const notSelected = !selectedIds.includes(p.id);
