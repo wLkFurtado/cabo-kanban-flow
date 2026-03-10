@@ -149,7 +149,7 @@ export function usePautas() {
 
       const { data: originalEvent, error: fetchError } = await supabase
         .from('pautas_events')
-        .select('id, titulo, descricao, data_inicio, data_fim, tipo, prioridade, status, recorrencia, cor, local, responsavel_id, criado_por, created_at, updated_at')
+        .select('id, titulo, descricao, data_inicio, data_fim, tipo, prioridade, status, recorrencia, cor, local, responsavel_id, filmmaker_id, fotografo_id, jornalista_id, rede_id, criado_por, created_at, updated_at')
         .eq('id', eventId)
         .single();
 
