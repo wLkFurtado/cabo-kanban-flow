@@ -18,7 +18,7 @@ import {
 } from '../ui/alert-dialog';
 import { Evento } from '../../state/pautasTypes';
 import { usePautas } from '../../hooks/usePautas';
-import { RoleUserSelect } from './RoleUserSelect';
+import { RoleUsersMultiSelect } from '../fds/RoleUsersMultiSelect';
 import { useAdminRole } from '../../hooks/useAdminRole';
 
 interface EventModalProps {
@@ -39,17 +39,28 @@ export const EventModal: React.FC<EventModalProps> = ({
   const { createEvent, updateEvent, deleteEvent, isCreating, isUpdating, isDeleting } = usePautas();
   const { isAdmin, hasScope, loading: adminLoading } = useAdminRole();
   const canEdit = isAdmin || hasScope('pautas_admin');
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    titulo: string;
+    dataInicio: string;
+    horaInicio: string;
+    dataFim: string;
+    horaFim: string;
+    descricao: string;
+    filmmaker: string[];
+    fotografo: string[];
+    jornalista: string[];
+    rede: string[];
+  }>({
     titulo: '',
     dataInicio: '',
     horaInicio: '',
     dataFim: '',
     horaFim: '',
     descricao: '',
-    filmmaker: '',
-    fotografo: '',
-    jornalista: '',
-    rede: ''
+    filmmaker: [],
+    fotografo: [],
+    jornalista: [],
+    rede: []
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -68,10 +79,10 @@ export const EventModal: React.FC<EventModalProps> = ({
         dataFim: format(evento.dataFim, 'yyyy-MM-dd'),
         horaFim: format(evento.dataFim, 'HH:mm'),
         descricao: evento.descricao || '',
-        filmmaker: evento.filmmaker || '',
-        fotografo: evento.fotografo || '',
-        jornalista: evento.jornalista || '',
-        rede: evento.rede || ''
+        filmmaker: evento.filmmaker || [],
+        fotografo: evento.fotografo || [],
+        jornalista: evento.jornalista || [],
+        rede: evento.rede || []
       });
     } else if (initialDate) {
       // Novo evento com data inicial
@@ -85,10 +96,10 @@ export const EventModal: React.FC<EventModalProps> = ({
         dataFim: format(initialDate, 'yyyy-MM-dd'),
         horaFim: `${endHour.toString().padStart(2, '0')}:00`,
         descricao: '',
-        filmmaker: '',
-        fotografo: '',
-        jornalista: '',
-        rede: ''
+        filmmaker: [],
+        fotografo: [],
+        jornalista: [],
+        rede: []
       });
     } else {
       // Reset para novo evento
@@ -100,10 +111,10 @@ export const EventModal: React.FC<EventModalProps> = ({
         dataFim: format(now, 'yyyy-MM-dd'),
         horaFim: '10:00',
         descricao: '',
-        filmmaker: '',
-        fotografo: '',
-        jornalista: '',
-        rede: ''
+        filmmaker: [],
+        fotografo: [],
+        jornalista: [],
+        rede: []
       });
     }
     setErrors({});
@@ -158,10 +169,10 @@ export const EventModal: React.FC<EventModalProps> = ({
         descricao: formData.descricao || '',
         data_inicio: dataInicio.toISOString(),
         data_fim: dataFim.toISOString(),
-        filmmaker_id: formData.filmmaker || null,
-        fotografo_id: formData.fotografo || null,
-        jornalista_id: formData.jornalista || null,
-        rede_id: formData.rede || null,
+        filmmaker_id: formData.filmmaker.length > 0 ? formData.filmmaker : null,
+        fotografo_id: formData.fotografo.length > 0 ? formData.fotografo : null,
+        jornalista_id: formData.jornalista.length > 0 ? formData.jornalista : null,
+        rede_id: formData.rede.length > 0 ? formData.rede : null,
       });
     } else {
       createEvent({
@@ -175,10 +186,10 @@ export const EventModal: React.FC<EventModalProps> = ({
         recorrencia: 'nenhuma',
         cor: '#3b82f6',
         local: '',
-        filmmaker_id: formData.filmmaker || null,
-        fotografo_id: formData.fotografo || null,
-        jornalista_id: formData.jornalista || null,
-        rede_id: formData.rede || null,
+        filmmaker_id: formData.filmmaker.length > 0 ? formData.filmmaker : null,
+        fotografo_id: formData.fotografo.length > 0 ? formData.fotografo : null,
+        jornalista_id: formData.jornalista.length > 0 ? formData.jornalista : null,
+        rede_id: formData.rede.length > 0 ? formData.rede : null,
       });
     }
     
@@ -292,37 +303,33 @@ export const EventModal: React.FC<EventModalProps> = ({
           </div>
           
           {/* Equipe: seleção por área (filtrando perfis por cargo) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <RoleUserSelect
+          <div className="grid grid-cols-1 gap-6 mt-4">
+            <RoleUsersMultiSelect
               label="Filmmaker"
-              cargo="filmmaker"
-              value={formData.filmmaker || undefined}
-              onChange={(userId?: string) => setFormData(prev => ({ ...prev, filmmaker: userId || '' }))}
-              placeholder="Selecionar filmmaker"
+              cargoFilter="filmmaker"
+              selectedIds={formData.filmmaker}
+              onChange={(ids: string[]) => setFormData(prev => ({ ...prev, filmmaker: ids }))}
               disabled={!canEdit}
             />
-            <RoleUserSelect
+            <RoleUsersMultiSelect
               label="Fotógrafo"
-              cargo="fotografo"
-              value={formData.fotografo || undefined}
-              onChange={(userId?: string) => setFormData(prev => ({ ...prev, fotografo: userId || '' }))}
-              placeholder="Selecionar fotógrafo"
+              cargoFilter="fotografo"
+              selectedIds={formData.fotografo}
+              onChange={(ids: string[]) => setFormData(prev => ({ ...prev, fotografo: ids }))}
               disabled={!canEdit}
             />
-            <RoleUserSelect
+            <RoleUsersMultiSelect
               label="Jornalista"
-              cargo="jornalista"
-              value={formData.jornalista || undefined}
-              onChange={(userId?: string) => setFormData(prev => ({ ...prev, jornalista: userId || '' }))}
-              placeholder="Selecionar jornalista"
+              cargoFilter="jornalista"
+              selectedIds={formData.jornalista}
+              onChange={(ids: string[]) => setFormData(prev => ({ ...prev, jornalista: ids }))}
               disabled={!canEdit}
             />
-            <RoleUserSelect
+            <RoleUsersMultiSelect
               label="Rede"
-              cargo="rede"
-              value={formData.rede || undefined}
-              onChange={(userId?: string) => setFormData(prev => ({ ...prev, rede: userId || '' }))}
-              placeholder="Selecionar responsável de redes"
+              cargoFilter="rede"
+              selectedIds={formData.rede}
+              onChange={(ids: string[]) => setFormData(prev => ({ ...prev, rede: ids }))}
               disabled={!canEdit}
             />
           </div>

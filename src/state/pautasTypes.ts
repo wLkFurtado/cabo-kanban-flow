@@ -11,10 +11,10 @@ export interface Evento {
   participantes: string[]; // Participantes do evento
   local?: string;
   observacoes?: string;
-  filmmaker?: string; // identificador do filmmaker (ex: email)
-  fotografo?: string; // identificador do fotógrafo (ex: email)
-  jornalista?: string; // identificador do jornalista (ex: email)
-  rede?: string; // identificador do responsável de redes (ex: email)
+  filmmaker?: string[]; // identificadores do filmmaker (ex: ids)
+  fotografo?: string[]; // identificadores do fotógrafo (ex: ids)
+  jornalista?: string[]; // identificadores do jornalista (ex: ids)
+  rede?: string[]; // identificadores do responsável de redes (ex: ids)
   recorrencia: 'nenhuma' | 'diaria' | 'semanal' | 'mensal';
   lembrete: number; // minutos antes
   tags: string[];
@@ -112,10 +112,10 @@ export const criarEventoVazio = (): Omit<Evento, 'id'> => ({
   participantes: [],
   local: '',
   observacoes: '',
-  filmmaker: '',
-  fotografo: '',
-  jornalista: '',
-  rede: '',
+  filmmaker: [],
+  fotografo: [],
+  jornalista: [],
+  rede: [],
   recorrencia: 'nenhuma',
   lembrete: 15,
   tags: [],
