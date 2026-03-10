@@ -302,8 +302,7 @@ export const EventModal: React.FC<EventModalProps> = ({
             </div>
           </div>
           
-          {/* Equipe: seleção por área (filtrando perfis por cargo) */}
-          <div className="grid grid-cols-1 gap-6 mt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
             <RoleUsersMultiSelect
               label="Filmmaker"
               cargoFilter="filmmaker"
