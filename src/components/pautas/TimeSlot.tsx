@@ -31,13 +31,19 @@ export const TimeSlot: React.FC<TimeSlotProps> = ({
   const [isHovered, setIsHovered] = React.useState(false);
   const [expanded, setExpanded] = React.useState(false);
 
-  // Função auxiliar para obter o primeiro nome de um usuário pelo ID
-  const getFirstName = (userId: string | undefined): string => {
-    if (!userId) return '';
-    const profile = profiles?.find(p => p.id === userId);
-    if (!profile) return '';
-    const fullName = profile.full_name || profile.display_name || profile.email || '';
-    return fullName.split(' ')[0]; // Retorna apenas o primeiro nome
+  // Função auxiliar para obter os primeiros nomes de usuários por IDs
+  const getFirstNames = (userIds: string | string[] | undefined): string => {
+    if (!userIds || (Array.isArray(userIds) && userIds.length === 0)) return '';
+    const ids = Array.isArray(userIds) ? userIds : [userIds];
+    
+    const names = ids.map(id => {
+      const profile = profiles?.find(p => p.id === id);
+      if (!profile) return '';
+      const fullName = profile.full_name || profile.display_name || profile.email || '';
+      return fullName.split(' ')[0]; // Retorna apenas o primeiro nome
+    }).filter(Boolean);
+    
+    return names.join(', ');
   };
 
   const dropZone: DropZoneData = {
@@ -94,10 +100,10 @@ export const TimeSlot: React.FC<TimeSlotProps> = ({
       {/* Eventos no slot - visual refinado e sem sobreposição */}
       <div className="p-1 space-y-1" aria-expanded={expanded}>
         {visibleEvents.map((evento) => {
-          const filmakerName = getFirstName(evento.filmmaker);
-          const fotografoName = getFirstName(evento.fotografo);
-          const jornalistaName = getFirstName(evento.jornalista);
-          const redeName = getFirstName(evento.rede);
+          const filmakerName = getFirstNames(evento.filmmaker);
+          const fotografoName = getFirstNames(evento.fotografo);
+          const jornalistaName = getFirstNames(evento.jornalista);
+          const redeName = getFirstNames(evento.rede);
           
           return (
             <div
