@@ -6,13 +6,14 @@ import { Evento } from '../../state/pautasTypes';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import { useProfiles } from '../../hooks/useProfiles';
+import type { Profile } from '../../hooks/useProfiles';
 
 interface TimeSlotProps {
   date: Date;
   hour: number;
   dayIndex: number;
   eventos: Evento[];
+  profiles: Profile[];
   onEventClick?: (eventId: string) => void;
   className?: string;
 }
@@ -22,12 +23,12 @@ export const TimeSlot: React.FC<TimeSlotProps> = ({
   hour,
   dayIndex,
   eventos,
+  profiles,
   onEventClick,
   className
 }) => {
   const { handleDragOver, handleDrop } = useDragAndDrop();
   const { adicionarEvento } = usePautasStore();
-  const { profiles } = useProfiles();
   const [isHovered, setIsHovered] = React.useState(false);
   const [expanded, setExpanded] = React.useState(false);
 

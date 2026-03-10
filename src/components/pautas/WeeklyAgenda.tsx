@@ -8,6 +8,7 @@ import { usePautasStore } from '../../state/pautasStore';
 import { TimeSlot } from './TimeSlot';
 import { cn } from '../../lib/utils';
 import { Evento } from '../../state/pautasTypes';
+import { useProfiles } from '../../hooks/useProfiles';
 
 interface WeeklyAgendaProps {
   eventos: Evento[];
@@ -21,6 +22,7 @@ export const WeeklyAgenda: React.FC<WeeklyAgendaProps> = ({
   onCreateEvent
 }) => {
   const { filtros } = usePautasStore();
+  const { profiles } = useProfiles();
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [selectedHour, setSelectedHour] = useState<number | null>(null);
 
@@ -167,6 +169,7 @@ export const WeeklyAgenda: React.FC<WeeklyAgendaProps> = ({
                       hour={hour}
                       dayIndex={dayIndex}
                       eventos={dayEvents}
+                      profiles={profiles}
                       onEventClick={onEventClick}
                       className={cn(
                         'hover:bg-gray-50 dark:hover:bg-gray-750 cursor-pointer',
