@@ -305,28 +305,24 @@ export const EventModal: React.FC<EventModalProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
             <RoleUsersMultiSelect
               label="Filmmaker"
-              cargoFilter="filmmaker"
               selectedIds={formData.filmmaker}
               onChange={(ids: string[]) => setFormData(prev => ({ ...prev, filmmaker: ids }))}
               disabled={!canEdit}
             />
             <RoleUsersMultiSelect
               label="Fotógrafo"
-              cargoFilter="fotografo"
               selectedIds={formData.fotografo}
               onChange={(ids: string[]) => setFormData(prev => ({ ...prev, fotografo: ids }))}
               disabled={!canEdit}
             />
             <RoleUsersMultiSelect
               label="Jornalista"
-              cargoFilter="jornalista"
               selectedIds={formData.jornalista}
               onChange={(ids: string[]) => setFormData(prev => ({ ...prev, jornalista: ids }))}
               disabled={!canEdit}
             />
             <RoleUsersMultiSelect
               label="Rede"
-              cargoFilter="rede"
               selectedIds={formData.rede}
               onChange={(ids: string[]) => setFormData(prev => ({ ...prev, rede: ids }))}
               disabled={!canEdit}
