@@ -34,9 +34,6 @@ export const WeeklyAgenda: React.FC<WeeklyAgendaProps> = ({
     return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   }, [weekStart]);
 
-  // Horários de trabalho (7h às 20h)
-  const workingHours = Array.from({ length: 14 }, (_, i) => i + 7);
-
   // Filtrar eventos da semana atual
   const weekEvents = useMemo(() => {
     return eventos.filter(evento => {
@@ -49,6 +46,27 @@ export const WeeklyAgenda: React.FC<WeeklyAgendaProps> = ({
       return true;
     });
   }, [eventos, weekDays, filtros]);
+
+  // Horários de trabalho: padrão 7h às 20h, expande pra baixo (até 4h) se houver pautas antes das 7h
+  const workingHours = useMemo(() => {
+    const DEFAULT_START = 7;
+    const MIN_START = 4;
+    const END_HOUR = 20;
+
+    // Encontrar o horário mais cedo entre os eventos da semana
+    let earliestHour = DEFAULT_START;
+    for (const evento of weekEvents) {
+      const h = evento.dataInicio.getHours();
+      if (h < earliestHour) {
+        earliestHour = h;
+      }
+    }
+
+    // Limitar no mínimo a 4h
+    const startHour = Math.max(MIN_START, Math.min(earliestHour, DEFAULT_START));
+    const length = END_HOUR - startHour + 1;
+    return Array.from({ length }, (_, i) => i + startHour);
+  }, [weekEvents]);
 
   const navigateWeek = (direction: 'prev' | 'next') => {
     setCurrentWeek(prev => 
