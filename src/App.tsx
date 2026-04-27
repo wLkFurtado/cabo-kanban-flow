@@ -18,6 +18,7 @@ import AITextGenerator from "./pages/AITextGenerator";
 import Equipamentos from "./pages/Equipamentos";
 import Carros from "./pages/Carros";
 import Relatorios from "./pages/Relatorios";
+import RedesSociais from "./pages/RedesSociais";
 import RootLayout from "./components/layout/RootLayout";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -70,6 +71,7 @@ const App = () => (
               <Route path="/equipamentos" element={<Equipamentos />} />
               <Route path="/carros" element={<Carros />} />
               <Route path="/relatorios" element={<Relatorios />} />
+              <Route path="/redes-sociais" element={<RedesSociais />} />
               <Route
                 path="/contatos"
                 element={
