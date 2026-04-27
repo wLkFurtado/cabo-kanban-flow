@@ -183,13 +183,28 @@ export default function Relatorios() {
 
       const parsed: ImportReportInput[] = rows.map((row) => {
         const rawDate = row['Data'] ?? row['data'];
+        
+        let autor = null;
+        if (row['Nome do Autor'] != null || row['Sobrenome do Autor'] != null) {
+          autor = `${row['Nome do Autor'] || ''} ${row['Sobrenome do Autor'] || ''}`.trim();
+        } else if (row['Autor'] != null) {
+          autor = String(row['Autor']);
+        } else if (row['autor'] != null) {
+          autor = String(row['autor']);
+        }
+
+        const categorias = row['Categoria'] != null ? String(row['Categoria']) :
+                           row['categoria'] != null ? String(row['categoria']) :
+                           row['Categorias'] != null ? String(row['Categorias']) :
+                           row['categorias'] != null ? String(row['categorias']) : null;
+
         return {
           external_id: row['Id'] != null ? Number(row['Id']) : (row['id'] != null ? Number(row['id']) : null),
           titulo: String(row['Titulo'] ?? row['Título'] ?? row['titulo'] ?? row['título'] ?? ''),
           data: parseDate(rawDate),
           link: row['Link'] != null ? String(row['Link']) : (row['link'] != null ? String(row['link']) : null),
-          categorias: row['Categorias'] != null ? String(row['Categorias']) : (row['categorias'] != null ? String(row['categorias']) : null),
-          autor: row['Autor'] != null ? String(row['Autor']) : (row['autor'] != null ? String(row['autor']) : null),
+          categorias: categorias,
+          autor: autor || null,
           mes_referencia: extractMonthFromDate(rawDate),
         };
       }).filter((r) => r.titulo.length > 0);
