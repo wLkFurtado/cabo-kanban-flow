@@ -4,26 +4,63 @@ import { Button } from "../ui/button";
 import { Label } from "../ui/label";
 import { Input } from "../ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { Badge } from "../ui/badge";
 import { useProfiles } from "../../hooks/useProfiles";
 import type { Profile } from "../../hooks/useProfiles";
+import { useAbsences } from "../../hooks/useAbsences";
+import { useToast } from "@/components/ui/use-toast";
 import { getInitials } from "@/lib/utils";
 import { cn } from "../../lib/utils";
 
 interface RoleUserSelectProps {
   label: string;
-  cargo: string; // Ex.: "filmmaker", "fotografo", "jornalista", "rede"
-  cargoFilter?: string | string[]; // filtros adicionais para incluir outros cargos relacionados
-  value?: string; // profile id selecionado
+  cargo: string;
+  cargoFilter?: string | string[];
+  value?: string;
   onChange: (userId?: string) => void;
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  pautaDate?: string | Date;
 }
 
-export function RoleUserSelect({ label, cargo, cargoFilter, value, onChange, placeholder, className, disabled }: RoleUserSelectProps) {
+export function RoleUserSelect({ label, cargo, cargoFilter, value, onChange, placeholder, className, disabled, pautaDate }: RoleUserSelectProps) {
   const { profiles } = useProfiles();
+  const { absences } = useAbsences();
+  const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+
+  const checkUserAbsence = (userId: string, targetDateStr?: string | Date) => {
+    if (!targetDateStr) return null;
+    
+    let targetDate: Date;
+    if (typeof targetDateStr === "string") {
+      targetDate = new Date(targetDateStr.split("T")[0] + "T12:00:00");
+    } else {
+      targetDate = new Date(targetDateStr);
+      targetDate.setHours(12, 0, 0, 0);
+    }
+    
+    return absences.find((abs) => {
+      if (abs.user_id !== userId) return false;
+      const start = new Date(abs.data_inicio + "T00:00:00");
+      const end = new Date(abs.data_fim + "T23:59:59");
+      return targetDate >= start && targetDate <= end;
+    });
+  };
+
+  const formatDate = (dateStr: string) => {
+    try {
+      const parts = dateStr.split("-");
+      if (parts.length === 3) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+      return dateStr;
+    } catch {
+      return dateStr;
+    }
+  };
 
   const normalize = (str: string) =>
     str
@@ -94,29 +131,56 @@ export function RoleUserSelect({ label, cargo, cargoFilter, value, onChange, pla
                   Nenhum profissional encontrado para {cargo}
                 </div>
               ) : (
-                options.map((p: Profile) => (
-                  <Button
-                    key={p.id}
-                    variant="ghost"
-                    className="w-full justify-start gap-3 h-auto p-3"
-                    onClick={() => {
-                      if (disabled) return;
-                      onChange(p.id);
-                      setOpen(false);
-                      setSearch("");
-                    }}
-                    disabled={disabled}
-                  >
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={p.avatar_url || undefined} />
-                      <AvatarFallback className="text-xs">{getInitials(p.full_name || p.display_name || "Usuário")}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex flex-col items-start">
-                      <span className="text-sm font-medium">{p.full_name || p.display_name || "Usuário"}</span>
-                      <span className="text-xs text-muted-foreground">{p.email || ""}</span>
-                    </div>
-                  </Button>
-                ))
+                options.map((p: Profile) => {
+                  const absence = checkUserAbsence(p.id, pautaDate);
+                  return (
+                    <Button
+                      key={p.id}
+                      variant="ghost"
+                      className="w-full justify-start gap-3 h-auto p-3 text-left"
+                      onClick={() => {
+                        if (disabled) return;
+                        if (absence) {
+                          const name = p.full_name || p.display_name || "Este colaborador";
+                          toast({
+                            title: "Colaborador Indisponível",
+                            description: `${name} está de ${
+                              absence.tipo === "ferias" ? "Férias" : "Folga"
+                            } no período de ${formatDate(absence.data_inicio)} a ${formatDate(absence.data_fim)}.${
+                              absence.observacao ? ` (Motivo: ${absence.observacao})` : ""
+                            }`,
+                            variant: "destructive",
+                          });
+                          return;
+                        }
+                        onChange(p.id);
+                        setOpen(false);
+                        setSearch("");
+                      }}
+                      disabled={disabled}
+                    >
+                      <Avatar className="h-8 w-8 flex-shrink-0">
+                        <AvatarImage src={p.avatar_url || undefined} />
+                        <AvatarFallback className="text-xs">{getInitials(p.full_name || p.display_name || "Usuário")}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-col items-start min-w-0 flex-1">
+                        <div className="flex items-center justify-between w-full gap-2">
+                          <span className="text-sm font-medium truncate">{p.full_name || p.display_name || "Usuário"}</span>
+                          {absence && (
+                            <Badge variant="outline" className={`text-[10px] px-1 py-0 h-4 flex-shrink-0 ${
+                              absence.tipo === "ferias"
+                                ? "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/30 dark:text-sky-400 dark:border-sky-900"
+                                : "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900"
+                            }`}>
+                              {absence.tipo === "ferias" ? "🌴 Férias" : "💤 Folga"}
+                            </Badge>
+                          )}
+                        </div>
+                        <span className="text-xs text-muted-foreground truncate w-full">{p.email || ""}</span>
+                      </div>
+                    </Button>
+                  );
+                })
               )}
             </div>
             {value && (

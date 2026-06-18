@@ -1,5 +1,5 @@
 import { SidebarBody, SidebarLink, useSidebar } from "../ui/sidebar";
-import { Calendar, FileText, PenTool, Users, Milestone, Package, Car, BarChart3, Share2 } from "lucide-react";
+import { Calendar, FileText, PenTool, Users, Milestone, Package, Car, BarChart3, Share2, CalendarOff } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { useAdminRole } from "../../hooks/useAdminRole";
 const menuItems = [
@@ -13,6 +13,7 @@ const menuItems = [
   { title: "Redes Sociais", url: "/redes-sociais", icon: Share2 },
   { title: "Gerador de texto", url: "/gerador-texto", icon: PenTool },
   { title: "Sugestões de melhoria", url: "/melhorias", icon: Milestone },
+  { title: "Férias e Folgas", url: "/ausencias", icon: CalendarOff, adminOnly: true },
   { title: "Contatos", url: "/contatos", icon: Users, adminOnly: true },
 ];
 

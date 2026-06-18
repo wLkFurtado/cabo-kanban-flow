@@ -11,6 +11,7 @@ import Pautas from "./pages/Pautas";
 import EscalaFDS from "./pages/EscalaFDS";
 import Contacts from "./pages/Contacts";
 import AdminContacts from "./pages/AdminContacts";
+import Ausencias from "./pages/Ausencias";
 import AgendaInstitucional from "./pages/AgendaInstitucional";
 import Roadmap from "./pages/Roadmap";
 import Melhorias from "./pages/Melhorias";
@@ -77,6 +78,14 @@ const App = () => (
                 element={
                   <AdminRoute>
                     <AdminContacts />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/ausencias"
+                element={
+                  <AdminRoute>
+                    <Ausencias />
                   </AdminRoute>
                 }
               />

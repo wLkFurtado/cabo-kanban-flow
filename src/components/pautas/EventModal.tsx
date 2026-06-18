@@ -323,6 +323,7 @@ export const EventModal: React.FC<EventModalProps> = ({
               selectedIds={formData.filmmaker}
               onChange={(ids: string[]) => setFormData(prev => ({ ...prev, filmmaker: ids }))}
               disabled={!canEdit}
+              pautaDate={formData.dataInicio}
             />
             <RoleUsersMultiSelect
               label="Fotógrafo"
@@ -330,6 +331,7 @@ export const EventModal: React.FC<EventModalProps> = ({
               selectedIds={formData.fotografo}
               onChange={(ids: string[]) => setFormData(prev => ({ ...prev, fotografo: ids }))}
               disabled={!canEdit}
+              pautaDate={formData.dataInicio}
             />
             <RoleUsersMultiSelect
               label="Jornalista"
@@ -337,6 +339,7 @@ export const EventModal: React.FC<EventModalProps> = ({
               selectedIds={formData.jornalista}
               onChange={(ids: string[]) => setFormData(prev => ({ ...prev, jornalista: ids }))}
               disabled={!canEdit}
+              pautaDate={formData.dataInicio}
             />
             <RoleUsersMultiSelect
               label="Rede"
@@ -344,6 +347,7 @@ export const EventModal: React.FC<EventModalProps> = ({
               selectedIds={formData.rede}
               onChange={(ids: string[]) => setFormData(prev => ({ ...prev, rede: ids }))}
               disabled={!canEdit}
+              pautaDate={formData.dataInicio}
             />
             <RoleUsersMultiSelect
               label="Editor"
@@ -351,12 +355,14 @@ export const EventModal: React.FC<EventModalProps> = ({
               selectedIds={formData.editor}
               onChange={(ids: string[]) => setFormData(prev => ({ ...prev, editor: ids }))}
               disabled={!canEdit}
+              pautaDate={formData.dataInicio}
             />
             <RoleUsersMultiSelect
               label="Direção"
               selectedIds={formData.direcao}
               onChange={(ids: string[]) => setFormData(prev => ({ ...prev, direcao: ids }))}
               disabled={!canEdit}
+              pautaDate={formData.dataInicio}
             />
           </div>
           
