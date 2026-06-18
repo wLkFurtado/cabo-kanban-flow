@@ -50,6 +50,8 @@ export const EventModal: React.FC<EventModalProps> = ({
     fotografo: string[];
     jornalista: string[];
     rede: string[];
+    editor: string[];
+    direcao: string[];
   }>({
     titulo: '',
     dataInicio: '',
@@ -60,7 +62,9 @@ export const EventModal: React.FC<EventModalProps> = ({
     filmmaker: [],
     fotografo: [],
     jornalista: [],
-    rede: []
+    rede: [],
+    editor: [],
+    direcao: [],
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -82,7 +86,9 @@ export const EventModal: React.FC<EventModalProps> = ({
         filmmaker: evento.filmmaker || [],
         fotografo: evento.fotografo || [],
         jornalista: evento.jornalista || [],
-        rede: evento.rede || []
+        rede: evento.rede || [],
+        editor: evento.editor || [],
+        direcao: evento.direcao || [],
       });
     } else if (initialDate) {
       // Novo evento com data inicial
@@ -99,7 +105,9 @@ export const EventModal: React.FC<EventModalProps> = ({
         filmmaker: [],
         fotografo: [],
         jornalista: [],
-        rede: []
+        rede: [],
+        editor: [],
+        direcao: [],
       });
     } else {
       // Reset para novo evento
@@ -114,7 +122,9 @@ export const EventModal: React.FC<EventModalProps> = ({
         filmmaker: [],
         fotografo: [],
         jornalista: [],
-        rede: []
+        rede: [],
+        editor: [],
+        direcao: [],
       });
     }
     setErrors({});
@@ -173,6 +183,8 @@ export const EventModal: React.FC<EventModalProps> = ({
         fotografo_id: formData.fotografo.length > 0 ? formData.fotografo : null,
         jornalista_id: formData.jornalista.length > 0 ? formData.jornalista : null,
         rede_id: formData.rede.length > 0 ? formData.rede : null,
+        editor_id: formData.editor.length > 0 ? formData.editor : null,
+        direcao_id: formData.direcao.length > 0 ? formData.direcao : null,
       });
     } else {
       createEvent({
@@ -190,6 +202,8 @@ export const EventModal: React.FC<EventModalProps> = ({
         fotografo_id: formData.fotografo.length > 0 ? formData.fotografo : null,
         jornalista_id: formData.jornalista.length > 0 ? formData.jornalista : null,
         rede_id: formData.rede.length > 0 ? formData.rede : null,
+        editor_id: formData.editor.length > 0 ? formData.editor : null,
+        direcao_id: formData.direcao.length > 0 ? formData.direcao : null,
       });
     }
     
@@ -329,6 +343,19 @@ export const EventModal: React.FC<EventModalProps> = ({
               cargoFilter="rede"
               selectedIds={formData.rede}
               onChange={(ids: string[]) => setFormData(prev => ({ ...prev, rede: ids }))}
+              disabled={!canEdit}
+            />
+            <RoleUsersMultiSelect
+              label="Editor"
+              cargoFilter={["filmmaker", "editor"]}
+              selectedIds={formData.editor}
+              onChange={(ids: string[]) => setFormData(prev => ({ ...prev, editor: ids }))}
+              disabled={!canEdit}
+            />
+            <RoleUsersMultiSelect
+              label="Direção"
+              selectedIds={formData.direcao}
+              onChange={(ids: string[]) => setFormData(prev => ({ ...prev, direcao: ids }))}
               disabled={!canEdit}
             />
           </div>

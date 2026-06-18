@@ -15,6 +15,8 @@ export interface Evento {
   fotografo?: string[]; // identificadores do fotógrafo (ex: ids)
   jornalista?: string[]; // identificadores do jornalista (ex: ids)
   rede?: string[]; // identificadores do responsável de redes (ex: ids)
+  editor?: string[]; // identificadores do editor (ex: ids)
+  direcao?: string[]; // identificadores da direção (ex: ids)
   recorrencia: 'nenhuma' | 'diaria' | 'semanal' | 'mensal';
   lembrete: number; // minutos antes
   tags: string[];
@@ -116,6 +118,8 @@ export const criarEventoVazio = (): Omit<Evento, 'id'> => ({
   fotografo: [],
   jornalista: [],
   rede: [],
+  editor: [],
+  direcao: [],
   recorrencia: 'nenhuma',
   lembrete: 15,
   tags: [],

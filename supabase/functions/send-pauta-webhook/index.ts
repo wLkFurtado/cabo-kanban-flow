@@ -45,7 +45,7 @@ serve(async (req) => {
     // Buscar dados da pauta
     const { data: pauta, error: pautaError } = await supabase
       .from('pautas_events')
-      .select('id, titulo, descricao, data_inicio, filmmaker_id, fotografo_id, jornalista_id, rede_id')
+      .select('id, titulo, descricao, data_inicio, filmmaker_id, fotografo_id, jornalista_id, rede_id, editor_id, direcao_id')
       .eq('id', pauta_id)
       .single()
 
@@ -58,7 +58,7 @@ serve(async (req) => {
     }
 
     // Verificar se há pelo menos um membro da equipe selecionado
-    if (!pauta.filmmaker_id && !pauta.fotografo_id && !pauta.jornalista_id && !pauta.rede_id) {
+    if (!pauta.filmmaker_id && !pauta.fotografo_id && !pauta.jornalista_id && !pauta.rede_id && !pauta.editor_id && !pauta.direcao_id) {
       console.log('No team members selected, skipping webhook')
       return new Response(
         JSON.stringify({ message: 'No team members selected, webhook not sent' }),
@@ -71,7 +71,9 @@ serve(async (req) => {
       { id: pauta.filmmaker_id, funcao: 'Filmmaker' },
       { id: pauta.fotografo_id, funcao: 'Fotógrafo' },
       { id: pauta.jornalista_id, funcao: 'Jornalista' },
-      { id: pauta.rede_id, funcao: 'Rede' }
+      { id: pauta.rede_id, funcao: 'Rede' },
+      { id: pauta.editor_id, funcao: 'Editor' },
+      { id: pauta.direcao_id, funcao: 'Direção' }
     ].filter(member => member.id !== null)
 
     // Buscar dados dos membros
