@@ -11,6 +11,15 @@ import { useAbsences } from "../../hooks/useAbsences";
 import { useToast } from "@/components/ui/use-toast";
 import { getInitials } from "@/lib/utils";
 import { cn } from "../../lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../ui/alert-dialog";
 
 interface RoleUserSelectProps {
   label: string;
@@ -30,6 +39,8 @@ export function RoleUserSelect({ label, cargo, cargoFilter, value, onChange, pla
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [alertOpen, setAlertOpen] = useState(false);
+  const [alertMessage, setAlertMessage] = useState("");
 
   const checkUserAbsence = (userId: string, targetDateStr?: string | Date) => {
     if (!targetDateStr) return null;
@@ -142,15 +153,14 @@ export function RoleUserSelect({ label, cargo, cargoFilter, value, onChange, pla
                         if (disabled) return;
                         if (absence) {
                           const name = p.full_name || p.display_name || "Este colaborador";
-                          toast({
-                            title: "Colaborador Indisponível",
-                            description: `${name} está de ${
+                          setAlertMessage(
+                            `${name} está de ${
                               absence.tipo === "ferias" ? "Férias" : "Folga"
                             } no período de ${formatDate(absence.data_inicio)} a ${formatDate(absence.data_fim)}.${
-                              absence.observacao ? ` (Motivo: ${absence.observacao})` : ""
-                            }`,
-                            variant: "destructive",
-                          });
+                              absence.observacao ? `\n\nMotivo/Justificativa: ${absence.observacao}` : ""
+                            }`
+                          );
+                          setAlertOpen(true);
                           return;
                         }
                         onChange(p.id);
@@ -191,6 +201,22 @@ export function RoleUserSelect({ label, cargo, cargoFilter, value, onChange, pla
           </div>
         </PopoverContent>
       </Popover>
+
+      <AlertDialog open={alertOpen} onOpenChange={setAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-red-600 flex items-center gap-2">
+              ⚠️ Colaborador Indisponível
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-700 dark:text-slate-300 text-base whitespace-pre-line pt-2">
+              {alertMessage}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setAlertOpen(false)}>Entendi</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

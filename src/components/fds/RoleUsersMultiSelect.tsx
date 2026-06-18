@@ -10,6 +10,15 @@ import { useProfiles, type Profile } from "../../hooks/useProfiles";
 import { useAbsences } from "../../hooks/useAbsences";
 import { useToast } from "@/components/ui/use-toast";
 import { getInitials } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../ui/alert-dialog";
 
 interface RoleUsersMultiSelectProps {
   label: string;
@@ -26,6 +35,8 @@ export function RoleUsersMultiSelect({ label, cargoFilter, selectedIds, onChange
   const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
+  const [alertOpen, setAlertOpen] = useState(false);
+  const [alertMessage, setAlertMessage] = useState("");
 
   const normalize = (str: string) =>
     str
@@ -90,15 +101,14 @@ export function RoleUsersMultiSelect({ label, cargoFilter, selectedIds, onChange
     if (absence) {
       const user = (profiles || []).find((x) => x.id === id);
       const name = user?.full_name || user?.display_name || "Este colaborador";
-      toast({
-        title: "Colaborador Indisponível",
-        description: `${name} está de ${
+      setAlertMessage(
+        `${name} está de ${
           absence.tipo === "ferias" ? "Férias" : "Folga"
         } no período de ${formatDate(absence.data_inicio)} a ${formatDate(absence.data_fim)}.${
-          absence.observacao ? ` (Motivo: ${absence.observacao})` : ""
-        }`,
-        variant: "destructive",
-      });
+          absence.observacao ? `\n\nMotivo/Justificativa: ${absence.observacao}` : ""
+        }`
+      );
+      setAlertOpen(true);
       return;
     }
 
@@ -183,6 +193,22 @@ export function RoleUsersMultiSelect({ label, cargoFilter, selectedIds, onChange
           </div>
         </PopoverContent>
       </Popover>
+
+      <AlertDialog open={alertOpen} onOpenChange={setAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-red-600 flex items-center gap-2">
+              ⚠️ Colaborador Indisponível
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-700 dark:text-slate-300 text-base whitespace-pre-line pt-2">
+              {alertMessage}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setAlertOpen(false)}>Entendi</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
