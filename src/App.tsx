@@ -83,11 +83,7 @@ const App = () => (
               />
               <Route
                 path="/ausencias"
-                element={
-                  <AdminRoute>
-                    <Ausencias />
-                  </AdminRoute>
-                }
+                element={<Ausencias />}
               />
             </Route>
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

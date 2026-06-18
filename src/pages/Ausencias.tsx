@@ -22,10 +22,12 @@ import { getInitials } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Seo } from "@/components/seo/Seo";
+import { useAdminRole } from "@/hooks/useAdminRole";
 
 export default function Ausencias() {
   const { profiles } = useProfiles();
   const { absences, isLoading, createAbsence, deleteAbsence, isCreating } = useAbsences();
+  const { isAdmin, hasScope, loading: adminLoading } = useAdminRole();
 
   // Form states
   const [selectedUserId, setSelectedUserId] = useState<string>("");
@@ -34,6 +36,25 @@ export default function Ausencias() {
   const [dataFim, setDataFim] = useState<string>("");
   const [observacao, setObservacao] = useState<string>("");
   const [error, setError] = useState<string>("");
+
+  if (adminLoading || isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!isAdmin && !hasScope("pautas_admin")) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="text-center space-y-2">
+          <h2 className="text-xl font-semibold">Acesso restrito</h2>
+          <p className="text-muted-foreground">Esta área é exclusiva para administradores ou editores de pautas.</p>
+        </div>
+      </div>
+    );
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

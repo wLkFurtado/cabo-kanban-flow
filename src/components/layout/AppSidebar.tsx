@@ -21,11 +21,17 @@ export function AppSidebar() {
   const { open } = useSidebar();
   const location = useLocation();
   const currentPath = location.pathname;
-  const { isAdmin } = useAdminRole();
+  const { isAdmin, hasScope } = useAdminRole();
 
-  const itemsToRender = isAdmin
-    ? menuItems
-    : menuItems.filter((item) => !item.adminOnly);
+  const itemsToRender = menuItems.filter((item) => {
+    if (item.url === "/ausencias") {
+      return isAdmin || hasScope("pautas_admin");
+    }
+    if (item.adminOnly) {
+      return isAdmin;
+    }
+    return true;
+  });
 
   return (
     <SidebarBody className="gap-4">
