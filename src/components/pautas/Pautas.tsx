@@ -65,6 +65,7 @@ export const Pautas: React.FC = () => {
     rede: e.rede_id || [],
     editor: e.editor_id || [],
     direcao: e.direcao_id || [],
+    producao: e.producao_id || [],
     recorrencia: (e.recorrencia || 'nenhuma') as Evento['recorrencia'],
     lembrete: 15,
     tags: [],

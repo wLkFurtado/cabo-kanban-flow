@@ -120,6 +120,7 @@ export const TimeSlot: React.FC<TimeSlotProps> = ({
           const redeName = getFirstNames(evento.rede);
           const editorName = getFirstNames(evento.editor);
           const direcaoName = getFirstNames(evento.direcao);
+          const producaoName = getFirstNames(evento.producao);
           
           return (
             <div
@@ -136,7 +137,7 @@ export const TimeSlot: React.FC<TimeSlotProps> = ({
                 {format(evento.dataInicio, 'HH:mm', { locale: ptBR })} - 
                 {format(evento.dataFim, 'HH:mm', { locale: ptBR })}
               </div>
-              {(filmakerName || fotografoName || jornalistaName || redeName || editorName || direcaoName) && (
+              {(filmakerName || fotografoName || jornalistaName || redeName || editorName || direcaoName || producaoName) && (
                 <div className="text-gray-500 dark:text-gray-400 mt-1 space-y-0.5">
                   {filmakerName && (
                     <div>Filmmaker: {filmakerName}</div>
@@ -155,6 +156,9 @@ export const TimeSlot: React.FC<TimeSlotProps> = ({
                   )}
                   {direcaoName && (
                     <div>Direção: {direcaoName}</div>
+                  )}
+                  {producaoName && (
+                    <div>Produção: {producaoName}</div>
                   )}
                 </div>
               )}

@@ -17,6 +17,7 @@ export interface Evento {
   rede?: string[]; // identificadores do responsável de redes (ex: ids)
   editor?: string[]; // identificadores do editor (ex: ids)
   direcao?: string[]; // identificadores da direção (ex: ids)
+  producao?: string[]; // identificadores da produção (ex: ids)
   recorrencia: 'nenhuma' | 'diaria' | 'semanal' | 'mensal';
   lembrete: number; // minutos antes
   tags: string[];
@@ -120,6 +121,7 @@ export const criarEventoVazio = (): Omit<Evento, 'id'> => ({
   rede: [],
   editor: [],
   direcao: [],
+  producao: [],
   recorrencia: 'nenhuma',
   lembrete: 15,
   tags: [],

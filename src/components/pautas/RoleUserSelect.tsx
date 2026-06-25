@@ -161,6 +161,7 @@ export function RoleUserSelect({ label, cargo, cargoFilter, value, onChange, pla
                             }`
                           );
                           setAlertOpen(true);
+                          setOpen(false); // Fecha o popover para não ficar sobreposto
                           return;
                         }
                         onChange(p.id);

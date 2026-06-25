@@ -52,6 +52,7 @@ export const EventModal: React.FC<EventModalProps> = ({
     rede: string[];
     editor: string[];
     direcao: string[];
+    producao: string[];
   }>({
     titulo: '',
     dataInicio: '',
@@ -65,6 +66,7 @@ export const EventModal: React.FC<EventModalProps> = ({
     rede: [],
     editor: [],
     direcao: [],
+    producao: [],
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -89,6 +91,7 @@ export const EventModal: React.FC<EventModalProps> = ({
         rede: evento.rede || [],
         editor: evento.editor || [],
         direcao: evento.direcao || [],
+        producao: evento.producao || [],
       });
     } else if (initialDate) {
       // Novo evento com data inicial
@@ -108,6 +111,7 @@ export const EventModal: React.FC<EventModalProps> = ({
         rede: [],
         editor: [],
         direcao: [],
+        producao: [],
       });
     } else {
       // Reset para novo evento
@@ -125,6 +129,7 @@ export const EventModal: React.FC<EventModalProps> = ({
         rede: [],
         editor: [],
         direcao: [],
+        producao: [],
       });
     }
     setErrors({});
@@ -185,6 +190,7 @@ export const EventModal: React.FC<EventModalProps> = ({
         rede_id: formData.rede.length > 0 ? formData.rede : null,
         editor_id: formData.editor.length > 0 ? formData.editor : null,
         direcao_id: formData.direcao.length > 0 ? formData.direcao : null,
+        producao_id: formData.producao.length > 0 ? formData.producao : null,
       });
     } else {
       createEvent({
@@ -204,6 +210,7 @@ export const EventModal: React.FC<EventModalProps> = ({
         rede_id: formData.rede.length > 0 ? formData.rede : null,
         editor_id: formData.editor.length > 0 ? formData.editor : null,
         direcao_id: formData.direcao.length > 0 ? formData.direcao : null,
+        producao_id: formData.producao.length > 0 ? formData.producao : null,
       });
     }
     
@@ -361,6 +368,13 @@ export const EventModal: React.FC<EventModalProps> = ({
               label="Direção"
               selectedIds={formData.direcao}
               onChange={(ids: string[]) => setFormData(prev => ({ ...prev, direcao: ids }))}
+              disabled={!canEdit}
+              pautaDate={formData.dataInicio}
+            />
+            <RoleUsersMultiSelect
+              label="Produção"
+              selectedIds={formData.producao}
+              onChange={(ids: string[]) => setFormData(prev => ({ ...prev, producao: ids }))}
               disabled={!canEdit}
               pautaDate={formData.dataInicio}
             />

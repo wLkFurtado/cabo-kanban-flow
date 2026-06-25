@@ -109,6 +109,7 @@ export function RoleUsersMultiSelect({ label, cargoFilter, selectedIds, onChange
         }`
       );
       setAlertOpen(true);
+      setOpen(false); // Fecha o popover para não ficar sobreposto
       return;
     }
 

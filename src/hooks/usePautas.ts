@@ -22,6 +22,7 @@ export interface PautasEvent {
   rede_id?: string[];
   editor_id?: string[];
   direcao_id?: string[];
+  producao_id?: string[];
   criado_por: string;
   created_at: string;
   updated_at: string;
@@ -151,7 +152,7 @@ export function usePautas() {
 
       const { data: originalEvent, error: fetchError } = await supabase
         .from('pautas_events')
-        .select('id, titulo, descricao, data_inicio, data_fim, tipo, prioridade, status, recorrencia, cor, local, responsavel_id, filmmaker_id, fotografo_id, jornalista_id, rede_id, editor_id, direcao_id, criado_por, created_at, updated_at')
+        .select('id, titulo, descricao, data_inicio, data_fim, tipo, prioridade, status, recorrencia, cor, local, responsavel_id, filmmaker_id, fotografo_id, jornalista_id, rede_id, editor_id, direcao_id, producao_id, criado_por, created_at, updated_at')
         .eq('id', eventId)
         .single();
 
