@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -17,7 +18,7 @@ import {
 } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Trash2, CalendarRange, Palmtree, UserX, Loader2 } from "lucide-react";
+import { Calendar, Trash2, CalendarRange, Palmtree, UserX, Loader2, Pencil } from "lucide-react";
 import { getInitials } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -26,7 +27,7 @@ import { useAdminRole } from "@/hooks/useAdminRole";
 
 export default function Ausencias() {
   const { profiles } = useProfiles();
-  const { absences, isLoading, createAbsence, deleteAbsence, isCreating } = useAbsences();
+  const { absences, isLoading, createAbsence, updateAbsence, deleteAbsence, isCreating, isUpdating } = useAbsences();
   const { isAdmin, hasScope, loading: adminLoading } = useAdminRole();
 
   // Form states
@@ -36,6 +37,66 @@ export default function Ausencias() {
   const [dataFim, setDataFim] = useState<string>("");
   const [observacao, setObservacao] = useState<string>("");
   const [error, setError] = useState<string>("");
+
+  // Edit states
+  const [editingAbsence, setEditingAbsence] = useState<UserAbsence | null>(null);
+  const [editSelectedUserId, setEditSelectedUserId] = useState<string>("");
+  const [editTipo, setEditTipo] = useState<"ferias" | "folga">("ferias");
+  const [editDataInicio, setEditDataInicio] = useState<string>("");
+  const [editDataFim, setEditDataFim] = useState<string>("");
+  const [editObservacao, setEditObservacao] = useState<string>("");
+  const [editError, setEditError] = useState<string>("");
+
+  const handleStartEdit = (abs: UserAbsence) => {
+    setEditingAbsence(abs);
+    setEditSelectedUserId(abs.user_id);
+    setEditTipo(abs.tipo);
+    setEditDataInicio(abs.data_inicio);
+    setEditDataFim(abs.data_fim);
+    setEditObservacao(abs.observacao || "");
+    setEditError("");
+  };
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEditError("");
+
+    if (!editingAbsence) return;
+
+    if (!editSelectedUserId) {
+      setEditError("Por favor, selecione um colaborador.");
+      return;
+    }
+    if (!editDataInicio) {
+      setEditError("Por favor, informe a data de início.");
+      return;
+    }
+    if (!editDataFim) {
+      setEditError("Por favor, informe a data de fim.");
+      return;
+    }
+
+    if (new Date(editDataInicio) > new Date(editDataFim)) {
+      setEditError("A data de início não pode ser posterior à data de término.");
+      return;
+    }
+
+    try {
+      await updateAbsence({
+        id: editingAbsence.id,
+        user_id: editSelectedUserId,
+        tipo: editTipo,
+        data_inicio: editDataInicio,
+        data_fim: editDataFim,
+        observacao: editObservacao || null,
+      });
+
+      setEditingAbsence(null);
+    } catch (err: any) {
+      setEditError(err.message || "Erro ao atualizar ausência.");
+    }
+  };
+
 
   if (adminLoading || isLoading) {
     return (
@@ -305,14 +366,24 @@ export default function Ausencias() {
                             {abs.observacao || "-"}
                           </TableCell>
                           <TableCell className="text-right">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 dark:hover:text-red-400"
-                              onClick={() => handleDelete(abs.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            <div className="flex justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 text-slate-600 hover:text-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+                                onClick={() => handleStartEdit(abs)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 dark:hover:text-red-400"
+                                onClick={() => handleDelete(abs.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
@@ -324,6 +395,102 @@ export default function Ausencias() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={!!editingAbsence} onOpenChange={(open) => !open && setEditingAbsence(null)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Editar Ausência</DialogTitle>
+            <DialogDescription>
+              Modifique os dados do período de ausência do colaborador.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpdate} className="space-y-4 pt-4">
+            {editError && (
+              <div className="p-3 text-sm text-red-600 bg-red-50 dark:bg-red-950/30 dark:text-red-400 rounded-md border border-red-200 dark:border-red-900">
+                {editError}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="editColaborador">Colaborador *</Label>
+              <Select value={editSelectedUserId} onValueChange={setEditSelectedUserId}>
+                <SelectTrigger id="editColaborador">
+                  <SelectValue placeholder="Selecione um profissional" />
+                </SelectTrigger>
+                <SelectContent className="max-h-60">
+                  {sortedProfiles.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.full_name || p.display_name || "Usuário sem nome"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="editTipo">Tipo *</Label>
+              <Select value={editTipo} onValueChange={(value: "ferias" | "folga") => setEditTipo(value)}>
+                <SelectTrigger id="editTipo">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ferias">🌴 Férias</SelectItem>
+                  <SelectItem value="folga">💤 Folga</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="editDataInicio">Data de Início *</Label>
+                <Input
+                  id="editDataInicio"
+                  type="date"
+                  value={editDataInicio}
+                  onChange={(e) => setEditDataInicio(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="editDataFim">Data de Término *</Label>
+                <Input
+                  id="editDataFim"
+                  type="date"
+                  value={editDataFim}
+                  onChange={(e) => setEditDataFim(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="editObservacao">Observação / Justificativa</Label>
+              <Textarea
+                id="editObservacao"
+                placeholder="Ex: Viagem de férias, folga compensatória pelo FDS..."
+                value={editObservacao}
+                onChange={(e) => setEditObservacao(e.target.value)}
+                rows={3}
+                className="resize-none"
+              />
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" onClick={() => setEditingAbsence(null)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isUpdating}>
+                {isUpdating ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  "Salvar Alterações"
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
